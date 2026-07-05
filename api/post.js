@@ -93,27 +93,101 @@ function validateUrl(raw) {
   return parsed.toString();
 }
 
-function generateCaption({ salespageLink, note, mediaType }) {
-  const hook = mediaType === "video"
-    ? "Kalau video ni terasa macam situasi bisnes sendiri, itu tanda funnel perlu disemak."
-    : "Kalau poster ni buat kau terfikir pasal iklan sendiri, itu tanda funnel perlu disemak.";
+function cleanText(value) {
+  return String(value || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#039;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  const noteLine = note ? `\n\nNota penting: ${String(note).trim()}` : "";
+function pickMatch(html, regex) {
+  const match = String(html || "").match(regex);
+  return cleanText(match?.[1] || "");
+}
+
+async function fetchSalespageContext(salespageLink) {
+  try {
+    const response = await fetch(salespageLink, {
+      headers: {
+        "user-agent": "PostPilot/1.0 (+https://post-pilot-taupe.vercel.app)",
+        accept: "text/html,application/xhtml+xml",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const html = await response.text();
+    const title = pickMatch(html, /<title[^>]*>([\s\S]*?)<\/title>/i);
+    const description = pickMatch(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i)
+      || pickMatch(html, /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["'][^>]*>/i);
+    const ogTitle = pickMatch(html, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["'][^>]*>/i);
+    const headings = [...html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)]
+      .map((match) => cleanText(match[1]))
+      .filter(Boolean)
+      .slice(0, 8);
+    const bodySnippet = cleanText(html).slice(0, 700);
+
+    return {
+      ok: true,
+      productName: ogTitle || title || "produk ini",
+      title,
+      description,
+      headings,
+      bodySnippet,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      productName: "produk ini",
+      error: error?.message || String(error),
+    };
+  }
+}
+
+function summarizeContext(context) {
+  const parts = [
+    context.description,
+    ...(context.headings || []),
+    context.bodySnippet,
+  ].filter(Boolean);
+  return parts.join(" ").slice(0, 900);
+}
+
+function generateCaption({ salespageLink, creativeAngle, mediaType, salespageContext }) {
+  const productName = salespageContext.productName || "produk ini";
+  const productContext = summarizeContext(salespageContext);
+  const angle = String(creativeAngle || "").trim();
+  const hook = mediaType === "video"
+    ? `Kalau video ni kena dengan situasi kau, mungkin ini masa untuk tengok ${productName} dengan lebih serius.`
+    : `Kalau poster ni buat kau berhenti scroll, mungkin ini tanda ${productName} memang relevan untuk kau.`;
+
+  const angleLine = angle
+    ? `\n\nAngle creative kali ini: ${angle}`
+    : "";
 
   return `${hook}
 
-Ramai owner bisnes sangka masalah utama ialah iklan tidak cukup laju. Tapi selalunya duit ads bocor sebab flow selepas orang nampak iklan tidak jelas.
+Ini bukan sekadar promosi kosong. Saya tengok semula salespage dan mesej utamanya: ${productContext || `ia menerangkan tentang ${productName} dan masalah yang produk ini cuba selesaikan.`}
 
-Leads masuk, orang tanya harga, follow up dibuat, tapi sales masih perlahan. Di situlah strategi funnel, content, WhatsApp follow up dan setup ads kena nampak sebagai satu sistem.
+Benda penting di sini ialah match antara masalah yang orang sedang rasa dengan solusi yang ditawarkan. Kalau kau sedang cari jalan untuk selesaikan masalah itu, salespage ini memang patut dibaca dulu sebelum buat keputusan.
 
-Ads Funnel Mastery bantu kau faham cara susun TikTok Ads dan funnel supaya bajet ads tidak sekadar jalan tanpa arah.${noteLine}
+${productName} boleh jadi langkah seterusnya kalau mesej dalam creative ini sama dengan situasi kau sekarang.${angleLine}
 
-Nak tengok salespage:
+Tengok detail dekat salespage:
 ${salespageLink}`;
 }
 
-function generateFirstComment(salespageLink) {
-  return `Nak belajar susun TikTok Ads + funnel dengan lebih jelas? Boleh tengok sini: ${salespageLink}`;
+function generateFirstComment(salespageLink, salespageContext) {
+  const productName = salespageContext.productName || "produk ini";
+  return `Nak tengok detail ${productName}? Boleh buka salespage sini: ${salespageLink}`;
 }
 
 function requireFacebookEnv() {
@@ -207,9 +281,16 @@ module.exports = async function handler(req, res) {
 
     const salespageLink = validateUrl(values.salespage_link);
     const mediaType = inferMediaType(creative.filename, creative.contentType);
+    const salespageContext = await fetchSalespageContext(salespageLink);
     const caption = String(values.custom_caption || "").trim()
-      || generateCaption({ salespageLink, note: values.caption_note, mediaType });
-    const firstComment = String(values.first_comment || "").trim() || generateFirstComment(salespageLink);
+      || generateCaption({
+        salespageLink,
+        creativeAngle: values.caption_note,
+        mediaType,
+        salespageContext,
+      });
+    const firstComment = String(values.first_comment || "").trim()
+      || generateFirstComment(salespageLink, salespageContext);
 
     const result = await publishToFacebook({
       file: creative,
@@ -218,7 +299,15 @@ module.exports = async function handler(req, res) {
     });
 
     res.statusCode = 200;
-    res.end(JSON.stringify({ ok: true, ...result }));
+    res.end(JSON.stringify({
+      ok: true,
+      salespage_context: {
+        ok: salespageContext.ok,
+        product_name: salespageContext.productName,
+        error: salespageContext.error,
+      },
+      ...result,
+    }));
   } catch (error) {
     res.statusCode = error.statusCode || 400;
     res.end(JSON.stringify({ ok: false, error: error?.message || String(error) }));

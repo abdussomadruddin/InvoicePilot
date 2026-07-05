@@ -167,7 +167,7 @@ function pageHtml() {
         <h1>PostPilot</h1>
       </div>
       <p>Upload creative, masukkan salespage link, dan PostPilot akan publish terus ke Facebook Page dengan caption Melayu serta first comment CTA.</p>
-      <p class="note">Nota: gambar biasanya sesuai untuk Vercel. Video besar mungkin kena limit upload serverless; kalau video besar, guna local app atau kita sambung storage selepas ini.</p>
+      <p class="note">Copywriting akan ikut salespage yang kau beri. Nota creative digunakan untuk angle poster/video. Gambar biasanya sesuai untuk Vercel; video besar mungkin kena limit upload serverless.</p>
 
       <form id="postForm">
         <label for="creative">Creative gambar/video</label>
@@ -176,8 +176,8 @@ function pageHtml() {
         <label for="salespage_link">Salespage link</label>
         <input id="salespage_link" name="salespage_link" type="url" value="https://digitaldominate.com/" required>
 
-        <label for="caption_note">Nota caption / angle (optional)</label>
-        <textarea id="caption_note" name="caption_note" placeholder="Contoh: Tekankan masalah leads masuk tapi tak close."></textarea>
+        <label for="caption_note">Konteks poster/video / angle creative (optional)</label>
+        <textarea id="caption_note" name="caption_note" placeholder="Contoh: Poster tunjuk founder penat packing order, angle: banyak kerja tapi salespage bantu automate workflow."></textarea>
 
         <label for="custom_caption">Custom caption penuh (optional)</label>
         <textarea id="custom_caption" name="custom_caption" placeholder="Kalau isi bahagian ini, sistem guna caption ini terus. Pastikan letak salespage link."></textarea>
@@ -221,6 +221,7 @@ function pageHtml() {
         result.className = "result ok";
         result.textContent = [
           "Posted ke Facebook.",
+          \`Salespage context: \${json.salespage_context?.product_name || "-"}\`,
           \`Post ID: \${json.post_id || "-"}\`,
           \`Link: \${json.permalink_url || "-"}\`,
           \`Comment ID: \${json.comment_id || "-"}\`
