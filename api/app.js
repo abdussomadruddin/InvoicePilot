@@ -674,9 +674,11 @@ function pageHtml() {
         result.textContent = [
           "Posted ke Facebook.",
           \`Post ID: \${json.post_id || "-"}\`,
+          \`Media ID: \${json.media_id || "-"}\`,
           \`Link: \${json.permalink_url || "-"}\`,
-          \`Comment ID: \${json.comment_id || "-"}\`
-        ].join("\\n");
+          \`Comment ID: \${json.comment_id || "-"}\`,
+          json.processing_note ? \`Nota: \${json.processing_note}\` : ""
+        ].filter(Boolean).join("\\n");
         form.reset();
         document.getElementById("salespage_link").value = "https://digitaldominate.com/";
         previewPanel.className = "preview";
