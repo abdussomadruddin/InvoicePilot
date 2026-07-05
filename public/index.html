@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PostPilot</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+      background: #f4f5f7;
+      color: #111827;
+    }
+
+    body {
+      margin: 0;
+    }
+
+    main {
+      width: min(880px, calc(100% - 32px));
+      margin: 40px auto;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08);
+      padding: 26px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 5vw, 42px);
+      letter-spacing: -0.04em;
+    }
+
+    p {
+      line-height: 1.55;
+      color: #4b5563;
+    }
+
+    label {
+      display: block;
+      margin: 18px 0 8px;
+      font-weight: 700;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 13px 14px;
+      font: inherit;
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 20px;
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 22px;
+      background: #111827;
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .note {
+      font-size: 14px;
+    }
+
+    .result {
+      margin-top: 18px;
+      border-radius: 14px;
+      padding: 14px;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    .result.ok {
+      display: block;
+      background: #ecfdf5;
+      border: 1px solid #86efac;
+      color: #14532d;
+    }
+
+    .result.err {
+      display: block;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #7f1d1d;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card">
+      <h1>PostPilot</h1>
+      <p>Upload creative, masukkan salespage link, dan PostPilot akan publish terus ke Facebook Page dengan caption Melayu serta first comment CTA.</p>
+      <p class="note">Nota: gambar biasanya sesuai untuk Vercel. Video besar mungkin kena limit upload serverless; kalau video besar, guna local app atau kita sambung storage selepas ini.</p>
+
+      <form id="postForm">
+        <label for="creative">Creative gambar/video</label>
+        <input id="creative" name="creative" type="file" accept="image/*,video/mp4,video/quicktime,video/webm" required>
+
+        <label for="salespage_link">Salespage link</label>
+        <input id="salespage_link" name="salespage_link" type="url" value="https://digitaldominate.com/" required>
+
+        <label for="caption_note">Nota caption / angle (optional)</label>
+        <textarea id="caption_note" name="caption_note" placeholder="Contoh: Tekankan masalah leads masuk tapi tak close."></textarea>
+
+        <label for="custom_caption">Custom caption penuh (optional)</label>
+        <textarea id="custom_caption" name="custom_caption" placeholder="Kalau isi bahagian ini, sistem guna caption ini terus. Pastikan letak salespage link."></textarea>
+
+        <label for="first_comment">First comment CTA (optional)</label>
+        <textarea id="first_comment" name="first_comment" placeholder="Kosongkan untuk auto-generate first comment."></textarea>
+
+        <button type="submit">Post ke Facebook Page</button>
+      </form>
+
+      <div id="result" class="result"></div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("postForm");
+    const result = document.getElementById("result");
+    const button = form.querySelector("button");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      result.className = "result";
+      result.textContent = "";
+      button.disabled = true;
+      button.textContent = "Posting...";
+
+      try {
+        const response = await fetch("/api/post", {
+          method: "POST",
+          body: new FormData(form)
+        });
+        const json = await response.json();
+        if (!response.ok || !json.ok) {
+          throw new Error(json.error || "Post failed.");
+        }
+
+        result.className = "result ok";
+        result.textContent = [
+          "Posted ke Facebook.",
+          `Post ID: ${json.post_id || "-"}`,
+          `Link: ${json.permalink_url || "-"}`,
+          `Comment ID: ${json.comment_id || "-"}`
+        ].join("\n");
+        form.reset();
+        document.getElementById("salespage_link").value = "https://digitaldominate.com/";
+      } catch (error) {
+        result.className = "result err";
+        result.textContent = error.message || String(error);
+      } finally {
+        button.disabled = false;
+        button.textContent = "Post ke Facebook Page";
+      }
+    });
+  </script>
+</body>
+</html>

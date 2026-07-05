@@ -1,0 +1,12 @@
+{
+  "name": "post-pilot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Upload a creative and publish it directly to a Facebook Page.",
+  "scripts": {
+    "check": "node --check api/post.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
