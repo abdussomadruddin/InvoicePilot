@@ -1,4 +1,18 @@
 {
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/api/app"
+    },
+    {
+      "src": "/login",
+      "dest": "/api/login-page"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
   "functions": {
     "api/post.js": {
       "maxDuration": 60

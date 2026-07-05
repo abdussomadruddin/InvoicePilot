@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PostPilot logo">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="0.52" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#14b8a6"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="150" y1="130" x2="370" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M154 154h128c66 0 106 34 106 90s-40 90-106 90h-54v72h-74V154Zm74 62v58h50c22 0 36-10 36-29s-14-29-36-29h-50Z" fill="url(#paper)"/>
+  <path d="M330 312l74-34-74-34v42h-70v52h70v-26Z" fill="#5eead4"/>
+  <circle cx="390" cy="136" r="22" fill="#facc15"/>
+</svg>

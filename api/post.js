@@ -1,4 +1,5 @@
 const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_MB || 20) * 1024 * 1024;
+const { requireAuth } = require("../lib/auth");
 
 function parseContentDisposition(header) {
   const result = {};
@@ -198,6 +199,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    requireAuth(req);
     const body = await readRequestBody(req);
     const { values, files } = parseMultipart(req, body);
     const creative = files.creative;
@@ -218,7 +220,7 @@ module.exports = async function handler(req, res) {
     res.statusCode = 200;
     res.end(JSON.stringify({ ok: true, ...result }));
   } catch (error) {
-    res.statusCode = 400;
+    res.statusCode = error.statusCode || 400;
     res.end(JSON.stringify({ ok: false, error: error?.message || String(error) }));
   }
 };

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Upload a creative and publish it directly to a Facebook Page.",
   "scripts": {
-    "check": "node --check api/post.js"
+    "check": "node --check api/app.js && node --check api/login-page.js && node --check api/login.js && node --check api/logout.js && node --check api/post.js && node --check lib/auth.js"
   },
   "engines": {
     "node": ">=20"
