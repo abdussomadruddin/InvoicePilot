@@ -1,8 +1,14 @@
 # PostPilot
 
-PostPilot is a simple Vercel webapp for uploading a creative and publishing it directly to a Facebook Page with a Malay caption and first comment CTA.
+PostPilot is a simple Vercel webapp for uploading a creative, previewing Malay copywriting, and publishing it directly to a Facebook Page after approval.
 
 Copywriting is generated from the uploaded creative note plus the supplied salespage URL. The app fetches the salespage title, meta description, headings, and visible text snippets so it is not locked to one product.
+
+The posting flow is:
+
+1. Upload creative and salespage URL.
+2. Preview caption and first comment CTA.
+3. Approve to publish, or regenerate for a new copywriting variation.
 
 ## Required Vercel Environment Variables
 

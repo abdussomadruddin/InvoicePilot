@@ -16,6 +16,12 @@
   "functions": {
     "api/post.js": {
       "maxDuration": 60
+    },
+    "api/preview.js": {
+      "maxDuration": 30
+    },
+    "api/regenerate.js": {
+      "maxDuration": 30
     }
   }
 }

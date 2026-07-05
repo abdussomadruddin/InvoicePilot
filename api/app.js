@@ -119,6 +119,14 @@ function pageHtml() {
       color: #111827;
     }
 
+    button.approve {
+      background: #15803d;
+    }
+
+    button.regenerate {
+      background: #2563eb;
+    }
+
     button:disabled {
       opacity: 0.65;
       cursor: wait;
@@ -147,6 +155,37 @@ function pageHtml() {
       border: 1px solid #fecaca;
       color: #7f1d1d;
     }
+
+    .preview {
+      display: none;
+      margin-top: 22px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 22px;
+    }
+
+    .preview.show {
+      display: block;
+    }
+
+    .preview-box {
+      background: #f8fafc;
+      border: 1px solid #dbe3ef;
+      border-radius: 14px;
+      padding: 14px;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .actions button {
+      margin-top: 0;
+    }
   </style>
 </head>
 <body>
@@ -166,7 +205,7 @@ function pageHtml() {
         <img src="/logo.svg" alt="" width="64" height="64">
         <h1>PostPilot</h1>
       </div>
-      <p>Upload creative, masukkan salespage link, dan PostPilot akan publish terus ke Facebook Page dengan caption Melayu serta first comment CTA.</p>
+      <p>Upload creative, masukkan salespage link, preview copywriting dahulu, kemudian approve untuk publish ke Facebook Page.</p>
       <p class="note">Copywriting akan ikut salespage yang kau beri. Nota creative digunakan untuk angle poster/video. Gambar biasanya sesuai untuk Vercel; video besar mungkin kena limit upload serverless.</p>
 
       <form id="postForm">
@@ -185,8 +224,24 @@ function pageHtml() {
         <label for="first_comment">First comment CTA (optional)</label>
         <textarea id="first_comment" name="first_comment" placeholder="Kosongkan untuk auto-generate first comment."></textarea>
 
-        <button type="submit">Post ke Facebook Page</button>
+        <button type="submit">Preview Copywriting</button>
       </form>
+
+      <section id="previewPanel" class="preview">
+        <h2>Preview Sebelum Posting</h2>
+        <p class="note" id="previewMeta"></p>
+
+        <label for="captionPreview">Caption yang akan dipost</label>
+        <textarea id="captionPreview"></textarea>
+
+        <label for="commentPreview">Komen CTA yang akan dijadikan first comment</label>
+        <textarea id="commentPreview"></textarea>
+
+        <div class="actions">
+          <button class="approve" id="approveButton" type="button">Approve & Post ke Facebook</button>
+          <button class="regenerate" id="regenerateButton" type="button">Jana Semula Copywriting</button>
+        </div>
+      </section>
 
       <div id="result" class="result"></div>
     </section>
@@ -196,16 +251,43 @@ function pageHtml() {
     const form = document.getElementById("postForm");
     const result = document.getElementById("result");
     const button = form.querySelector("button");
+    const previewPanel = document.getElementById("previewPanel");
+    const previewMeta = document.getElementById("previewMeta");
+    const captionPreview = document.getElementById("captionPreview");
+    const commentPreview = document.getElementById("commentPreview");
+    const approveButton = document.getElementById("approveButton");
+    const regenerateButton = document.getElementById("regenerateButton");
+    let currentPreview = null;
+
+    function showError(error) {
+      result.className = "result err";
+      result.textContent = error.message || String(error);
+    }
+
+    function showPreview(json) {
+      currentPreview = json.preview;
+      captionPreview.value = currentPreview.caption || "";
+      commentPreview.value = currentPreview.comment_cta || "";
+      previewMeta.textContent = [
+        \`Salespage context: \${currentPreview.salespage_context?.product_name || "-"}\`,
+        \`Variation: \${currentPreview.variation || 0}\`,
+        \`Style: \${currentPreview.style || "-"}\`
+      ].join(" | ");
+      previewPanel.className = "preview show";
+      result.className = "result ok";
+      result.textContent = "Preview siap. Semak caption dan komen CTA. Klik Approve untuk post, atau Jana Semula untuk variasi baru.";
+    }
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       result.className = "result";
       result.textContent = "";
+      previewPanel.className = "preview";
       button.disabled = true;
-      button.textContent = "Posting...";
+      button.textContent = "Generating preview...";
 
       try {
-        const response = await fetch("/api/post", {
+        const response = await fetch("/api/preview", {
           method: "POST",
           body: new FormData(form)
         });
@@ -218,22 +300,114 @@ function pageHtml() {
           throw new Error(json.error || "Post failed.");
         }
 
+        showPreview(json);
+      } catch (error) {
+        showError(error);
+      } finally {
+        button.disabled = false;
+        button.textContent = "Preview Copywriting";
+      }
+    });
+
+    regenerateButton.addEventListener("click", async () => {
+      if (!currentPreview) return;
+      result.className = "result";
+      result.textContent = "";
+      regenerateButton.disabled = true;
+      regenerateButton.textContent = "Generating...";
+
+      try {
+        const response = await fetch("/api/regenerate", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            salespage_link: currentPreview.salespage_link,
+            creative_angle: currentPreview.creative_angle,
+            media_type: currentPreview.media_type,
+            salespage_context: currentPreview.salespage_context?.raw,
+            variation: currentPreview.variation
+          })
+        });
+        const json = await response.json();
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Regenerate failed.");
+
+        currentPreview = {
+          ...currentPreview,
+          caption: json.preview.caption,
+          comment_cta: json.preview.comment_cta,
+          salespage_context: json.preview.salespage_context,
+          variation: json.preview.variation,
+          style: json.preview.style
+        };
+        captionPreview.value = currentPreview.caption || "";
+        commentPreview.value = currentPreview.comment_cta || "";
+        previewMeta.textContent = [
+          \`Salespage context: \${currentPreview.salespage_context?.product_name || "-"}\`,
+          \`Variation: \${currentPreview.variation || 0}\`,
+          \`Style: \${currentPreview.style || "-"}\`
+        ].join(" | ");
+        result.className = "result ok";
+        result.textContent = "Copywriting baru sudah dijana. Semak semula sebelum approve.";
+      } catch (error) {
+        showError(error);
+      } finally {
+        regenerateButton.disabled = false;
+        regenerateButton.textContent = "Jana Semula Copywriting";
+      }
+    });
+
+    approveButton.addEventListener("click", async () => {
+      if (!currentPreview) return;
+      const file = document.getElementById("creative").files[0];
+      if (!file) {
+        showError(new Error("Creative file tiada. Sila pilih semula file dan preview semula."));
+        return;
+      }
+
+      const payload = new FormData();
+      payload.append("creative", file);
+      payload.append("caption", captionPreview.value);
+      payload.append("first_comment", commentPreview.value);
+
+      result.className = "result";
+      result.textContent = "";
+      approveButton.disabled = true;
+      regenerateButton.disabled = true;
+      approveButton.textContent = "Posting...";
+
+      try {
+        const response = await fetch("/api/post", {
+          method: "POST",
+          body: payload
+        });
+        const json = await response.json();
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Post failed.");
+
         result.className = "result ok";
         result.textContent = [
           "Posted ke Facebook.",
-          \`Salespage context: \${json.salespage_context?.product_name || "-"}\`,
           \`Post ID: \${json.post_id || "-"}\`,
           \`Link: \${json.permalink_url || "-"}\`,
           \`Comment ID: \${json.comment_id || "-"}\`
         ].join("\\n");
         form.reset();
         document.getElementById("salespage_link").value = "https://digitaldominate.com/";
+        previewPanel.className = "preview";
+        currentPreview = null;
       } catch (error) {
-        result.className = "result err";
-        result.textContent = error.message || String(error);
+        showError(error);
       } finally {
-        button.disabled = false;
-        button.textContent = "Post ke Facebook Page";
+        approveButton.disabled = false;
+        regenerateButton.disabled = false;
+        approveButton.textContent = "Approve & Post ke Facebook";
       }
     });
   </script>
