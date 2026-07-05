@@ -206,7 +206,7 @@ function pageHtml() {
         <h1>PostPilot</h1>
       </div>
       <p>Upload creative, masukkan salespage link, preview copywriting dahulu, kemudian approve untuk publish ke Facebook Page.</p>
-      <p class="note">Copywriting akan ikut salespage yang kau beri dan disusun sebagai Hook, Storytelling, USP, Offer, Scarcity, Urgency, CTA. Nota creative digunakan untuk angle poster/video.</p>
+      <p class="note">Copywriting akan ikut salespage yang kau beri, dengan aliran direct-response yang natural. Nota creative digunakan untuk angle poster/video.</p>
 
       <form id="postForm">
         <label for="creative">Creative gambar/video</label>
