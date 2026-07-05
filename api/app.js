@@ -272,7 +272,7 @@ function pageHtml() {
       commentPreview.value = currentPreview.comment_cta || "";
       previewMeta.textContent = [
         \`Salespage context: \${currentPreview.salespage_context?.product_name || "-"}\`,
-        \`Concept: \${Number(currentPreview.variation || 0) + 1}/500\`,
+        \`Concept: \${Number(currentPreview.variation || 0) + 1}/3000\`,
         \`Style: \${currentPreview.style || "-"}\`
       ].join(" | ");
       previewPanel.className = "preview show";
@@ -351,7 +351,7 @@ function pageHtml() {
         commentPreview.value = currentPreview.comment_cta || "";
         previewMeta.textContent = [
           \`Salespage context: \${currentPreview.salespage_context?.product_name || "-"}\`,
-          \`Concept: \${Number(currentPreview.variation || 0) + 1}/500\`,
+          \`Concept: \${Number(currentPreview.variation || 0) + 1}/3000\`,
           \`Style: \${currentPreview.style || "-"}\`
         ].join(" | ");
         result.className = "result ok";
