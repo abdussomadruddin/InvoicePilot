@@ -257,18 +257,39 @@ function pageHtml() {
     const commentPreview = document.getElementById("commentPreview");
     const approveButton = document.getElementById("approveButton");
     const regenerateButton = document.getElementById("regenerateButton");
+    const creativeInput = document.getElementById("creative");
     const MAX_DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
+    const TARGET_UPLOAD_BYTES = Math.floor(3.75 * 1024 * 1024);
     let currentPreview = null;
     let seenVariations = [];
+    let preparedCreativeFile = null;
+    let preparedCreativeNotice = "";
+
+    creativeInput.addEventListener("change", () => {
+      currentPreview = null;
+      seenVariations = [];
+      preparedCreativeFile = null;
+      preparedCreativeNotice = "";
+      previewPanel.className = "preview";
+      result.className = "result";
+      result.textContent = "";
+    });
 
     function showError(error) {
       result.className = "result err";
       result.textContent = error.message || String(error);
     }
 
+    function formatMb(bytes) {
+      return (bytes / 1024 / 1024).toFixed(1);
+    }
+
+    function fileFromBlob(blob, filename) {
+      return new File([blob], filename, { type: blob.type || "application/octet-stream", lastModified: Date.now() });
+    }
+
     function uploadLimitMessage(file) {
-      const sizeMb = (file.size / 1024 / 1024).toFixed(1);
-      return \`File ini \${sizeMb}MB. Vercel Serverless Function ada request body limit sekitar 4.5MB, jadi video besar tidak boleh dihantar terus melalui route ini. Preview copywriting boleh dibuat, tapi untuk approve/post video besar perlu compress bawah 4MB atau gunakan flow chunked/direct storage.\`;
+      return \`File ini \${formatMb(file.size)}MB. Auto-compress tidak berjaya turunkan file bawah 4MB. Vercel Serverless Function ada request body limit sekitar 4.5MB, jadi file besar tidak boleh dihantar terus melalui route ini. Cuba video lebih pendek/resolution lebih rendah, atau guna flow chunked/direct storage.\`;
     }
 
     async function readApiJson(response) {
@@ -279,6 +300,199 @@ function pageHtml() {
         const cleanText = text.trim() || response.statusText || "Unknown server response";
         throw new Error(\`Server balas bukan JSON: \${cleanText.slice(0, 220)}\`);
       }
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Gagal compress image."));
+        }, type, quality);
+      });
+    }
+
+    async function imageBitmapFromFile(file) {
+      if ("createImageBitmap" in window) return createImageBitmap(file);
+
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(image);
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("Gagal baca image untuk compression."));
+        };
+        image.src = url;
+      });
+    }
+
+    async function compressImageFile(file) {
+      const image = await imageBitmapFromFile(file);
+      const originalWidth = image.width;
+      const originalHeight = image.height;
+      const maxDims = [1800, 1440, 1200, 1080, 900, 720, 540];
+      const qualities = [0.86, 0.78, 0.7, 0.62, 0.54, 0.46, 0.38];
+
+      for (const maxDim of maxDims) {
+        const scale = Math.min(1, maxDim / Math.max(originalWidth, originalHeight));
+        const width = Math.max(1, Math.round(originalWidth * scale));
+        const height = Math.max(1, Math.round(originalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0, width, height);
+
+        for (const quality of qualities) {
+          const blob = await canvasToBlob(canvas, "image/jpeg", quality);
+          if (blob.size <= TARGET_UPLOAD_BYTES) {
+            const name = file.name.replace(/\.[^.]+$/, "") + "-compressed.jpg";
+            return fileFromBlob(blob, name);
+          }
+        }
+      }
+
+      throw new Error("Image terlalu besar untuk dicompress bawah 4MB.");
+    }
+
+    function getVideoMetadata(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.muted = true;
+        video.playsInline = true;
+        video.onloadedmetadata = () => {
+          const metadata = {
+            duration: Math.max(1, video.duration || 1),
+            width: video.videoWidth || 720,
+            height: video.videoHeight || 1280,
+          };
+          URL.revokeObjectURL(url);
+          resolve(metadata);
+        };
+        video.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("Gagal baca video untuk compression."));
+        };
+        video.src = url;
+      });
+    }
+
+    function recorderMimeType() {
+      const candidates = [
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm",
+        "video/mp4",
+      ];
+      return candidates.find((type) => window.MediaRecorder && MediaRecorder.isTypeSupported(type)) || "";
+    }
+
+    async function compressVideoPass(file, maxWidth, videoBitsPerSecond) {
+      if (!window.MediaRecorder) throw new Error("Browser ini tidak support video compression.");
+      const mimeType = recorderMimeType();
+      if (!mimeType) throw new Error("Browser ini tidak support output video WebM/MP4 compression.");
+
+      const url = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.src = url;
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = "auto";
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = resolve;
+        video.onerror = () => reject(new Error("Gagal load video untuk compression."));
+      });
+
+      const scale = Math.min(1, maxWidth / Math.max(video.videoWidth || maxWidth, video.videoHeight || maxWidth));
+      const width = Math.max(2, Math.round((video.videoWidth || maxWidth) * scale / 2) * 2);
+      const height = Math.max(2, Math.round((video.videoHeight || maxWidth) * scale / 2) * 2);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      const stream = canvas.captureStream(24);
+      const chunks = [];
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond });
+
+      let drawTimer = null;
+      const drawFrame = () => {
+        if (!video.paused && !video.ended) {
+          ctx.drawImage(video, 0, 0, width, height);
+          drawTimer = requestAnimationFrame(drawFrame);
+        }
+      };
+
+      const done = new Promise((resolve, reject) => {
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size) chunks.push(event.data);
+        };
+        recorder.onerror = () => reject(new Error("Gagal record compressed video."));
+        recorder.onstop = () => {
+          if (drawTimer) cancelAnimationFrame(drawTimer);
+          stream.getTracks().forEach((track) => track.stop());
+          URL.revokeObjectURL(url);
+          resolve(new Blob(chunks, { type: mimeType.split(";")[0] || "video/webm" }));
+        };
+      });
+
+      recorder.start(1000);
+      video.currentTime = 0;
+      await video.play();
+      drawFrame();
+      await new Promise((resolve) => {
+        video.onended = resolve;
+      });
+      if (recorder.state !== "inactive") recorder.stop();
+      return done;
+    }
+
+    async function compressVideoFile(file) {
+      const metadata = await getVideoMetadata(file);
+      const baseBitrate = Math.max(140000, Math.floor((TARGET_UPLOAD_BYTES * 8 * 0.78) / metadata.duration));
+      const attempts = [
+        { maxWidth: 720, bitrate: Math.min(baseBitrate, 1200000) },
+        { maxWidth: 540, bitrate: Math.min(Math.floor(baseBitrate * 0.72), 800000) },
+        { maxWidth: 360, bitrate: Math.min(Math.floor(baseBitrate * 0.48), 420000) },
+      ];
+
+      for (const attempt of attempts) {
+        const blob = await compressVideoPass(file, attempt.maxWidth, attempt.bitrate);
+        if (blob.size <= TARGET_UPLOAD_BYTES) {
+          const extension = blob.type.includes("mp4") ? "mp4" : "webm";
+          const name = file.name.replace(/\.[^.]+$/, "") + \`-compressed.\${extension}\`;
+          return fileFromBlob(blob, name);
+        }
+      }
+
+      throw new Error("Video terlalu besar/panjang untuk dicompress bawah 4MB dalam browser.");
+    }
+
+    async function prepareCreativeFile(file) {
+      preparedCreativeFile = null;
+      preparedCreativeNotice = "";
+      if (!file || file.size <= MAX_DIRECT_UPLOAD_BYTES) {
+        preparedCreativeFile = file;
+        return file;
+      }
+
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      if (!isImage && !isVideo) throw new Error("Format tidak disokong untuk auto-compress.");
+
+      const compressed = isImage
+        ? await compressImageFile(file)
+        : await compressVideoFile(file);
+
+      if (compressed.size > MAX_DIRECT_UPLOAD_BYTES) throw new Error(uploadLimitMessage(compressed));
+
+      preparedCreativeFile = compressed;
+      preparedCreativeNotice = \`Auto-compress siap: \${formatMb(file.size)}MB -> \${formatMb(compressed.size)}MB (\${compressed.name}).\`;
+      return compressed;
     }
 
     function showPreview(json) {
@@ -305,15 +519,29 @@ function pageHtml() {
       button.textContent = "Generating preview...";
 
       try {
-        const file = document.getElementById("creative").files[0];
-        let response;
+        const file = creativeInput.files[0];
+        let uploadFile = file;
         if (file && file.size > MAX_DIRECT_UPLOAD_BYTES) {
+          button.textContent = "Compressing creative...";
+          try {
+            uploadFile = await prepareCreativeFile(file);
+          } catch (compressionError) {
+            preparedCreativeFile = null;
+            preparedCreativeNotice = compressionError.message || String(compressionError);
+          }
+        } else {
+          preparedCreativeFile = file || null;
+          preparedCreativeNotice = "";
+        }
+
+        let response;
+        if (uploadFile && uploadFile.size > MAX_DIRECT_UPLOAD_BYTES) {
           response = await fetch("/api/preview-metadata", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
-              filename: file.name,
-              content_type: file.type,
+              filename: uploadFile.name,
+              content_type: uploadFile.type,
               salespage_link: document.getElementById("salespage_link").value,
               caption_note: document.getElementById("caption_note").value,
               custom_caption: document.getElementById("custom_caption").value,
@@ -321,9 +549,11 @@ function pageHtml() {
             })
           });
         } else {
+          const previewForm = new FormData(form);
+          if (uploadFile) previewForm.set("creative", uploadFile);
           response = await fetch("/api/preview", {
             method: "POST",
-            body: new FormData(form)
+            body: previewForm
           });
         }
         const json = await readApiJson(response);
@@ -336,9 +566,12 @@ function pageHtml() {
         }
 
         showPreview(json);
-        if (file && file.size > MAX_DIRECT_UPLOAD_BYTES) {
+        if (preparedCreativeNotice && preparedCreativeFile) {
+          result.className = "result ok";
+          result.textContent = \`Preview siap. \${preparedCreativeNotice}\\n\\nSemak caption dan komen CTA. Klik Approve untuk post.\`;
+        } else if (uploadFile && uploadFile.size > MAX_DIRECT_UPLOAD_BYTES) {
           result.className = "result err";
-          result.textContent = \`Preview siap, tapi file terlalu besar untuk direct approve/post dari Vercel.\\n\\n\${uploadLimitMessage(file)}\`;
+          result.textContent = \`Preview siap, tapi file terlalu besar untuk direct approve/post dari Vercel.\\n\\n\${uploadLimitMessage(uploadFile)}\`;
         }
       } catch (error) {
         showError(error);
@@ -403,18 +636,19 @@ function pageHtml() {
 
     approveButton.addEventListener("click", async () => {
       if (!currentPreview) return;
-      const file = document.getElementById("creative").files[0];
+      const file = creativeInput.files[0];
       if (!file) {
         showError(new Error("Creative file tiada. Sila pilih semula file dan preview semula."));
         return;
       }
-      if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
-        showError(new Error(uploadLimitMessage(file)));
+      const uploadFile = preparedCreativeFile || file;
+      if (uploadFile.size > MAX_DIRECT_UPLOAD_BYTES) {
+        showError(new Error(uploadLimitMessage(uploadFile)));
         return;
       }
 
       const payload = new FormData();
-      payload.append("creative", file);
+      payload.append("creative", uploadFile);
       payload.append("caption", captionPreview.value);
       payload.append("first_comment", commentPreview.value);
 
@@ -448,6 +682,8 @@ function pageHtml() {
         previewPanel.className = "preview";
         currentPreview = null;
         seenVariations = [];
+        preparedCreativeFile = null;
+        preparedCreativeNotice = "";
       } catch (error) {
         showError(error);
       } finally {
