@@ -87,6 +87,14 @@ APP_TIMEZONE=Asia/Kuala_Lumpur
 
 Client data, editable business settings, and invoice upload history are stored in Supabase when `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set. Google Drive is still used for client folders and PDF files.
 
+InvoicePilot stores:
+
+- `invoice_clients` for client details.
+- `business_settings` for company details.
+- `bank_accounts` for invoice payment accounts.
+- `invoice_uploads` for uploaded PDF history.
+- `app_activity` for the dashboard live feed.
+
 Create the database tables first:
 
 ```bash
@@ -130,7 +138,7 @@ The app uses `INVOICE_DRIVE_MASTER_FOLDER_ID` as the master client folder. New c
 
 Invoice uploads go into `Invoice & Receipt`. Each successful upload is recorded in the Supabase `invoice_uploads` table.
 
-The Settings tab stores the business profile used in invoice PDFs in Supabase. If Supabase is not configured yet, invoice PDFs fall back to the environment variables above.
+The Settings tab stores the business profile used in invoice PDFs in Supabase. The Akaun Bank tab stores payment accounts; the active default bank is printed in invoice PDFs. If Supabase is not configured yet, invoice PDFs fall back to the environment variables above.
 
 You can also override all clients from Vercel with `INVOICE_CLIENTS_JSON`:
 

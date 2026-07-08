@@ -3,6 +3,7 @@ const {
   getBusinessSettingsWithStatus,
   saveBusinessSettings,
 } = require("../lib/invoices");
+const { recordActivity } = require("../lib/supabase-db");
 const { readJsonBody } = require("../lib/postpilot");
 
 module.exports = async function handler(req, res) {
@@ -21,6 +22,13 @@ module.exports = async function handler(req, res) {
     if (req.method === "POST") {
       const body = await readJsonBody(req);
       const saved = await saveBusinessSettings(body);
+      await recordActivity({
+        type: "settings_updated",
+        title: "Settings syarikat dikemaskini",
+        description: saved.settings?.name || "Business profile invoice disimpan.",
+        entityType: "settings",
+        entityId: "business",
+      });
       res.statusCode = 200;
       res.end(JSON.stringify({
         ok: true,

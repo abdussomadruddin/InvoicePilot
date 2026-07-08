@@ -26,6 +26,7 @@ module.exports = async function handler(req, res) {
       invoices,
       count: invoices.length,
       registryStatus,
+      bankStatus: config.bankStatus,
     }));
   } catch (error) {
     res.statusCode = error.statusCode || 400;

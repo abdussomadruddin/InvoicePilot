@@ -105,11 +105,17 @@ function pageHtml() {
       margin: 0;
     }
 
-    .mini-grid {
+    .mini-grid,
+    .quick-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
       margin-top: 16px;
+    }
+
+    .quick-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin: 18px 0 22px;
     }
 
     .mini-card {
@@ -123,6 +129,17 @@ function pageHtml() {
       display: block;
       margin-top: 4px;
       font-size: 22px;
+    }
+
+    .quick-card {
+      width: 100%;
+      min-height: 76px;
+      margin-top: 0;
+      border-radius: 14px;
+      background: #f0fdf4;
+      color: #14532d;
+      border: 1px solid #bbf7d0;
+      font-size: 16px;
     }
 
     .client-list {
@@ -150,6 +167,78 @@ function pageHtml() {
       color: #475569;
       font-weight: 800;
       font-size: 13px;
+    }
+
+    .bank-list,
+    .activity-feed {
+      margin-top: 18px;
+      border: 1px solid #dbe3ef;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .bank-row {
+      display: grid;
+      grid-template-columns: minmax(160px, 1.1fr) minmax(150px, 1fr) minmax(130px, 0.9fr) minmax(150px, auto);
+      gap: 12px;
+      padding: 14px;
+      border-top: 1px solid #e5e7eb;
+      align-items: center;
+    }
+
+    .bank-row:first-child,
+    .activity-item:first-child {
+      border-top: 0;
+    }
+
+    .bank-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .bank-actions button {
+      margin-top: 0;
+      padding: 9px 12px;
+      width: auto;
+    }
+
+    .default-pill {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      margin-top: 6px;
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: #dcfce7;
+      color: #166534;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .activity-item {
+      padding: 14px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .activity-item strong {
+      display: block;
+      color: #111827;
+    }
+
+    .activity-time {
+      display: block;
+      color: #64748b;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .empty-state {
+      padding: 16px;
+      color: #64748b;
+      background: #f8fafc;
     }
 
     .client-actions {
@@ -217,6 +306,21 @@ function pageHtml() {
       padding: 13px 14px;
       font: inherit;
       background: #fff;
+    }
+
+    input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
+      margin: 0;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      margin: 0;
+      font-weight: 800;
     }
 
     textarea {
@@ -475,11 +579,13 @@ function pageHtml() {
 
     @media (max-width: 720px) {
       .mini-grid,
+      .quick-grid,
       .client-grid {
         grid-template-columns: 1fr;
       }
 
       .client-row,
+      .bank-row,
       .invoice-row {
         grid-template-columns: 1fr;
       }
@@ -487,6 +593,43 @@ function pageHtml() {
       .client-row.header,
       .invoice-row.header {
         display: none;
+      }
+
+      main {
+        width: min(100% - 20px, 1080px);
+        margin: 14px auto 28px;
+      }
+
+      .card {
+        border-radius: 14px;
+        padding: 16px;
+      }
+
+      .tabs,
+      .subtabs {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .tab-button,
+      .subtab-button,
+      button {
+        width: 100%;
+        min-height: 48px;
+      }
+
+      .section-heading {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar input {
+        min-width: 0;
       }
     }
   </style>
@@ -505,30 +648,47 @@ function pageHtml() {
 
     <nav class="tabs" aria-label="Main tabs">
       <button class="tab-button active" type="button" data-tab-target="dashboard">Dashboard</button>
-      <button class="tab-button" type="button" data-tab-target="client">Client</button>
-      <button class="tab-button" type="button" data-tab-target="settings">Settings</button>
-      <button class="tab-button" type="button" data-tab-target="document">Document</button>
+      <button class="tab-button" type="button" data-tab-target="postpilot">Post Pilot</button>
+      <button class="tab-button" type="button" data-tab-target="invoicepilot">Invoice Pilot</button>
     </nav>
 
     <section id="tab-dashboard" class="tab-panel active" data-tab-panel="dashboard">
-      <section class="card app-panel" data-panel="postpilot">
-        <button class="panel-header" type="button" aria-expanded="true">
-          <div class="hero">
-            <img src="/logo.svg" alt="" width="64" height="64">
+      <section class="card">
+        <div class="section-heading">
+          <div>
             <h1>Dashboard</h1>
+            <p class="note">Semua status penting dalam satu tempat.</p>
           </div>
-          <span class="panel-toggle" aria-hidden="true">⌄</span>
-        </button>
-        <div class="panel-body">
+          <button id="refreshActivityButton" class="secondary" type="button">Refresh</button>
+        </div>
         <div class="mini-grid">
           <div class="mini-card">Pelanggan<strong id="dashboardClientCount">-</strong></div>
           <div class="mini-card">Invoice bulan ini<strong id="dashboardInvoiceCount">-</strong></div>
-          <div class="mini-card">Drive Registry<strong id="dashboardRegistryStatus">-</strong></div>
+          <div class="mini-card">Database<strong id="dashboardRegistryStatus">-</strong></div>
+          <div class="mini-card">Akaun Bank<strong id="dashboardBankStatus">-</strong></div>
         </div>
+        <div class="quick-grid">
+          <button class="quick-card" type="button" data-go-tab="postpilot">Buat Post</button>
+          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="document-panel">Generate Invoice</button>
+          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="bank-panel">Akaun Bank</button>
+        </div>
+        <h2>Live Feed</h2>
+        <div id="activityFeed" class="activity-feed">
+          <div class="empty-state">Belum ada aktiviti. Bila anda save client, settings, bank atau upload invoice, aktiviti akan muncul di sini.</div>
+        </div>
+        <div id="activityResult" class="result"></div>
+      </section>
+    </section>
 
-        <h2>PostPilot</h2>
-        <p>Upload creative, masukkan salespage link, preview copywriting dahulu, kemudian approve untuk publish ke Facebook Page.</p>
-        <p class="note">Copywriting akan ikut salespage yang kau beri, dengan aliran direct-response yang natural. Nota creative digunakan untuk angle poster/video.</p>
+    <section id="tab-postpilot" class="tab-panel" data-tab-panel="postpilot">
+      <section class="card app-panel" data-panel="postpilot">
+        <div class="hero">
+          <img src="/logo.svg" alt="" width="64" height="64">
+          <div>
+            <h1>Post Pilot</h1>
+            <p>Upload creative, review ayat, kemudian post ke Facebook Page.</p>
+          </div>
+        </div>
 
         <form id="postForm">
           <label for="creative">Creative gambar/video</label>
@@ -566,15 +726,25 @@ function pageHtml() {
         </section>
 
         <div id="result" class="result"></div>
-        </div>
       </section>
     </section>
 
-    <section id="tab-client" class="tab-panel" data-tab-panel="client">
+    <section id="tab-invoicepilot" class="tab-panel" data-tab-panel="invoicepilot">
       <section class="card">
         <div class="section-heading">
-          <h1>Client</h1>
+          <div>
+            <h1>Invoice Pilot</h1>
+            <p class="note">Urus pelanggan, settings, bank, dan invoice PDF di sini.</p>
+          </div>
         </div>
+        <div class="subtabs" aria-label="Invoice Pilot tabs">
+          <button class="subtab-button active" type="button" data-subtab-group="invoice-pilot" data-subtab-target="client-panel">Client</button>
+          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="settings-panel">Settings</button>
+          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="bank-panel">Akaun Bank</button>
+          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="document-panel">Document</button>
+        </div>
+
+        <div id="client-panel" class="subtab-panel active" data-subtab-panel="invoice-pilot">
         <div class="subtabs" aria-label="Client tabs">
           <button class="subtab-button active" type="button" data-subtab-group="client" data-subtab-target="client-list-panel">Senarai Pelanggan</button>
           <button class="subtab-button" type="button" data-subtab-group="client" data-subtab-target="client-add-panel">Tambah Pelanggan</button>
@@ -632,15 +802,11 @@ function pageHtml() {
             </div>
           </form>
         </div>
-      </section>
-    </section>
-
-    <section id="tab-settings" class="tab-panel" data-tab-panel="settings">
-      <section class="card">
-        <div class="section-heading">
-          <h1>Settings</h1>
         </div>
+
+        <div id="settings-panel" class="subtab-panel" data-subtab-panel="invoice-pilot">
         <form id="settingsForm" class="client-form">
+          <h2>Settings Syarikat</h2>
           <div class="client-grid">
             <div>
               <label for="businessName">Nama Syarikat</label>
@@ -666,19 +832,51 @@ function pageHtml() {
           <button id="saveSettingsButton" type="submit">Save Settings</button>
         </form>
         <div id="settingsResult" class="result"></div>
-      </section>
-    </section>
+        </div>
 
-    <section id="tab-document" class="tab-panel" data-tab-panel="document">
-      <section class="card tool-card app-panel" data-panel="invoices">
-        <button class="panel-header" type="button" aria-expanded="true">
-          <div class="hero">
-            <img src="/logo.svg" alt="" width="64" height="64">
-            <h1>Document</h1>
+        <div id="bank-panel" class="subtab-panel" data-subtab-panel="invoice-pilot">
+          <div class="section-heading">
+            <div>
+              <h2>Akaun Bank</h2>
+              <p class="note">Akaun default akan masuk dalam PDF invoice.</p>
+            </div>
+            <button id="refreshBankButton" class="secondary" type="button">Refresh Bank</button>
           </div>
-          <span class="panel-toggle" aria-hidden="true">⌄</span>
-        </button>
-        <div class="panel-body">
+          <div id="bankList" class="bank-list"></div>
+          <form id="bankForm" class="client-form">
+            <h2>Tambah Akaun Bank</h2>
+            <input id="bankId" name="id" type="hidden">
+            <div class="client-grid">
+              <div>
+                <label for="bankLabel">Nama paparan</label>
+                <input id="bankLabel" name="label" type="text" placeholder="Contoh: Akaun utama invoice" required>
+              </div>
+              <div>
+                <label for="bankName">Nama bank</label>
+                <input id="bankName" name="bankName" type="text" placeholder="Contoh: CIMB Bank" required>
+              </div>
+              <div>
+                <label for="bankAccountName">Nama pemilik akaun</label>
+                <input id="bankAccountName" name="accountName" type="text" placeholder="Contoh: LUR BAY MARKETING" required>
+              </div>
+              <div>
+                <label for="bankAccountNumber">No akaun</label>
+                <input id="bankAccountNumber" name="accountNumber" type="text" placeholder="Contoh: 8603134244" required>
+              </div>
+              <label class="check-row full">
+                <input id="bankDefault" name="isDefault" type="checkbox" value="true">
+                Jadikan akaun default untuk invoice PDF
+              </label>
+            </div>
+            <div class="client-form-actions">
+              <button id="saveBankButton" type="submit">Save Akaun Bank</button>
+              <button id="cancelBankEditButton" class="secondary" type="button" hidden>Cancel Edit</button>
+            </div>
+          </form>
+          <div id="bankResult" class="result"></div>
+        </div>
+
+        <div id="document-panel" class="subtab-panel" data-subtab-panel="invoice-pilot">
         <div class="subtabs" aria-label="Document tabs">
           <button class="subtab-button active" type="button" data-subtab-group="document" data-subtab-target="invoice-panel">Invoice</button>
           <button class="subtab-button" type="button" data-subtab-group="document" data-subtab-target="receipt-panel">Receipt</button>
@@ -748,9 +946,19 @@ function pageHtml() {
     const dashboardClientCount = document.getElementById("dashboardClientCount");
     const dashboardInvoiceCount = document.getElementById("dashboardInvoiceCount");
     const dashboardRegistryStatus = document.getElementById("dashboardRegistryStatus");
+    const dashboardBankStatus = document.getElementById("dashboardBankStatus");
+    const activityFeed = document.getElementById("activityFeed");
+    const activityResult = document.getElementById("activityResult");
+    const refreshActivityButton = document.getElementById("refreshActivityButton");
     const settingsForm = document.getElementById("settingsForm");
     const saveSettingsButton = document.getElementById("saveSettingsButton");
     const settingsResult = document.getElementById("settingsResult");
+    const bankForm = document.getElementById("bankForm");
+    const saveBankButton = document.getElementById("saveBankButton");
+    const cancelBankEditButton = document.getElementById("cancelBankEditButton");
+    const bankList = document.getElementById("bankList");
+    const bankResult = document.getElementById("bankResult");
+    const refreshBankButton = document.getElementById("refreshBankButton");
     const MAX_DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
     const TARGET_UPLOAD_BYTES = Math.floor(3.75 * 1024 * 1024);
     let currentPreview = null;
@@ -759,6 +967,8 @@ function pageHtml() {
     let preparedCreativeNotice = "";
     let currentInvoices = [];
     let currentClients = [];
+    let currentBankAccounts = [];
+    let currentBankStatus = null;
 
     creativeInput.addEventListener("change", () => {
       currentPreview = null;
@@ -813,6 +1023,14 @@ function pageHtml() {
       setMessage(settingsResult, "err", error.message || String(error));
     }
 
+    function showBankError(error) {
+      setMessage(bankResult, "err", error.message || String(error));
+    }
+
+    function showActivityError(error) {
+      setMessage(activityResult, "err", error.message || String(error));
+    }
+
     function activateTab(name) {
       document.querySelectorAll(".tab-button").forEach((button) => {
         button.classList.toggle("active", button.dataset.tabTarget === name);
@@ -841,7 +1059,7 @@ function pageHtml() {
         button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
       });
 
-      ["client", "document"].forEach((group) => {
+      ["invoice-pilot", "client", "document"].forEach((group) => {
         const first = document.querySelector(\`.subtab-button[data-subtab-group="\${group}"]\`);
         const saved = localStorage.getItem(\`active-subtab-\${group}\`) || first?.dataset.subtabTarget;
         if (saved) activateSubtab(group, saved);
@@ -1281,6 +1499,7 @@ function pageHtml() {
         seenVariations = [];
         preparedCreativeFile = null;
         preparedCreativeNotice = "";
+        await loadActivity();
       } catch (error) {
         showError(error);
       } finally {
@@ -1417,6 +1636,53 @@ function pageHtml() {
       }
     }
 
+    function formatDateTime(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+      return new Intl.DateTimeFormat("en-MY", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
+    }
+
+    function renderActivityFeed(items = []) {
+      if (!items.length) {
+        activityFeed.innerHTML = '<div class="empty-state">Belum ada aktiviti. Save client, settings, bank atau upload invoice untuk mula isi live feed.</div>';
+        return;
+      }
+
+      activityFeed.innerHTML = items.map((item) => \`
+        <div class="activity-item">
+          <strong>\${escapeHtml(item.title || "Aktiviti")}</strong>
+          <span class="invoice-muted">\${escapeHtml(item.description || "")}</span>
+          <span class="activity-time">\${escapeHtml(formatDateTime(item.createdAt))}</span>
+        </div>
+      \`).join("");
+    }
+
+    async function loadActivity() {
+      setMessage(activityResult, "", "");
+      refreshActivityButton.disabled = true;
+      refreshActivityButton.textContent = "Loading...";
+
+      try {
+        const response = await fetch("/api/activity?limit=30");
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Load activity failed.");
+        renderActivityFeed(json.activity || []);
+      } catch (error) {
+        showActivityError(error);
+      } finally {
+        refreshActivityButton.disabled = false;
+        refreshActivityButton.textContent = "Refresh";
+      }
+    }
+
     function fillSettingsForm(settings = {}) {
       settingsForm.elements.name.value = settings.name || "";
       settingsForm.elements.registrationNumber.value = settings.registrationNumber || "";
@@ -1468,12 +1734,158 @@ function pageHtml() {
         }
         if (!response.ok || !json.ok) throw new Error(json.error || "Save settings failed.");
         fillSettingsForm(json.settings || payload);
+        await loadActivity();
         setMessage(settingsResult, "ok", "Settings syarikat sudah disimpan dalam database untuk PDF invoice.");
       } catch (error) {
         showSettingsError(error);
       } finally {
         saveSettingsButton.disabled = false;
         saveSettingsButton.textContent = "Save Settings";
+      }
+    }
+
+    function resetBankFormMode() {
+      bankForm.dataset.mode = "create";
+      bankForm.reset();
+      bankForm.elements.id.value = "";
+      bankForm.querySelector("h2").textContent = "Tambah Akaun Bank";
+      saveBankButton.textContent = "Save Akaun Bank";
+      cancelBankEditButton.hidden = true;
+    }
+
+    function renderBankAccounts(accounts = []) {
+      currentBankAccounts = accounts || [];
+      const defaultAccount = currentBankAccounts.find((account) => account.isDefault);
+      dashboardBankStatus.textContent = defaultAccount ? "OK" : "Setup";
+
+      if (!currentBankAccounts.length) {
+        bankList.innerHTML = '<div class="empty-state">Belum ada akaun bank. Tambah satu akaun dan jadikan default untuk invoice PDF.</div>';
+        return;
+      }
+
+      bankList.innerHTML = currentBankAccounts.map((account) => \`
+        <div class="bank-row" data-bank-id="\${escapeHtml(account.id)}">
+          <div>
+            <span class="invoice-client">\${escapeHtml(account.label)}</span>
+            \${account.isDefault ? '<span class="default-pill">Default PDF</span>' : ''}
+          </div>
+          <div>
+            \${escapeHtml(account.bankName)}
+            <span class="invoice-muted">\${escapeHtml(account.accountName)}</span>
+          </div>
+          <div>\${escapeHtml(account.accountNumber)}</div>
+          <div class="bank-actions">
+            <button class="secondary edit-bank-button" type="button" data-bank-id="\${escapeHtml(account.id)}">Edit</button>
+            <button class="secondary delete-bank-button" type="button" data-bank-id="\${escapeHtml(account.id)}">Delete</button>
+          </div>
+        </div>
+      \`).join("");
+    }
+
+    async function loadBankAccounts() {
+      setMessage(bankResult, "", "");
+      refreshBankButton.disabled = true;
+      refreshBankButton.textContent = "Loading...";
+
+      try {
+        const response = await fetch("/api/bank-accounts");
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Load bank account failed.");
+        renderBankAccounts(json.accounts || []);
+      } catch (error) {
+        dashboardBankStatus.textContent = "Error";
+        showBankError(error);
+      } finally {
+        refreshBankButton.disabled = false;
+        refreshBankButton.textContent = "Refresh Bank";
+      }
+    }
+
+    function editBankAccount(bankId) {
+      const account = currentBankAccounts.find((item) => item.id === bankId);
+      if (!account) {
+        showBankError(new Error("Akaun bank tidak dijumpai."));
+        return;
+      }
+
+      bankForm.dataset.mode = "edit";
+      bankForm.elements.id.value = account.id || "";
+      bankForm.elements.label.value = account.label || "";
+      bankForm.elements.bankName.value = account.bankName || "";
+      bankForm.elements.accountName.value = account.accountName || "";
+      bankForm.elements.accountNumber.value = account.accountNumber || "";
+      bankForm.elements.isDefault.checked = Boolean(account.isDefault);
+      bankForm.querySelector("h2").textContent = \`Edit Akaun Bank: \${account.label || account.bankName}\`;
+      saveBankButton.textContent = "Update Akaun Bank";
+      cancelBankEditButton.hidden = false;
+      setMessage(bankResult, "", "");
+      bankForm.elements.label.focus();
+    }
+
+    async function saveBankAccount(event) {
+      event.preventDefault();
+      setMessage(bankResult, "", "");
+      saveBankButton.disabled = true;
+      saveBankButton.textContent = "Saving...";
+
+      try {
+        const isEditMode = bankForm.dataset.mode === "edit";
+        const formData = new FormData(bankForm);
+        const payload = Object.fromEntries(formData.entries());
+        payload.isDefault = bankForm.elements.isDefault.checked;
+        const response = await fetch("/api/bank-accounts", {
+          method: isEditMode ? "PUT" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Save bank account failed.");
+        resetBankFormMode();
+        await loadBankAccounts();
+        await loadActivity();
+        setMessage(bankResult, "ok", \`Akaun bank disimpan: \${json.account?.label || "-"}\`);
+      } catch (error) {
+        showBankError(error);
+      } finally {
+        saveBankButton.disabled = false;
+        saveBankButton.textContent = bankForm.dataset.mode === "edit" ? "Update Akaun Bank" : "Save Akaun Bank";
+      }
+    }
+
+    async function deleteBankAccount(bankId) {
+      const account = currentBankAccounts.find((item) => item.id === bankId);
+      const label = account?.label || "akaun bank ini";
+      if (!window.confirm(\`Delete \${label}?\`)) return;
+
+      setMessage(bankResult, "", "");
+      try {
+        const response = await fetch("/api/bank-accounts", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id: bankId })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Delete bank account failed.");
+        resetBankFormMode();
+        await loadBankAccounts();
+        await loadActivity();
+        setMessage(bankResult, "ok", json.defaultAccount
+          ? \`Akaun dipadam. Default sekarang: \${json.defaultAccount.label}\`
+          : "Akaun dipadam. Tambah akaun default sebelum generate PDF.");
+      } catch (error) {
+        showBankError(error);
       }
     }
 
@@ -1562,10 +1974,13 @@ function pageHtml() {
         \${rows}
       \`;
       invoiceList.className = "invoice-list show";
-      uploadInvoicesButton.disabled = invoices.some((invoice) => !invoice.hasDriveFolder);
+      const bankMissing = currentBankStatus && currentBankStatus.source === "supabase" && !currentBankStatus.loaded;
+      uploadInvoicesButton.disabled = invoices.some((invoice) => !invoice.hasDriveFolder) || bankMissing;
       applyInvoiceDefaultsButton.disabled = false;
       invoiceResult.className = "result ok";
-      invoiceResult.textContent = uploadInvoicesButton.disabled
+      invoiceResult.textContent = bankMissing
+        ? "Invoice draft siap. Tambah atau set default akaun bank dahulu sebelum review/upload PDF."
+        : uploadInvoicesButton.disabled
         ? "Invoice siap untuk review, tapi ada client yang belum ada Drive folder ID."
         : "Invoice siap untuk review. Edit harga/diskaun jika perlu, buka PDF dahulu, kemudian klik Upload All bila sudah puas hati.";
     }
@@ -1591,6 +2006,7 @@ function pageHtml() {
         }
         if (!response.ok || !json.ok) throw new Error(json.error || "Generate invoice failed.");
         invoicePeriod.value = json.period;
+        currentBankStatus = json.bankStatus || null;
         renderInvoiceList(json.invoices || []);
       } catch (error) {
         showInvoiceError(error);
@@ -1633,6 +2049,7 @@ function pageHtml() {
           ].join("\\n");
         resetClientFormMode();
         await loadClients();
+        await loadActivity();
         if (currentInvoices.length) await generateInvoices();
         setMessage(clientResult, "ok", \`\${savedMessage}\\nSenarai pelanggan sudah dikemas kini.\`);
         activateSubtab("client", "client-list-panel");
@@ -1690,6 +2107,7 @@ function pageHtml() {
         });
         invoiceResult.className = "result ok";
         invoiceResult.textContent = ["Upload selesai.", ...lines].join("\\n");
+        await loadActivity();
       } catch (error) {
         showInvoiceError(error);
       } finally {
@@ -1703,6 +2121,13 @@ function pageHtml() {
     setupTabs();
     setupPanels();
     resetClientFormMode();
+    resetBankFormMode();
+    document.querySelectorAll("[data-go-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activateTab(button.dataset.goTab);
+        if (button.dataset.goSubtab) activateSubtab("invoice-pilot", button.dataset.goSubtab);
+      });
+    });
     clientForm.addEventListener("submit", saveClient);
     cancelClientEditButton.addEventListener("click", () => {
       resetClientFormMode();
@@ -1715,6 +2140,22 @@ function pageHtml() {
       editClient(editButton.dataset.clientCode);
     });
     settingsForm.addEventListener("submit", saveSettings);
+    bankForm.addEventListener("submit", saveBankAccount);
+    cancelBankEditButton.addEventListener("click", () => {
+      resetBankFormMode();
+      setMessage(bankResult, "", "");
+    });
+    refreshBankButton.addEventListener("click", loadBankAccounts);
+    refreshActivityButton.addEventListener("click", loadActivity);
+    bankList.addEventListener("click", (event) => {
+      const editButton = event.target.closest(".edit-bank-button");
+      if (editButton) {
+        editBankAccount(editButton.dataset.bankId);
+        return;
+      }
+      const deleteButton = event.target.closest(".delete-bank-button");
+      if (deleteButton) deleteBankAccount(deleteButton.dataset.bankId);
+    });
     refreshClientsButton.addEventListener("click", loadClients);
     generateInvoicesButton.addEventListener("click", generateInvoices);
     applyInvoiceDefaultsButton.addEventListener("click", () => {
@@ -1739,6 +2180,8 @@ function pageHtml() {
     uploadInvoicesButton.addEventListener("click", uploadInvoices);
     loadClients();
     loadSettings();
+    loadBankAccounts();
+    loadActivity();
   </script>
 </body>
 </html>`;

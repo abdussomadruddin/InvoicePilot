@@ -62,9 +62,36 @@ create table if not exists public.invoice_uploads (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.bank_accounts (
+  id uuid primary key default gen_random_uuid(),
+  label text not null default '',
+  bank_name text not null default '',
+  account_name text not null default '',
+  account_number text not null default '',
+  is_default boolean not null default false,
+  is_active boolean not null default true,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.app_activity (
+  id uuid primary key default gen_random_uuid(),
+  activity_type text not null default 'info',
+  title text not null default '',
+  description text not null default '',
+  entity_type text not null default '',
+  entity_id text not null default '',
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists invoice_clients_brand_client_idx on public.invoice_clients (brand_client);
 create index if not exists invoice_uploads_period_idx on public.invoice_uploads (period);
 create index if not exists invoice_uploads_client_code_idx on public.invoice_uploads (client_code);
+create unique index if not exists bank_accounts_one_default_idx on public.bank_accounts (is_default) where is_default = true and is_active = true and deleted_at is null;
+create index if not exists bank_accounts_active_idx on public.bank_accounts (is_active, deleted_at, is_default);
+create index if not exists app_activity_created_at_idx on public.app_activity (created_at desc);
 
 create or replace function public.touch_updated_at()
 returns trigger
@@ -91,6 +118,13 @@ create trigger invoice_uploads_touch_updated_at
 before update on public.invoice_uploads
 for each row execute function public.touch_updated_at();
 
+drop trigger if exists bank_accounts_touch_updated_at on public.bank_accounts;
+create trigger bank_accounts_touch_updated_at
+before update on public.bank_accounts
+for each row execute function public.touch_updated_at();
+
 alter table public.invoice_clients enable row level security;
 alter table public.business_settings enable row level security;
 alter table public.invoice_uploads enable row level security;
+alter table public.bank_accounts enable row level security;
+alter table public.app_activity enable row level security;

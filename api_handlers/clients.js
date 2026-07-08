@@ -4,6 +4,7 @@ const {
   getMergedClientsWithStatus,
   updateClientDetails,
 } = require("../lib/invoices");
+const { recordActivity } = require("../lib/supabase-db");
 const { readJsonBody } = require("../lib/postpilot");
 
 function publicClient(client) {
@@ -48,6 +49,13 @@ module.exports = async function handler(req, res) {
     if (req.method === "POST") {
       const body = await readJsonBody(req);
       const saved = await createClientWithDriveFolders(body);
+      await recordActivity({
+        type: "client_created",
+        title: `Pelanggan ditambah: ${saved.client.brandClient || saved.client.name}`,
+        description: `Folder Drive siap: ${saved.client.driveFolderName || "-"}`,
+        entityType: "client",
+        entityId: saved.client.code,
+      });
       res.statusCode = 200;
       res.end(JSON.stringify({
         ok: true,
@@ -62,6 +70,13 @@ module.exports = async function handler(req, res) {
     if (req.method === "PUT" || req.method === "PATCH") {
       const body = await readJsonBody(req);
       const saved = await updateClientDetails(body);
+      await recordActivity({
+        type: "client_updated",
+        title: `Pelanggan dikemaskini: ${saved.client.brandClient || saved.client.name}`,
+        description: "Detail pelanggan disimpan untuk invoice PDF.",
+        entityType: "client",
+        entityId: saved.client.code,
+      });
       res.statusCode = 200;
       res.end(JSON.stringify({
         ok: true,

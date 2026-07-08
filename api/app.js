@@ -1,5 +1,7 @@
 const routes = {
+  activity: require("../api_handlers/activity"),
   app: require("../api_handlers/app"),
+  "bank-accounts": require("../api_handlers/bank-accounts"),
   clients: require("../api_handlers/clients"),
   "google/oauth-callback": require("../api_handlers/google/oauth-callback"),
   "google/oauth-start": require("../api_handlers/google/oauth-start"),

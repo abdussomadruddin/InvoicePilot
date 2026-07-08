@@ -4,6 +4,7 @@ const {
   publishToFacebook,
   readRequestBody,
 } = require("../lib/postpilot");
+const { recordActivity } = require("../lib/supabase-db");
 
 module.exports = async function handler(req, res) {
   res.setHeader("content-type", "application/json; charset=utf-8");
@@ -30,6 +31,14 @@ module.exports = async function handler(req, res) {
       file: creative,
       caption,
       firstComment,
+    });
+    await recordActivity({
+      type: "facebook_posted",
+      title: "PostPilot posted ke Facebook",
+      description: result.permalink_url || result.post_id || "Post berjaya dipublish.",
+      entityType: "facebook_post",
+      entityId: result.post_id || "",
+      metadata: { postUrl: result.permalink_url || "" },
     });
 
     res.statusCode = 200;
