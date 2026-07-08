@@ -25,6 +25,21 @@
     },
     "api/regenerate.js": {
       "maxDuration": 30
+    },
+    "api/invoices/upload.js": {
+      "maxDuration": 60
+    },
+    "api/invoices/pdf.js": {
+      "maxDuration": 30
+    },
+    "api/invoices/preview.js": {
+      "maxDuration": 30
+    },
+    "api/clients.js": {
+      "maxDuration": 60
+    },
+    "api/settings.js": {
+      "maxDuration": 60
     }
   }
 }

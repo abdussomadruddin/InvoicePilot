@@ -23,7 +23,7 @@ function pageHtml() {
     body { margin: 0; }
 
     main {
-      width: min(880px, calc(100% - 32px));
+      width: min(1080px, calc(100% - 32px));
       margin: 40px auto;
     }
 
@@ -54,6 +54,102 @@ function pageHtml() {
       border-radius: 18px;
       box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08);
       padding: 26px;
+    }
+
+    .tabs,
+    .subtabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .tab-button,
+    .subtab-button {
+      margin-top: 0;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #111827;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 800;
+    }
+
+    .tab-button.active,
+    .subtab-button.active {
+      background: #111827;
+      border-color: #111827;
+      color: #fff;
+    }
+
+    .tab-panel,
+    .subtab-panel {
+      display: none;
+    }
+
+    .tab-panel.active,
+    .subtab-panel.active {
+      display: block;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .section-heading h1,
+    .section-heading h2 {
+      margin: 0;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .mini-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 14px;
+      background: #f8fafc;
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 22px;
+    }
+
+    .client-list {
+      margin-top: 18px;
+      border: 1px solid #dbe3ef;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .client-row {
+      display: grid;
+      grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) minmax(110px, 0.7fr);
+      gap: 12px;
+      padding: 12px 14px;
+      border-top: 1px solid #e5e7eb;
+      align-items: start;
+    }
+
+    .client-row:first-child {
+      border-top: 0;
+    }
+
+    .client-row.header {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 800;
+      font-size: 13px;
     }
 
     .hero {
@@ -186,6 +282,187 @@ function pageHtml() {
     .actions button {
       margin-top: 0;
     }
+
+    .tool-card {
+      margin-top: 22px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      width: 100%;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .panel-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      margin-top: 0;
+      border-radius: 999px;
+      background: #e5e7eb;
+      color: #111827;
+      font-size: 20px;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .panel-body {
+      margin-top: 16px;
+    }
+
+    .card.collapsed .panel-body {
+      display: none;
+    }
+
+    .client-form {
+      margin-top: 18px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 18px;
+    }
+
+    .client-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .client-grid label,
+    .client-form label {
+      margin-top: 0;
+    }
+
+    .client-grid .full {
+      grid-column: 1 / -1;
+    }
+
+    .client-form textarea {
+      min-height: 86px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .toolbar label {
+      margin: 0 0 8px;
+    }
+
+    .toolbar input {
+      min-width: 180px;
+    }
+
+    .toolbar input.money-input {
+      min-width: 140px;
+    }
+
+    .invoice-list {
+      margin-top: 18px;
+      display: none;
+      border: 1px solid #dbe3ef;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .invoice-list.show {
+      display: block;
+    }
+
+    .invoice-row {
+      display: grid;
+      grid-template-columns: minmax(145px, 1.2fr) minmax(128px, 1fr) minmax(105px, 0.75fr) minmax(95px, 0.65fr) minmax(100px, 0.75fr) minmax(110px, auto);
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .invoice-row:first-child {
+      border-top: 0;
+    }
+
+    .invoice-row.header {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .invoice-client {
+      font-weight: 800;
+      color: #111827;
+    }
+
+    .invoice-muted {
+      display: block;
+      color: #64748b;
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .link-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      margin-top: 0;
+      border: 0;
+      border-radius: 999px;
+      background: #e5e7eb;
+      color: #111827;
+      text-decoration: none;
+      font-weight: 800;
+      font: inherit;
+      padding: 0 14px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .money-input {
+      width: 100%;
+      min-width: 0;
+      border-radius: 10px;
+      padding: 9px 10px;
+      text-align: right;
+    }
+
+    .total-payment {
+      font-weight: 800;
+      color: #111827;
+      text-align: right;
+    }
+
+    @media (max-width: 720px) {
+      .mini-grid,
+      .client-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .client-row,
+      .invoice-row {
+        grid-template-columns: 1fr;
+      }
+
+      .client-row.header,
+      .invoice-row.header {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -200,50 +477,216 @@ function pageHtml() {
       </form>
     </div>
 
-    <section class="card">
-      <div class="hero">
-        <img src="/logo.svg" alt="" width="64" height="64">
-        <h1>PostPilot</h1>
-      </div>
-      <p>Upload creative, masukkan salespage link, preview copywriting dahulu, kemudian approve untuk publish ke Facebook Page.</p>
-      <p class="note">Copywriting akan ikut salespage yang kau beri, dengan aliran direct-response yang natural. Nota creative digunakan untuk angle poster/video.</p>
+    <nav class="tabs" aria-label="Main tabs">
+      <button class="tab-button active" type="button" data-tab-target="dashboard">Dashboard</button>
+      <button class="tab-button" type="button" data-tab-target="client">Client</button>
+      <button class="tab-button" type="button" data-tab-target="settings">Settings</button>
+      <button class="tab-button" type="button" data-tab-target="document">Document</button>
+    </nav>
 
-      <form id="postForm">
-        <label for="creative">Creative gambar/video</label>
-        <input id="creative" name="creative" type="file" accept="image/*,video/mp4,video/quicktime,video/webm" required>
+    <section id="tab-dashboard" class="tab-panel active" data-tab-panel="dashboard">
+      <section class="card app-panel" data-panel="postpilot">
+        <button class="panel-header" type="button" aria-expanded="true">
+          <div class="hero">
+            <img src="/logo.svg" alt="" width="64" height="64">
+            <h1>Dashboard</h1>
+          </div>
+          <span class="panel-toggle" aria-hidden="true">⌄</span>
+        </button>
+        <div class="panel-body">
+        <div class="mini-grid">
+          <div class="mini-card">Pelanggan<strong id="dashboardClientCount">-</strong></div>
+          <div class="mini-card">Invoice bulan ini<strong id="dashboardInvoiceCount">-</strong></div>
+          <div class="mini-card">Drive Registry<strong id="dashboardRegistryStatus">-</strong></div>
+        </div>
 
-        <label for="salespage_link">Salespage link</label>
-        <input id="salespage_link" name="salespage_link" type="url" value="https://digitaldominate.com/" required>
+        <h2>PostPilot</h2>
+        <p>Upload creative, masukkan salespage link, preview copywriting dahulu, kemudian approve untuk publish ke Facebook Page.</p>
+        <p class="note">Copywriting akan ikut salespage yang kau beri, dengan aliran direct-response yang natural. Nota creative digunakan untuk angle poster/video.</p>
 
-        <label for="caption_note">Konteks poster/video / angle creative (optional)</label>
-        <textarea id="caption_note" name="caption_note" placeholder="Contoh: Poster tunjuk founder penat packing order, angle: banyak kerja tapi salespage bantu automate workflow."></textarea>
+        <form id="postForm">
+          <label for="creative">Creative gambar/video</label>
+          <input id="creative" name="creative" type="file" accept="image/*,video/mp4,video/quicktime,video/webm" required>
 
-        <label for="custom_caption">Custom caption penuh (optional)</label>
-        <textarea id="custom_caption" name="custom_caption" placeholder="Kalau isi bahagian ini, sistem guna caption ini terus. Pastikan letak salespage link."></textarea>
+          <label for="salespage_link">Salespage link</label>
+          <input id="salespage_link" name="salespage_link" type="url" value="https://digitaldominate.com/" required>
 
-        <label for="first_comment">First comment CTA (optional)</label>
-        <textarea id="first_comment" name="first_comment" placeholder="Kosongkan untuk auto-generate first comment."></textarea>
+          <label for="caption_note">Konteks poster/video / angle creative (optional)</label>
+          <textarea id="caption_note" name="caption_note" placeholder="Contoh: Poster tunjuk founder penat packing order, angle: banyak kerja tapi salespage bantu automate workflow."></textarea>
 
-        <button type="submit">Preview Copywriting</button>
-      </form>
+          <label for="custom_caption">Custom caption penuh (optional)</label>
+          <textarea id="custom_caption" name="custom_caption" placeholder="Kalau isi bahagian ini, sistem guna caption ini terus. Pastikan letak salespage link."></textarea>
 
-      <section id="previewPanel" class="preview">
-        <h2>Preview Sebelum Posting</h2>
-        <p class="note" id="previewMeta"></p>
+          <label for="first_comment">First comment CTA (optional)</label>
+          <textarea id="first_comment" name="first_comment" placeholder="Kosongkan untuk auto-generate first comment."></textarea>
 
-        <label for="captionPreview">Caption yang akan dipost</label>
-        <textarea id="captionPreview"></textarea>
+          <button type="submit">Preview Copywriting</button>
+        </form>
 
-        <label for="commentPreview">Komen CTA yang akan dijadikan first comment</label>
-        <textarea id="commentPreview"></textarea>
+        <section id="previewPanel" class="preview">
+          <h2>Preview Sebelum Posting</h2>
+          <p class="note" id="previewMeta"></p>
 
-        <div class="actions">
-          <button class="approve" id="approveButton" type="button">Approve & Post ke Facebook</button>
-          <button class="regenerate" id="regenerateButton" type="button">Jana Semula Copywriting</button>
+          <label for="captionPreview">Caption yang akan dipost</label>
+          <textarea id="captionPreview"></textarea>
+
+          <label for="commentPreview">Komen CTA yang akan dijadikan first comment</label>
+          <textarea id="commentPreview"></textarea>
+
+          <div class="actions">
+            <button class="approve" id="approveButton" type="button">Approve & Post ke Facebook</button>
+            <button class="regenerate" id="regenerateButton" type="button">Jana Semula Copywriting</button>
+          </div>
+        </section>
+
+        <div id="result" class="result"></div>
         </div>
       </section>
+    </section>
 
-      <div id="result" class="result"></div>
+    <section id="tab-client" class="tab-panel" data-tab-panel="client">
+      <section class="card">
+        <div class="section-heading">
+          <h1>Client</h1>
+        </div>
+        <div class="subtabs" aria-label="Client tabs">
+          <button class="subtab-button active" type="button" data-subtab-group="client" data-subtab-target="client-list-panel">Senarai Pelanggan</button>
+          <button class="subtab-button" type="button" data-subtab-group="client" data-subtab-target="client-add-panel">Tambah Pelanggan</button>
+        </div>
+
+        <div id="client-list-panel" class="subtab-panel active" data-subtab-panel="client">
+          <div class="actions">
+            <button id="refreshClientsButton" class="secondary" type="button">Refresh Senarai</button>
+          </div>
+          <div id="clientList" class="client-list"></div>
+          <div id="clientResult" class="result"></div>
+        </div>
+
+        <div id="client-add-panel" class="subtab-panel" data-subtab-panel="client">
+          <form id="clientForm" class="client-form">
+            <h2>Tambah Pelanggan</h2>
+            <div class="client-grid">
+              <div>
+                <label for="clientBrand">Brand client</label>
+                <input id="clientBrand" name="brandClient" type="text" placeholder="Contoh: SAFRICH" required>
+              </div>
+              <div>
+                <label for="clientContactName">Nama</label>
+                <input id="clientContactName" name="contactName" type="text" placeholder="Nama PIC / owner">
+              </div>
+              <div>
+                <label for="clientEmail">Emel</label>
+                <input id="clientEmail" name="email" type="email" placeholder="client@email.com">
+              </div>
+              <div>
+                <label for="clientPhone">No telefon</label>
+                <input id="clientPhone" name="phone" type="tel" placeholder="+60...">
+              </div>
+              <div>
+                <label for="clientCompanyName">Nama syarikat</label>
+                <input id="clientCompanyName" name="companyName" type="text" placeholder="Nama syarikat">
+              </div>
+              <div>
+                <label for="clientRegistration">No Pendaftaran/SSM</label>
+                <input id="clientRegistration" name="registrationNumber" type="text" placeholder="No SSM">
+              </div>
+              <div>
+                <label for="clientRetainer">Harga service default</label>
+                <input id="clientRetainer" class="money-input" name="monthlyRetainer" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+              </div>
+              <div class="full">
+                <label for="clientAddress">Alamat</label>
+                <textarea id="clientAddress" name="billingAddress" placeholder="Alamat billing client"></textarea>
+              </div>
+            </div>
+            <button id="saveClientButton" type="submit">Save Client & Create Drive Folders</button>
+          </form>
+        </div>
+      </section>
+    </section>
+
+    <section id="tab-settings" class="tab-panel" data-tab-panel="settings">
+      <section class="card">
+        <div class="section-heading">
+          <h1>Settings</h1>
+        </div>
+        <form id="settingsForm" class="client-form">
+          <div class="client-grid">
+            <div>
+              <label for="businessName">Nama Syarikat</label>
+              <input id="businessName" name="name" type="text" placeholder="Nama syarikat">
+            </div>
+            <div>
+              <label for="businessRegistration">No Pendaftaran/SSM</label>
+              <input id="businessRegistration" name="registrationNumber" type="text" placeholder="No SSM">
+            </div>
+            <div>
+              <label for="businessEmail">Alamat Email</label>
+              <input id="businessEmail" name="email" type="email" placeholder="billing@email.com">
+            </div>
+            <div>
+              <label for="businessPhone">No Telefon</label>
+              <input id="businessPhone" name="phone" type="tel" placeholder="+60...">
+            </div>
+            <div class="full">
+              <label for="businessAddress">Alamat</label>
+              <textarea id="businessAddress" name="address" placeholder="Alamat syarikat"></textarea>
+            </div>
+          </div>
+          <button id="saveSettingsButton" type="submit">Save Settings</button>
+        </form>
+        <div id="settingsResult" class="result"></div>
+      </section>
+    </section>
+
+    <section id="tab-document" class="tab-panel" data-tab-panel="document">
+      <section class="card tool-card app-panel" data-panel="invoices">
+        <button class="panel-header" type="button" aria-expanded="true">
+          <div class="hero">
+            <img src="/logo.svg" alt="" width="64" height="64">
+            <h1>Document</h1>
+          </div>
+          <span class="panel-toggle" aria-hidden="true">⌄</span>
+        </button>
+        <div class="panel-body">
+        <div class="subtabs" aria-label="Document tabs">
+          <button class="subtab-button active" type="button" data-subtab-group="document" data-subtab-target="invoice-panel">Invoice</button>
+          <button class="subtab-button" type="button" data-subtab-group="document" data-subtab-target="receipt-panel">Receipt</button>
+        </div>
+
+        <div id="invoice-panel" class="subtab-panel active" data-subtab-panel="document">
+          <p>Generate invoice PDF semua client ads untuk bulan terpilih, review dahulu, kemudian upload terus ke Google Drive folder client.</p>
+
+          <div class="toolbar">
+            <div>
+              <label for="invoicePeriod">Bulan invoice</label>
+              <input id="invoicePeriod" type="month">
+            </div>
+            <div>
+              <label for="defaultServicePrice">Default Harga Service</label>
+              <input id="defaultServicePrice" class="money-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+            </div>
+            <div>
+              <label for="defaultDiscount">Default Diskaun</label>
+              <input id="defaultDiscount" class="money-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+            </div>
+            <button id="applyInvoiceDefaultsButton" class="secondary" type="button" disabled>Apply to All</button>
+            <button id="generateInvoicesButton" type="button">Generate Invoices</button>
+            <button id="uploadInvoicesButton" class="approve" type="button" disabled>Upload All to Google Drive</button>
+          </div>
+
+          <div id="invoiceList" class="invoice-list"></div>
+          <div id="invoiceResult" class="result"></div>
+        </div>
+
+        <div id="receipt-panel" class="subtab-panel" data-subtab-panel="document">
+          <div class="mini-card">
+            <strong>Receipt</strong>
+            <p class="note">Tab receipt sudah disediakan. Flow generate receipt boleh disambung selepas format receipt dimuktamadkan.</p>
+          </div>
+        </div>
+        </div>
+      </section>
     </section>
   </main>
 
@@ -258,12 +701,32 @@ function pageHtml() {
     const approveButton = document.getElementById("approveButton");
     const regenerateButton = document.getElementById("regenerateButton");
     const creativeInput = document.getElementById("creative");
+    const invoicePeriod = document.getElementById("invoicePeriod");
+    const defaultServicePrice = document.getElementById("defaultServicePrice");
+    const defaultDiscount = document.getElementById("defaultDiscount");
+    const applyInvoiceDefaultsButton = document.getElementById("applyInvoiceDefaultsButton");
+    const generateInvoicesButton = document.getElementById("generateInvoicesButton");
+    const uploadInvoicesButton = document.getElementById("uploadInvoicesButton");
+    const invoiceList = document.getElementById("invoiceList");
+    const invoiceResult = document.getElementById("invoiceResult");
+    const clientForm = document.getElementById("clientForm");
+    const saveClientButton = document.getElementById("saveClientButton");
+    const clientList = document.getElementById("clientList");
+    const clientResult = document.getElementById("clientResult");
+    const refreshClientsButton = document.getElementById("refreshClientsButton");
+    const dashboardClientCount = document.getElementById("dashboardClientCount");
+    const dashboardInvoiceCount = document.getElementById("dashboardInvoiceCount");
+    const dashboardRegistryStatus = document.getElementById("dashboardRegistryStatus");
+    const settingsForm = document.getElementById("settingsForm");
+    const saveSettingsButton = document.getElementById("saveSettingsButton");
+    const settingsResult = document.getElementById("settingsResult");
     const MAX_DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
     const TARGET_UPLOAD_BYTES = Math.floor(3.75 * 1024 * 1024);
     let currentPreview = null;
     let seenVariations = [];
     let preparedCreativeFile = null;
     let preparedCreativeNotice = "";
+    let currentInvoices = [];
 
     creativeInput.addEventListener("change", () => {
       currentPreview = null;
@@ -278,6 +741,105 @@ function pageHtml() {
     function showError(error) {
       result.className = "result err";
       result.textContent = error.message || String(error);
+    }
+
+    function showInvoiceError(error) {
+      invoiceResult.className = "result err";
+      invoiceResult.textContent = error.message || String(error);
+    }
+
+    function defaultInvoicePeriod() {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kuala_Lumpur",
+        year: "numeric",
+        month: "2-digit"
+      }).formatToParts(new Date());
+      const year = parts.find((part) => part.type === "year")?.value;
+      const month = parts.find((part) => part.type === "month")?.value;
+      return \`\${year}-\${month}\`;
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function setMessage(node, type, message) {
+      node.className = type ? \`result \${type}\` : "result";
+      node.textContent = message || "";
+    }
+
+    function showClientError(error) {
+      setMessage(clientResult, "err", error.message || String(error));
+    }
+
+    function showSettingsError(error) {
+      setMessage(settingsResult, "err", error.message || String(error));
+    }
+
+    function activateTab(name) {
+      document.querySelectorAll(".tab-button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.tabTarget === name);
+      });
+      document.querySelectorAll(".tab-panel").forEach((panel) => {
+        panel.classList.toggle("active", panel.dataset.tabPanel === name);
+      });
+      localStorage.setItem("active-main-tab", name);
+    }
+
+    function activateSubtab(group, targetId) {
+      document.querySelectorAll(\`.subtab-button[data-subtab-group="\${group}"]\`).forEach((button) => {
+        button.classList.toggle("active", button.dataset.subtabTarget === targetId);
+      });
+      document.querySelectorAll(\`.subtab-panel[data-subtab-panel="\${group}"]\`).forEach((panel) => {
+        panel.classList.toggle("active", panel.id === targetId);
+      });
+      localStorage.setItem(\`active-subtab-\${group}\`, targetId);
+    }
+
+    function setupTabs() {
+      const savedMainTab = localStorage.getItem("active-main-tab") || "dashboard";
+      const mainTab = document.querySelector(\`.tab-button[data-tab-target="\${savedMainTab}"]\`) ? savedMainTab : "dashboard";
+      activateTab(mainTab);
+      document.querySelectorAll(".tab-button").forEach((button) => {
+        button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
+      });
+
+      ["client", "document"].forEach((group) => {
+        const first = document.querySelector(\`.subtab-button[data-subtab-group="\${group}"]\`);
+        const saved = localStorage.getItem(\`active-subtab-\${group}\`) || first?.dataset.subtabTarget;
+        if (saved) activateSubtab(group, saved);
+      });
+      document.querySelectorAll(".subtab-button").forEach((button) => {
+        button.addEventListener("click", () => activateSubtab(button.dataset.subtabGroup, button.dataset.subtabTarget));
+      });
+    }
+
+    function panelStorageKey(name) {
+      return \`panel-open-\${name}\`;
+    }
+
+    function setPanelOpen(panel, isOpen) {
+      panel.classList.toggle("collapsed", !isOpen);
+      const header = panel.querySelector(".panel-header");
+      const toggle = panel.querySelector(".panel-toggle");
+      if (header) header.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      if (toggle) toggle.textContent = isOpen ? "⌄" : "›";
+      localStorage.setItem(panelStorageKey(panel.dataset.panel), isOpen ? "1" : "0");
+    }
+
+    function setupPanels() {
+      document.querySelectorAll(".app-panel").forEach((panel) => {
+        const saved = localStorage.getItem(panelStorageKey(panel.dataset.panel));
+        setPanelOpen(panel, saved === null ? true : saved === "1");
+        panel.querySelector(".panel-header")?.addEventListener("click", () => {
+          setPanelOpen(panel, panel.classList.contains("collapsed"));
+        });
+      });
     }
 
     function formatMb(bytes) {
@@ -695,6 +1257,393 @@ function pageHtml() {
         approveButton.textContent = "Approve & Post ke Facebook";
       }
     });
+
+    function numericValue(value) {
+      const number = Number(String(value || "0").replace(/,/g, ""));
+      return Number.isFinite(number) && number >= 0 ? number : 0;
+    }
+
+    function formatMoneyValue(value) {
+      return new Intl.NumberFormat("en-MY", {
+        style: "currency",
+        currency: "MYR",
+        minimumFractionDigits: 2
+      }).format(numericValue(value));
+    }
+
+    function renderClientList(clients, registryStatus) {
+      dashboardClientCount.textContent = String(clients.length);
+      dashboardRegistryStatus.textContent = registryStatus?.ok ? "OK" : "Setup";
+
+      if (!clients.length) {
+        clientList.innerHTML = "";
+        setMessage(clientResult, "err", "Belum ada pelanggan.");
+        return;
+      }
+
+      const rows = clients.map((client) => \`
+        <div class="client-row">
+          <div>
+            <span class="invoice-client">\${escapeHtml(client.brandClient || client.name)}</span>
+            <span class="invoice-muted">\${escapeHtml(client.code)}</span>
+          </div>
+          <div>
+            \${escapeHtml(client.contactName || "-")}
+            <span class="invoice-muted">\${escapeHtml(client.companyName || client.billingName || "-")}</span>
+          </div>
+          <div>
+            \${escapeHtml(client.email || "-")}
+            <span class="invoice-muted">\${escapeHtml(client.phone || "-")}</span>
+          </div>
+          <div>
+            \${escapeHtml(formatMoneyValue(client.monthlyRetainer || 0))}
+            <span class="invoice-muted">\${escapeHtml(client.source || "config")}</span>
+          </div>
+        </div>
+      \`).join("");
+
+      clientList.innerHTML = \`
+        <div class="client-row header">
+          <div>Brand</div>
+          <div>Nama / Syarikat</div>
+          <div>Contact</div>
+          <div>Harga</div>
+        </div>
+        \${rows}
+      \`;
+      const statusLine = registryStatus?.ok
+        ? \`Senarai pelanggan dimuat. Registry Drive: \${registryStatus.loaded ? "loaded" : "belum ada file"}.\`
+        : \`Senarai config dimuat. \${registryStatus?.error || "Registry Drive belum tersedia."}\`;
+      setMessage(clientResult, registryStatus?.ok ? "ok" : "err", statusLine);
+    }
+
+    async function loadClients() {
+      setMessage(clientResult, "", "");
+      refreshClientsButton.disabled = true;
+      refreshClientsButton.textContent = "Loading...";
+
+      try {
+        const response = await fetch("/api/clients");
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Load client failed.");
+        renderClientList(json.clients || [], json.registryStatus || {});
+      } catch (error) {
+        dashboardClientCount.textContent = "-";
+        dashboardRegistryStatus.textContent = "Error";
+        showClientError(error);
+      } finally {
+        refreshClientsButton.disabled = false;
+        refreshClientsButton.textContent = "Refresh Senarai";
+      }
+    }
+
+    function fillSettingsForm(settings = {}) {
+      settingsForm.elements.name.value = settings.name || "";
+      settingsForm.elements.registrationNumber.value = settings.registrationNumber || "";
+      settingsForm.elements.email.value = settings.email || "";
+      settingsForm.elements.phone.value = settings.phone || "";
+      settingsForm.elements.address.value = settings.address || "";
+    }
+
+    async function loadSettings() {
+      setMessage(settingsResult, "", "");
+
+      try {
+        const response = await fetch("/api/settings");
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Load settings failed.");
+        fillSettingsForm(json.settings || {});
+        const statusLine = json.status?.ok
+          ? (json.status.loaded ? "Settings dimuat dari Drive." : "Settings guna default config.")
+          : \`Settings guna default config. \${json.status?.error || ""}\`;
+        setMessage(settingsResult, json.status?.ok ? "ok" : "err", statusLine.trim());
+      } catch (error) {
+        showSettingsError(error);
+      }
+    }
+
+    async function saveSettings(event) {
+      event.preventDefault();
+      setMessage(settingsResult, "", "");
+      saveSettingsButton.disabled = true;
+      saveSettingsButton.textContent = "Saving...";
+
+      try {
+        const payload = Object.fromEntries(new FormData(settingsForm).entries());
+        const response = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Save settings failed.");
+        fillSettingsForm(json.settings || payload);
+        setMessage(settingsResult, "ok", "Settings syarikat sudah disimpan untuk PDF invoice.");
+      } catch (error) {
+        showSettingsError(error);
+      } finally {
+        saveSettingsButton.disabled = false;
+        saveSettingsButton.textContent = "Save Settings";
+      }
+    }
+
+    function invoiceTotal(servicePrice, discount) {
+      return Math.max(0, numericValue(servicePrice) - numericValue(discount));
+    }
+
+    function updateInvoiceRowTotal(row) {
+      const serviceInput = row.querySelector(".service-price-input");
+      const discountInput = row.querySelector(".discount-input");
+      if (discountInput && numericValue(discountInput.value) > numericValue(serviceInput?.value)) {
+        discountInput.value = String(numericValue(serviceInput?.value));
+      }
+      const total = invoiceTotal(serviceInput?.value, discountInput?.value);
+      const totalNode = row.querySelector(".total-payment");
+      if (totalNode) {
+        totalNode.textContent = formatMoneyValue(total);
+        totalNode.dataset.total = String(total);
+      }
+    }
+
+    function updateAllInvoiceTotals() {
+      invoiceList.querySelectorAll(".invoice-row[data-client-code]").forEach(updateInvoiceRowTotal);
+    }
+
+    function collectInvoiceDrafts() {
+      return [...invoiceList.querySelectorAll(".invoice-row[data-client-code]")].map((row) => ({
+        clientCode: row.dataset.clientCode,
+        servicePrice: numericValue(row.querySelector(".service-price-input")?.value),
+        discount: numericValue(row.querySelector(".discount-input")?.value)
+      }));
+    }
+
+    function renderInvoiceList(invoices) {
+      currentInvoices = invoices;
+      dashboardInvoiceCount.textContent = String(invoices.length);
+      if (!invoices.length) {
+        invoiceList.className = "invoice-list";
+        invoiceList.innerHTML = "";
+        uploadInvoicesButton.disabled = true;
+        applyInvoiceDefaultsButton.disabled = true;
+        invoiceResult.className = "result err";
+        invoiceResult.textContent = "Belum ada client. Tambah pelanggan dahulu di tab Client.";
+        return;
+      }
+
+      const rows = invoices.map((invoice) => {
+        const folderNote = invoice.hasDriveFolder ? "" : "<span class=\\"invoice-muted\\">Folder Drive belum diset</span>";
+        const servicePrice = Number(invoice.servicePrice || invoice.amount || 0).toFixed(2);
+        const discount = Number(invoice.discount || 0).toFixed(2);
+        const total = invoiceTotal(servicePrice, discount);
+        return \`
+          <div class="invoice-row" data-client-code="\${escapeHtml(invoice.clientCode)}">
+            <div>
+              <span class="invoice-client">\${escapeHtml(invoice.clientName)}</span>
+              <span class="invoice-muted">\${escapeHtml(invoice.billingName || invoice.clientCode)}</span>
+            </div>
+            <div>
+              \${escapeHtml(invoice.invoiceNumber)}
+              <span class="invoice-muted">\${escapeHtml(invoice.fileName)}</span>
+            </div>
+            <div>
+              <input class="money-input service-price-input" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Harga Service \${escapeHtml(invoice.clientName)}" value="\${escapeHtml(servicePrice)}">
+            </div>
+            <div>
+              <input class="money-input discount-input" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Diskaun \${escapeHtml(invoice.clientName)}" value="\${escapeHtml(discount)}">
+            </div>
+            <div class="total-payment" data-total="\${escapeHtml(String(total))}">\${escapeHtml(formatMoneyValue(total))}</div>
+            <div>
+              <button class="link-button review-pdf-button" type="button" data-client-code="\${escapeHtml(invoice.clientCode)}">Review PDF</button>
+              \${folderNote}
+            </div>
+          </div>
+        \`;
+      }).join("");
+
+      invoiceList.innerHTML = \`
+        <div class="invoice-row header">
+          <div>Client</div>
+          <div>Invoice</div>
+          <div>Harga Service</div>
+          <div>Diskaun</div>
+          <div>Total Payment</div>
+          <div>Review</div>
+        </div>
+        \${rows}
+      \`;
+      invoiceList.className = "invoice-list show";
+      uploadInvoicesButton.disabled = invoices.some((invoice) => !invoice.hasDriveFolder);
+      applyInvoiceDefaultsButton.disabled = false;
+      invoiceResult.className = "result ok";
+      invoiceResult.textContent = uploadInvoicesButton.disabled
+        ? "Invoice siap untuk review, tapi ada client yang belum ada Drive folder ID."
+        : "Invoice siap untuk review. Edit harga/diskaun jika perlu, buka PDF dahulu, kemudian klik Upload All bila sudah puas hati.";
+    }
+
+    async function generateInvoices() {
+      invoiceResult.className = "result";
+      invoiceResult.textContent = "";
+      invoiceList.className = "invoice-list";
+      generateInvoicesButton.disabled = true;
+      uploadInvoicesButton.disabled = true;
+      generateInvoicesButton.textContent = "Generating...";
+
+      try {
+        const response = await fetch("/api/invoices/preview", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ period: invoicePeriod.value })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Generate invoice failed.");
+        invoicePeriod.value = json.period;
+        renderInvoiceList(json.invoices || []);
+      } catch (error) {
+        showInvoiceError(error);
+      } finally {
+        generateInvoicesButton.disabled = false;
+        generateInvoicesButton.textContent = "Generate Invoices";
+      }
+    }
+
+    async function saveClient(event) {
+      event.preventDefault();
+      setMessage(clientResult, "", "");
+      saveClientButton.disabled = true;
+      saveClientButton.textContent = "Saving...";
+
+      try {
+        const payload = Object.fromEntries(new FormData(clientForm).entries());
+        const response = await fetch("/api/clients", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Save client failed.");
+
+        const savedMessage = [
+          \`Client saved: \${json.client?.brandClient || "-"}\`,
+          \`Folder: \${json.client?.driveFolderName || "-"}\`,
+          "Subfolder siap: Weekly Report, Invoice & Receipt"
+        ].join("\\n");
+        clientForm.reset();
+        await loadClients();
+        if (currentInvoices.length) await generateInvoices();
+        setMessage(clientResult, "ok", \`\${savedMessage}\\nSenarai pelanggan sudah dikemas kini.\`);
+        activateSubtab("client", "client-list-panel");
+      } catch (error) {
+        showClientError(error);
+      } finally {
+        saveClientButton.disabled = false;
+        saveClientButton.textContent = "Save Client & Create Drive Folders";
+      }
+    }
+
+    async function reviewInvoicePdf(clientCode) {
+      const draft = collectInvoiceDrafts().find((item) => item.clientCode === clientCode);
+      if (!draft) throw new Error("Draft invoice tidak dijumpai.");
+
+      invoiceResult.className = "result";
+      invoiceResult.textContent = "";
+      const params = new URLSearchParams({
+        client: draft.clientCode,
+        period: invoicePeriod.value,
+        servicePrice: String(draft.servicePrice),
+        discount: String(draft.discount)
+      });
+      const url = \`/api/invoices/pdf?\${params.toString()}\`;
+      const opened = window.open(url, "_blank");
+      if (!opened) window.location.href = url;
+    }
+
+    async function uploadInvoices() {
+      invoiceResult.className = "result";
+      invoiceResult.textContent = "";
+      uploadInvoicesButton.disabled = true;
+      generateInvoicesButton.disabled = true;
+      uploadInvoicesButton.textContent = "Uploading...";
+
+      try {
+        const response = await fetch("/api/invoices/upload", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            period: invoicePeriod.value,
+            drafts: collectInvoiceDrafts()
+          })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Upload invoice failed.");
+
+        const lines = (json.uploads || []).map((upload) => {
+          const action = upload.replaced ? "replaced" : "uploaded";
+          return \`\${upload.invoiceNumber} - \${upload.clientName}: \${action} (\${upload.webViewLink || upload.fileId})\`;
+        });
+        invoiceResult.className = "result ok";
+        invoiceResult.textContent = ["Upload selesai.", ...lines].join("\\n");
+      } catch (error) {
+        showInvoiceError(error);
+      } finally {
+        uploadInvoicesButton.disabled = false;
+        generateInvoicesButton.disabled = false;
+        uploadInvoicesButton.textContent = "Upload All to Google Drive";
+      }
+    }
+
+    invoicePeriod.value = defaultInvoicePeriod();
+    setupTabs();
+    setupPanels();
+    clientForm.addEventListener("submit", saveClient);
+    settingsForm.addEventListener("submit", saveSettings);
+    refreshClientsButton.addEventListener("click", loadClients);
+    generateInvoicesButton.addEventListener("click", generateInvoices);
+    applyInvoiceDefaultsButton.addEventListener("click", () => {
+      invoiceList.querySelectorAll(".invoice-row[data-client-code]").forEach((row) => {
+        const serviceInput = row.querySelector(".service-price-input");
+        const discountInput = row.querySelector(".discount-input");
+        if (defaultServicePrice.value !== "" && serviceInput) serviceInput.value = defaultServicePrice.value;
+        if (defaultDiscount.value !== "" && discountInput) discountInput.value = defaultDiscount.value;
+        updateInvoiceRowTotal(row);
+      });
+    });
+    invoiceList.addEventListener("input", (event) => {
+      if (!event.target.matches(".service-price-input, .discount-input")) return;
+      const row = event.target.closest(".invoice-row[data-client-code]");
+      if (row) updateInvoiceRowTotal(row);
+    });
+    invoiceList.addEventListener("click", (event) => {
+      const button = event.target.closest(".review-pdf-button");
+      if (!button) return;
+      reviewInvoicePdf(button.dataset.clientCode).catch(showInvoiceError);
+    });
+    uploadInvoicesButton.addEventListener("click", uploadInvoices);
+    loadClients();
+    loadSettings();
   </script>
 </body>
 </html>`;
