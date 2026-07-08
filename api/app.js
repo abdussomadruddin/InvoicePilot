@@ -2,6 +2,7 @@ const routes = {
   activity: require("../api_handlers/activity"),
   app: require("../api_handlers/app"),
   "bank-accounts": require("../api_handlers/bank-accounts"),
+  "bank-accounts/qr": require("../api_handlers/bank-accounts/qr"),
   clients: require("../api_handlers/clients"),
   "google/oauth-callback": require("../api_handlers/google/oauth-callback"),
   "google/oauth-start": require("../api_handlers/google/oauth-start"),
@@ -14,8 +15,12 @@ const routes = {
   post: require("../api_handlers/post"),
   "preview-metadata": require("../api_handlers/preview-metadata"),
   preview: require("../api_handlers/preview"),
+  "receipts/pdf": require("../api_handlers/receipts/pdf"),
+  "receipts/preview": require("../api_handlers/receipts/preview"),
+  "receipts/upload": require("../api_handlers/receipts/upload"),
   regenerate: require("../api_handlers/regenerate"),
   settings: require("../api_handlers/settings"),
+  "settings/logo": require("../api_handlers/settings/logo"),
 };
 
 function routeKeyFromRequest(req) {

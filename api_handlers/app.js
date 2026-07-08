@@ -218,6 +218,42 @@ function pageHtml() {
       font-weight: 800;
     }
 
+    .asset-preview {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .asset-preview[hidden] {
+      display: none;
+    }
+
+    .asset-preview img {
+      width: 92px;
+      height: 92px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+    }
+
+    .qr-pill {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 6px;
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
     .activity-item {
       padding: 14px;
       border-top: 1px solid #e5e7eb;
@@ -533,6 +569,10 @@ function pageHtml() {
       font-size: 13px;
     }
 
+    .receipt-list .invoice-row {
+      grid-template-columns: minmax(110px, 0.7fr) minmax(145px, 1.2fr) minmax(150px, 1fr) minmax(110px, 0.8fr) minmax(130px, auto);
+    }
+
     .invoice-client {
       font-weight: 800;
       color: #111827;
@@ -828,8 +868,16 @@ function pageHtml() {
               <label for="businessAddress">Alamat</label>
               <textarea id="businessAddress" name="address" placeholder="Alamat syarikat"></textarea>
             </div>
+            <div class="full">
+              <label for="businessLogoImage">Logo syarikat untuk PDF</label>
+              <input id="businessLogoImage" name="logoImage" type="file" accept="image/jpeg,image/png,image/webp">
+              <div id="businessLogoPreview" class="asset-preview" hidden></div>
+            </div>
           </div>
-          <button id="saveSettingsButton" type="submit">Save Settings</button>
+          <div class="client-form-actions">
+            <button id="saveSettingsButton" type="submit">Save Settings</button>
+            <button id="removeBusinessLogoButton" class="secondary" type="button" hidden>Remove Logo</button>
+          </div>
         </form>
         <div id="settingsResult" class="result"></div>
         </div>
@@ -863,6 +911,11 @@ function pageHtml() {
                 <label for="bankAccountNumber">No akaun</label>
                 <input id="bankAccountNumber" name="accountNumber" type="text" placeholder="Contoh: 8603134244" required>
               </div>
+              <div class="full">
+                <label for="bankQrImage">Gambar QR DuitNow/Bank</label>
+                <input id="bankQrImage" name="qrImage" type="file" accept="image/jpeg,image/png,image/webp">
+                <div id="bankQrPreview" class="asset-preview" hidden></div>
+              </div>
               <label class="check-row full">
                 <input id="bankDefault" name="isDefault" type="checkbox" value="true">
                 Jadikan akaun default untuk invoice PDF
@@ -870,6 +923,7 @@ function pageHtml() {
             </div>
             <div class="client-form-actions">
               <button id="saveBankButton" type="submit">Save Akaun Bank</button>
+              <button id="removeBankQrButton" class="secondary" type="button" hidden>Remove QR</button>
               <button id="cancelBankEditButton" class="secondary" type="button" hidden>Cancel Edit</button>
             </div>
           </form>
@@ -908,10 +962,19 @@ function pageHtml() {
         </div>
 
         <div id="receipt-panel" class="subtab-panel" data-subtab-panel="document">
-          <div class="mini-card">
-            <strong>Receipt</strong>
-            <p class="note">Tab receipt sudah disediakan. Flow generate receipt boleh disambung selepas format receipt dimuktamadkan.</p>
+          <p>Pilih invoice yang telah dibayar, review resit PDF dahulu, kemudian upload resit ke folder Google Drive yang sama.</p>
+
+          <div class="toolbar">
+            <div>
+              <label for="receiptPeriod">Bulan receipt</label>
+              <input id="receiptPeriod" type="month">
+            </div>
+            <button id="generateReceiptsButton" type="button">Generate Receipts</button>
+            <button id="uploadReceiptsButton" class="approve" type="button" disabled>Upload Selected Receipts</button>
           </div>
+
+          <div id="receiptList" class="invoice-list"></div>
+          <div id="receiptResult" class="result"></div>
         </div>
         </div>
       </section>
@@ -937,6 +1000,11 @@ function pageHtml() {
     const uploadInvoicesButton = document.getElementById("uploadInvoicesButton");
     const invoiceList = document.getElementById("invoiceList");
     const invoiceResult = document.getElementById("invoiceResult");
+    const receiptPeriod = document.getElementById("receiptPeriod");
+    const generateReceiptsButton = document.getElementById("generateReceiptsButton");
+    const uploadReceiptsButton = document.getElementById("uploadReceiptsButton");
+    const receiptList = document.getElementById("receiptList");
+    const receiptResult = document.getElementById("receiptResult");
     const clientForm = document.getElementById("clientForm");
     const saveClientButton = document.getElementById("saveClientButton");
     const cancelClientEditButton = document.getElementById("cancelClientEditButton");
@@ -953,12 +1021,18 @@ function pageHtml() {
     const settingsForm = document.getElementById("settingsForm");
     const saveSettingsButton = document.getElementById("saveSettingsButton");
     const settingsResult = document.getElementById("settingsResult");
+    const businessLogoImage = document.getElementById("businessLogoImage");
+    const businessLogoPreview = document.getElementById("businessLogoPreview");
+    const removeBusinessLogoButton = document.getElementById("removeBusinessLogoButton");
     const bankForm = document.getElementById("bankForm");
     const saveBankButton = document.getElementById("saveBankButton");
+    const removeBankQrButton = document.getElementById("removeBankQrButton");
     const cancelBankEditButton = document.getElementById("cancelBankEditButton");
     const bankList = document.getElementById("bankList");
     const bankResult = document.getElementById("bankResult");
     const refreshBankButton = document.getElementById("refreshBankButton");
+    const bankQrImage = document.getElementById("bankQrImage");
+    const bankQrPreview = document.getElementById("bankQrPreview");
     const MAX_DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
     const TARGET_UPLOAD_BYTES = Math.floor(3.75 * 1024 * 1024);
     let currentPreview = null;
@@ -966,6 +1040,7 @@ function pageHtml() {
     let preparedCreativeFile = null;
     let preparedCreativeNotice = "";
     let currentInvoices = [];
+    let currentReceipts = [];
     let currentClients = [];
     let currentBankAccounts = [];
     let currentBankStatus = null;
@@ -988,6 +1063,11 @@ function pageHtml() {
     function showInvoiceError(error) {
       invoiceResult.className = "result err";
       invoiceResult.textContent = error.message || String(error);
+    }
+
+    function showReceiptError(error) {
+      receiptResult.className = "result err";
+      receiptResult.textContent = error.message || String(error);
     }
 
     function defaultInvoicePeriod() {
@@ -1102,6 +1182,19 @@ function pageHtml() {
 
     function uploadLimitMessage(file) {
       return \`File ini \${formatMb(file.size)}MB. Auto-compress tidak berjaya turunkan file bawah 4MB. Vercel Serverless Function ada request body limit sekitar 4.5MB, jadi file besar tidak boleh dihantar terus melalui route ini. Cuba video lebih pendek/resolution lebih rendah, atau guna flow chunked/direct storage.\`;
+    }
+
+    function showLocalAssetPreview(container, file, label) {
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      container.hidden = false;
+      container.innerHTML = \`
+        <img src="\${url}" alt="\${escapeHtml(label)}">
+        <div>
+          <strong>\${escapeHtml(label)} dipilih</strong>
+          <div class="invoice-muted">\${escapeHtml(file.name)} - akan disimpan bila klik Save.</div>
+        </div>
+      \`;
     }
 
     async function readApiJson(response) {
@@ -1541,6 +1634,7 @@ function pageHtml() {
           <div>
             <span class="invoice-client">\${escapeHtml(client.brandClient || client.name)}</span>
             <span class="invoice-muted">\${escapeHtml(client.code)}</span>
+            \${client.serviceStatus === "paused" ? '<span class="qr-pill">Stopped</span>' : '<span class="default-pill">Active</span>'}
           </div>
           <div>
             \${escapeHtml(client.contactName || "-")}
@@ -1556,6 +1650,7 @@ function pageHtml() {
           </div>
           <div class="client-actions">
             <button class="secondary edit-client-button" type="button" data-client-code="\${escapeHtml(client.code)}">Edit</button>
+            <button class="secondary service-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-next-status="\${client.serviceStatus === "paused" ? "active" : "paused"}">\${client.serviceStatus === "paused" ? "Recover" : "Stop Service"}</button>
           </div>
         </div>
       \`).join("");
@@ -1610,6 +1705,42 @@ function pageHtml() {
       setMessage(clientResult, "", "");
       activateSubtab("client", "client-add-panel");
       clientForm.elements.brandClient.focus();
+    }
+
+    async function setClientService(clientCode, nextStatus) {
+      const client = currentClients.find((item) => item.code === clientCode);
+      const label = client?.brandClient || client?.name || clientCode;
+      const action = nextStatus === "active" ? "recover service" : "stop service";
+      if (!window.confirm(\`\${action} untuk \${label}? Folder Google Drive tidak akan dipadam.\`)) return;
+
+      setMessage(clientResult, "", "");
+      try {
+        const response = await fetch("/api/clients", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ clientCode, status: nextStatus })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Update service status failed.");
+        resetClientFormMode();
+        await loadClients();
+        await loadActivity();
+        currentInvoices = [];
+        currentReceipts = [];
+        invoiceList.innerHTML = "";
+        receiptList.innerHTML = "";
+        invoiceList.className = "invoice-list";
+        receiptList.className = "invoice-list";
+        setMessage(clientResult, "ok", nextStatus === "active"
+          ? \`Service disambung semula: \${label}. Client akan muncul semula dalam invoice/receipt.\`
+          : \`Service dihentikan: \${label}. Client disimpan untuk recover akan datang dan tidak masuk invoice/receipt.\`);
+      } catch (error) {
+        showClientError(error);
+      }
     }
 
     async function loadClients() {
@@ -1689,6 +1820,66 @@ function pageHtml() {
       settingsForm.elements.email.value = settings.email || "";
       settingsForm.elements.phone.value = settings.phone || "";
       settingsForm.elements.address.value = settings.address || "";
+      renderBusinessLogo(settings);
+    }
+
+    function renderBusinessLogo(settings = {}) {
+      const hasLogo = Boolean(settings.hasLogoImage || settings.logoPath);
+      removeBusinessLogoButton.hidden = !hasLogo;
+      if (!hasLogo) {
+        businessLogoPreview.hidden = true;
+        businessLogoPreview.innerHTML = "";
+        return;
+      }
+      businessLogoPreview.hidden = false;
+      businessLogoPreview.innerHTML = \`
+        <img src="/api/settings/logo?t=\${encodeURIComponent(settings.logoImageUpdatedAt || Date.now())}" alt="Logo syarikat">
+        <div>
+          <strong>Logo PDF ready</strong>
+          <div class="invoice-muted">\${escapeHtml(settings.logoImageName || "Logo disimpan")}</div>
+        </div>
+      \`;
+    }
+
+    async function uploadBusinessLogoIfNeeded() {
+      const file = businessLogoImage.files?.[0];
+      if (!file) return null;
+      const payload = new FormData();
+      payload.append("logoImage", file);
+      const response = await fetch("/api/settings/logo", {
+        method: "POST",
+        body: payload
+      });
+      const json = await readApiJson(response);
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return null;
+      }
+      if (!response.ok || !json.ok) throw new Error(json.error || "Upload logo failed.");
+      return json.settings || null;
+    }
+
+    async function removeBusinessLogo() {
+      setMessage(settingsResult, "", "");
+      try {
+        const response = await fetch("/api/settings/logo", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({})
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Remove logo failed.");
+        businessLogoImage.value = "";
+        renderBusinessLogo(json.settings || {});
+        await loadActivity();
+        setMessage(settingsResult, "ok", "Logo PDF sudah dibuang.");
+      } catch (error) {
+        showSettingsError(error);
+      }
     }
 
     async function loadSettings() {
@@ -1722,6 +1913,7 @@ function pageHtml() {
 
       try {
         const payload = Object.fromEntries(new FormData(settingsForm).entries());
+        delete payload.logoImage;
         const response = await fetch("/api/settings", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -1733,9 +1925,15 @@ function pageHtml() {
           return;
         }
         if (!response.ok || !json.ok) throw new Error(json.error || "Save settings failed.");
-        fillSettingsForm(json.settings || payload);
+        let settings = json.settings || payload;
+        const logoSettings = await uploadBusinessLogoIfNeeded();
+        if (logoSettings) settings = logoSettings;
+        businessLogoImage.value = "";
+        fillSettingsForm(settings);
         await loadActivity();
-        setMessage(settingsResult, "ok", "Settings syarikat sudah disimpan dalam database untuk PDF invoice.");
+        setMessage(settingsResult, "ok", logoSettings
+          ? "Settings dan logo syarikat sudah disimpan untuk PDF invoice."
+          : "Settings syarikat sudah disimpan dalam database untuk PDF invoice.");
       } catch (error) {
         showSettingsError(error);
       } finally {
@@ -1750,7 +1948,10 @@ function pageHtml() {
       bankForm.elements.id.value = "";
       bankForm.querySelector("h2").textContent = "Tambah Akaun Bank";
       saveBankButton.textContent = "Save Akaun Bank";
+      removeBankQrButton.hidden = true;
       cancelBankEditButton.hidden = true;
+      bankQrPreview.hidden = true;
+      bankQrPreview.innerHTML = "";
     }
 
     function renderBankAccounts(accounts = []) {
@@ -1768,6 +1969,7 @@ function pageHtml() {
           <div>
             <span class="invoice-client">\${escapeHtml(account.label)}</span>
             \${account.isDefault ? '<span class="default-pill">Default PDF</span>' : ''}
+            <span class="qr-pill">\${account.hasQrImage ? "QR Ready" : "Tiada QR"}</span>
           </div>
           <div>
             \${escapeHtml(account.bankName)}
@@ -1819,11 +2021,75 @@ function pageHtml() {
       bankForm.elements.accountName.value = account.accountName || "";
       bankForm.elements.accountNumber.value = account.accountNumber || "";
       bankForm.elements.isDefault.checked = Boolean(account.isDefault);
+      renderBankQrPreview(account);
       bankForm.querySelector("h2").textContent = \`Edit Akaun Bank: \${account.label || account.bankName}\`;
       saveBankButton.textContent = "Update Akaun Bank";
+      removeBankQrButton.hidden = !account.hasQrImage;
       cancelBankEditButton.hidden = false;
       setMessage(bankResult, "", "");
       bankForm.elements.label.focus();
+    }
+
+    function renderBankQrPreview(account = {}) {
+      if (!account.hasQrImage) {
+        bankQrPreview.hidden = true;
+        bankQrPreview.innerHTML = "";
+        return;
+      }
+      bankQrPreview.hidden = false;
+      bankQrPreview.innerHTML = \`
+        <img src="/api/bank-accounts/qr?id=\${encodeURIComponent(account.id)}&t=\${encodeURIComponent(account.qrImageUpdatedAt || Date.now())}" alt="QR payment">
+        <div>
+          <strong>QR payment ready</strong>
+          <div class="invoice-muted">\${escapeHtml(account.qrImageName || "QR disimpan")}</div>
+        </div>
+      \`;
+    }
+
+    async function uploadBankQrIfNeeded(bankId) {
+      const file = bankQrImage.files?.[0];
+      if (!file) return null;
+      const payload = new FormData();
+      payload.append("id", bankId);
+      payload.append("qrImage", file);
+      const response = await fetch("/api/bank-accounts/qr", {
+        method: "POST",
+        body: payload
+      });
+      const json = await readApiJson(response);
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return null;
+      }
+      if (!response.ok || !json.ok) throw new Error(json.error || "Upload QR failed.");
+      return json.account || null;
+    }
+
+    async function removeBankQr() {
+      const id = bankForm.elements.id.value;
+      if (!id) return;
+      setMessage(bankResult, "", "");
+      try {
+        const response = await fetch("/api/bank-accounts/qr", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Remove QR failed.");
+        bankQrImage.value = "";
+        renderBankQrPreview(json.account || {});
+        removeBankQrButton.hidden = true;
+        await loadBankAccounts();
+        await loadActivity();
+        setMessage(bankResult, "ok", "QR payment sudah dibuang.");
+      } catch (error) {
+        showBankError(error);
+      }
     }
 
     async function saveBankAccount(event) {
@@ -1836,6 +2102,7 @@ function pageHtml() {
         const isEditMode = bankForm.dataset.mode === "edit";
         const formData = new FormData(bankForm);
         const payload = Object.fromEntries(formData.entries());
+        delete payload.qrImage;
         payload.isDefault = bankForm.elements.isDefault.checked;
         const response = await fetch("/api/bank-accounts", {
           method: isEditMode ? "PUT" : "POST",
@@ -1848,10 +2115,13 @@ function pageHtml() {
           return;
         }
         if (!response.ok || !json.ok) throw new Error(json.error || "Save bank account failed.");
+        const qrAccount = await uploadBankQrIfNeeded(json.account?.id);
         resetBankFormMode();
         await loadBankAccounts();
         await loadActivity();
-        setMessage(bankResult, "ok", \`Akaun bank disimpan: \${json.account?.label || "-"}\`);
+        setMessage(bankResult, "ok", qrAccount
+          ? \`Akaun bank dan QR disimpan: \${qrAccount.label || "-"}\`
+          : \`Akaun bank disimpan: \${json.account?.label || "-"}\`);
       } catch (error) {
         showBankError(error);
       } finally {
@@ -1917,6 +2187,75 @@ function pageHtml() {
         servicePrice: numericValue(row.querySelector(".service-price-input")?.value),
         discount: numericValue(row.querySelector(".discount-input")?.value)
       }));
+    }
+
+    function collectReceiptDrafts() {
+      return [...receiptList.querySelectorAll(".invoice-row[data-client-code]")].map((row) => ({
+        clientCode: row.dataset.clientCode,
+        servicePrice: numericValue(row.dataset.servicePrice),
+        discount: numericValue(row.dataset.discount),
+        paid: Boolean(row.querySelector(".receipt-paid-input")?.checked)
+      }));
+    }
+
+    function renderReceiptList(receipts) {
+      currentReceipts = receipts;
+      if (!receipts.length) {
+        receiptList.className = "invoice-list";
+        receiptList.innerHTML = "";
+        uploadReceiptsButton.disabled = true;
+        receiptResult.className = "result err";
+        receiptResult.textContent = "Belum ada client. Tambah pelanggan dahulu di tab Client.";
+        return;
+      }
+
+      const rows = receipts.map((receipt) => {
+        const folderNote = receipt.hasDriveFolder ? "" : "<span class=\\"invoice-muted\\">Folder Drive belum diset</span>";
+        const servicePrice = Number(receipt.servicePrice || receipt.amount || 0).toFixed(2);
+        const discount = Number(receipt.discount || 0).toFixed(2);
+        const total = invoiceTotal(servicePrice, discount);
+        return \`
+          <div class="invoice-row" data-client-code="\${escapeHtml(receipt.clientCode)}" data-service-price="\${escapeHtml(servicePrice)}" data-discount="\${escapeHtml(discount)}">
+            <div>
+              <label class="check-row">
+                <input class="receipt-paid-input" type="checkbox">
+                Telah dibayar
+              </label>
+            </div>
+            <div>
+              <span class="invoice-client">\${escapeHtml(receipt.clientName)}</span>
+              <span class="invoice-muted">\${escapeHtml(receipt.billingName || receipt.clientCode)}</span>
+            </div>
+            <div>
+              \${escapeHtml(receipt.invoiceNumber)}
+              <span class="invoice-muted">\${escapeHtml(receipt.fileName)}</span>
+            </div>
+            <div class="total-payment" data-total="\${escapeHtml(String(total))}">\${escapeHtml(formatMoneyValue(total))}</div>
+            <div>
+              <button class="link-button review-receipt-button" type="button" data-client-code="\${escapeHtml(receipt.clientCode)}">Review Resit</button>
+              \${folderNote}
+            </div>
+          </div>
+        \`;
+      }).join("");
+
+      receiptList.innerHTML = \`
+        <div class="invoice-row header">
+          <div>Paid</div>
+          <div>Client</div>
+          <div>Receipt</div>
+          <div>Total Payment</div>
+          <div>Review</div>
+        </div>
+        \${rows}
+      \`;
+      receiptList.className = "invoice-list show receipt-list";
+      const bankMissing = currentBankStatus && currentBankStatus.source === "supabase" && !currentBankStatus.loaded;
+      uploadReceiptsButton.disabled = true;
+      receiptResult.className = "result ok";
+      receiptResult.textContent = bankMissing
+        ? "Receipt draft siap. Tambah atau set default akaun bank dahulu sebelum review/upload PDF."
+        : "Tick invoice yang sudah dibayar, review resit, kemudian upload selected receipts.";
     }
 
     function renderInvoiceList(invoices) {
@@ -2016,6 +2355,37 @@ function pageHtml() {
       }
     }
 
+    async function generateReceipts() {
+      receiptResult.className = "result";
+      receiptResult.textContent = "";
+      receiptList.className = "invoice-list";
+      generateReceiptsButton.disabled = true;
+      uploadReceiptsButton.disabled = true;
+      generateReceiptsButton.textContent = "Generating...";
+
+      try {
+        const response = await fetch("/api/receipts/preview", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ period: receiptPeriod.value })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Generate receipt failed.");
+        receiptPeriod.value = json.period;
+        currentBankStatus = json.bankStatus || null;
+        renderReceiptList(json.receipts || []);
+      } catch (error) {
+        showReceiptError(error);
+      } finally {
+        generateReceiptsButton.disabled = false;
+        generateReceiptsButton.textContent = "Generate Receipts";
+      }
+    }
+
     async function saveClient(event) {
       event.preventDefault();
       setMessage(clientResult, "", "");
@@ -2078,6 +2448,23 @@ function pageHtml() {
       if (!opened) window.location.href = url;
     }
 
+    async function reviewReceiptPdf(clientCode) {
+      const draft = collectReceiptDrafts().find((item) => item.clientCode === clientCode);
+      if (!draft) throw new Error("Draft receipt tidak dijumpai.");
+
+      receiptResult.className = "result";
+      receiptResult.textContent = "";
+      const params = new URLSearchParams({
+        client: draft.clientCode,
+        period: receiptPeriod.value,
+        servicePrice: String(draft.servicePrice),
+        discount: String(draft.discount)
+      });
+      const url = \`/api/receipts/pdf?\${params.toString()}\`;
+      const opened = window.open(url, "_blank");
+      if (!opened) window.location.href = url;
+    }
+
     async function uploadInvoices() {
       invoiceResult.className = "result";
       invoiceResult.textContent = "";
@@ -2117,7 +2504,52 @@ function pageHtml() {
       }
     }
 
+    async function uploadReceipts() {
+      receiptResult.className = "result";
+      receiptResult.textContent = "";
+      const drafts = collectReceiptDrafts();
+      if (!drafts.some((draft) => draft.paid)) {
+        showReceiptError(new Error("Tick sekurang-kurangnya satu invoice yang telah dibayar."));
+        return;
+      }
+      uploadReceiptsButton.disabled = true;
+      generateReceiptsButton.disabled = true;
+      uploadReceiptsButton.textContent = "Uploading...";
+
+      try {
+        const response = await fetch("/api/receipts/upload", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            period: receiptPeriod.value,
+            drafts
+          })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Upload receipt failed.");
+
+        const lines = (json.uploads || []).map((upload) => {
+          const action = upload.replaced ? "replaced" : "uploaded";
+          return \`\${upload.invoiceNumber} - \${upload.clientName}: \${action} (\${upload.webViewLink || upload.fileId})\`;
+        });
+        receiptResult.className = "result ok";
+        receiptResult.textContent = ["Upload resit selesai.", ...lines].join("\\n");
+        await loadActivity();
+      } catch (error) {
+        showReceiptError(error);
+      } finally {
+        uploadReceiptsButton.disabled = false;
+        generateReceiptsButton.disabled = false;
+        uploadReceiptsButton.textContent = "Upload Selected Receipts";
+      }
+    }
+
     invoicePeriod.value = defaultInvoicePeriod();
+    receiptPeriod.value = invoicePeriod.value;
     setupTabs();
     setupPanels();
     resetClientFormMode();
@@ -2136,11 +2568,25 @@ function pageHtml() {
     });
     clientList.addEventListener("click", (event) => {
       const editButton = event.target.closest(".edit-client-button");
-      if (!editButton) return;
-      editClient(editButton.dataset.clientCode);
+      if (editButton) {
+        editClient(editButton.dataset.clientCode);
+        return;
+      }
+      const deleteButton = event.target.closest(".delete-client-button");
+      if (deleteButton) setClientService(deleteButton.dataset.clientCode, "paused");
+      const serviceButton = event.target.closest(".service-client-button");
+      if (serviceButton) setClientService(serviceButton.dataset.clientCode, serviceButton.dataset.nextStatus);
     });
     settingsForm.addEventListener("submit", saveSettings);
+    businessLogoImage.addEventListener("change", () => {
+      showLocalAssetPreview(businessLogoPreview, businessLogoImage.files?.[0], "Logo syarikat");
+    });
+    removeBusinessLogoButton.addEventListener("click", removeBusinessLogo);
     bankForm.addEventListener("submit", saveBankAccount);
+    bankQrImage.addEventListener("change", () => {
+      showLocalAssetPreview(bankQrPreview, bankQrImage.files?.[0], "QR payment");
+    });
+    removeBankQrButton.addEventListener("click", removeBankQr);
     cancelBankEditButton.addEventListener("click", () => {
       resetBankFormMode();
       setMessage(bankResult, "", "");
@@ -2158,6 +2604,7 @@ function pageHtml() {
     });
     refreshClientsButton.addEventListener("click", loadClients);
     generateInvoicesButton.addEventListener("click", generateInvoices);
+    generateReceiptsButton.addEventListener("click", generateReceipts);
     applyInvoiceDefaultsButton.addEventListener("click", () => {
       invoiceList.querySelectorAll(".invoice-row[data-client-code]").forEach((row) => {
         const serviceInput = row.querySelector(".service-price-input");
@@ -2178,6 +2625,17 @@ function pageHtml() {
       reviewInvoicePdf(button.dataset.clientCode).catch(showInvoiceError);
     });
     uploadInvoicesButton.addEventListener("click", uploadInvoices);
+    receiptList.addEventListener("change", (event) => {
+      if (!event.target.matches(".receipt-paid-input")) return;
+      const bankMissing = currentBankStatus && currentBankStatus.source === "supabase" && !currentBankStatus.loaded;
+      uploadReceiptsButton.disabled = bankMissing || !collectReceiptDrafts().some((draft) => draft.paid);
+    });
+    receiptList.addEventListener("click", (event) => {
+      const button = event.target.closest(".review-receipt-button");
+      if (!button) return;
+      reviewReceiptPdf(button.dataset.clientCode).catch(showReceiptError);
+    });
+    uploadReceiptsButton.addEventListener("click", uploadReceipts);
     loadClients();
     loadSettings();
     loadBankAccounts();

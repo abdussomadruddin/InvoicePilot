@@ -2,6 +2,7 @@ const { requireAuth } = require("../lib/auth");
 const {
   createClientWithDriveFolders,
   getMergedClientsWithStatus,
+  setClientServiceStatus,
   updateClientDetails,
 } = require("../lib/invoices");
 const { recordActivity } = require("../lib/supabase-db");
@@ -24,6 +25,9 @@ function publicClient(client) {
     driveFolderName: client.driveFolderName,
     weeklyReportFolderId: client.weeklyReportFolderId,
     invoiceReceiptFolderId: client.invoiceReceiptFolderId,
+    serviceStatus: client.serviceStatus || "active",
+    serviceStoppedAt: client.serviceStoppedAt || "",
+    serviceRecoveredAt: client.serviceRecoveredAt || "",
     source: client.source || "config",
   };
 }
@@ -74,6 +78,29 @@ module.exports = async function handler(req, res) {
         type: "client_updated",
         title: `Pelanggan dikemaskini: ${saved.client.brandClient || saved.client.name}`,
         description: "Detail pelanggan disimpan untuk invoice PDF.",
+        entityType: "client",
+        entityId: saved.client.code,
+      });
+      res.statusCode = 200;
+      res.end(JSON.stringify({
+        ok: true,
+        client: publicClient(saved.client),
+        registryFile: saved.registryFile,
+        database: saved.database,
+      }));
+      return;
+    }
+
+    if (req.method === "DELETE") {
+      const body = await readJsonBody(req);
+      const saved = await setClientServiceStatus({ ...body, status: body.status || "paused" });
+      const isPaused = saved.client.serviceStatus === "paused";
+      await recordActivity({
+        type: isPaused ? "client_service_stopped" : "client_service_recovered",
+        title: `${isPaused ? "Service dihentikan" : "Service disambung"}: ${saved.client.brandClient || saved.client.name || saved.client.code}`,
+        description: isPaused
+          ? "Client disimpan untuk recover akan datang dan dikeluarkan dari invoice/receipt aktif."
+          : "Client aktif semula untuk invoice/receipt akan datang.",
         entityType: "client",
         entityId: saved.client.code,
       });

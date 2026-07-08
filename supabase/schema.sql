@@ -17,11 +17,18 @@ create table if not exists public.invoice_clients (
   drive_folder_name text not null default '',
   weekly_report_folder_id text not null default '',
   invoice_receipt_folder_id text not null default '',
+  service_status text not null default 'active',
+  service_stopped_at timestamptz,
+  service_recovered_at timestamptz,
   source text not null default 'supabase',
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.invoice_clients add column if not exists service_status text not null default 'active';
+alter table public.invoice_clients add column if not exists service_stopped_at timestamptz;
+alter table public.invoice_clients add column if not exists service_recovered_at timestamptz;
 
 create table if not exists public.business_settings (
   id text primary key default 'default',
@@ -36,10 +43,19 @@ create table if not exists public.business_settings (
   bank_account_name text not null default '',
   payment_link text not null default '',
   logo_path text not null default '',
+  logo_image_name text not null default '',
+  logo_image_mime text not null default '',
+  logo_image_size integer not null default 0,
+  logo_image_updated_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint business_settings_singleton check (id = 'default')
 );
+
+alter table public.business_settings add column if not exists logo_image_name text not null default '';
+alter table public.business_settings add column if not exists logo_image_mime text not null default '';
+alter table public.business_settings add column if not exists logo_image_size integer not null default 0;
+alter table public.business_settings add column if not exists logo_image_updated_at timestamptz;
 
 create table if not exists public.invoice_uploads (
   id uuid primary key default gen_random_uuid(),
@@ -68,12 +84,51 @@ create table if not exists public.bank_accounts (
   bank_name text not null default '',
   account_name text not null default '',
   account_number text not null default '',
+  qr_image_path text not null default '',
+  qr_image_name text not null default '',
+  qr_image_mime text not null default '',
+  qr_image_size integer not null default 0,
+  qr_image_updated_at timestamptz,
   is_default boolean not null default false,
   is_active boolean not null default true,
   deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.bank_accounts add column if not exists qr_image_path text not null default '';
+alter table public.bank_accounts add column if not exists qr_image_name text not null default '';
+alter table public.bank_accounts add column if not exists qr_image_mime text not null default '';
+alter table public.bank_accounts add column if not exists qr_image_size integer not null default 0;
+alter table public.bank_accounts add column if not exists qr_image_updated_at timestamptz;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'bank-qr',
+  'bank-qr',
+  false,
+  2097152,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set
+  public = false,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'business-assets',
+  'business-assets',
+  false,
+  2097152,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set
+  public = false,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 create table if not exists public.app_activity (
   id uuid primary key default gen_random_uuid(),
