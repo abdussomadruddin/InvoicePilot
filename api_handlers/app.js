@@ -227,7 +227,7 @@ function pageHtml() {
     }
 
     .client-row.header > div:last-child {
-      text-align: right;
+      text-align: center;
     }
 
     .bank-list,
@@ -342,7 +342,7 @@ function pageHtml() {
     .client-actions {
       display: flex;
       flex-wrap: wrap;
-      justify-content: flex-end;
+      justify-content: center;
       align-items: center;
       gap: 8px;
       min-width: 0;
@@ -359,7 +359,7 @@ function pageHtml() {
 
     .action-menu {
       width: 140px;
-      margin-left: auto;
+      margin: 0 auto;
     }
 
     .action-menu summary {
