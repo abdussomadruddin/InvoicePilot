@@ -42,6 +42,8 @@ npm run ip -- link
 npm run ip -- pull
 npm run ip -- build
 npm run ip -- deploy
+npm run ip -- db:setup
+npm run ip -- db:migrate
 npm run ip -- env
 npm run ip -- env:add APP_PASSWORD production
 npm run ip -- repair
@@ -59,6 +61,9 @@ GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
 GOOGLE_REDIRECT_URI=https://your-domain.vercel.app/api/google/oauth-callback
 GOOGLE_REFRESH_TOKEN=refresh_token_from_oauth_setup
 INVOICE_DRIVE_MASTER_FOLDER_ID=1DqzU5ZZ_81bpEXZiWqqecBF8gqmRiv-o
+
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 INVOICE_BUSINESS_NAME=Your Business Name
 INVOICE_BUSINESS_REG_NO=optional_registration_number
@@ -78,7 +83,38 @@ INVOICE_DEFAULT_MONTHLY_RETAINER=1500
 APP_TIMEZONE=Asia/Kuala_Lumpur
 ```
 
-Clients are configured in `lib/invoice-config.js`. The current default client list is:
+### Supabase Database
+
+Client data, editable business settings, and invoice upload history are stored in Supabase when `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set. Google Drive is still used for client folders and PDF files.
+
+Create the database tables first:
+
+```bash
+npm run supabase:setup
+```
+
+`supabase:setup` runs `supabase/schema.sql` when `SUPABASE_DB_URL` is available. If not, open Supabase SQL Editor and paste the SQL from `supabase/schema.sql`.
+
+Required Supabase env:
+
+```text
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+Optional setup env for local schema creation:
+
+```text
+SUPABASE_DB_URL=postgresql://postgres:password@db.project-ref.supabase.co:5432/postgres
+```
+
+To import old Drive JSON data into Supabase:
+
+```bash
+npm run supabase:migrate-drive
+```
+
+Clients are seeded from `lib/invoice-config.js` as fallback defaults. The current default client list is:
 
 - TEEGA
 - SAFRICH
@@ -86,15 +122,15 @@ Clients are configured in `lib/invoice-config.js`. The current default client li
 - KAK SUE KITCHEN
 - AZ HUSTLER EMPIRE
 
-The app uses `INVOICE_DRIVE_MASTER_FOLDER_ID` as the master client folder. New clients added from the app are stored in `client-registry.json` inside that master folder. Saving a client creates:
+The app uses `INVOICE_DRIVE_MASTER_FOLDER_ID` as the master client folder. New clients added from the app are stored in Supabase, and Google Drive folders are created automatically:
 
 - `LBM x {brand client}`
 - `Weekly Report`
 - `Invoice & Receipt`
 
-Invoice uploads go into `Invoice & Receipt`. Existing config clients still work; if a client needs a custom folder name or exact folder ID, update that client entry in `lib/invoice-config.js`.
+Invoice uploads go into `Invoice & Receipt`. Each successful upload is recorded in the Supabase `invoice_uploads` table.
 
-The Settings tab stores the business profile used in invoice PDFs as `business-settings.json` inside the same master Drive folder. If Google OAuth is not configured yet, invoice PDFs fall back to the environment variables above.
+The Settings tab stores the business profile used in invoice PDFs in Supabase. If Supabase is not configured yet, invoice PDFs fall back to the environment variables above.
 
 You can also override all clients from Vercel with `INVOICE_CLIENTS_JSON`:
 

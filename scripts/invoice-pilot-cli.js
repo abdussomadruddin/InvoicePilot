@@ -31,6 +31,8 @@ Commands:
   build      Build Vercel production output locally
   deploy     Deploy the current prebuilt output to production
   repair     Link, pull, check, build, and deploy production
+  db:setup   Create Supabase tables using SUPABASE_DB_URL
+  db:migrate Import old Drive JSON client/settings data into Supabase
   env        List Vercel environment variables
   env:add    Add a Vercel environment variable
   status     Show Vercel project/deployment status
@@ -60,6 +62,10 @@ if (command === "help" || command === "--help" || command === "-h") {
   run("npm", ["run", "check"]);
   vercel(["build", "--prod"]);
   vercel(["deploy", "--prebuilt", "--prod"]);
+} else if (command === "db:setup") {
+  run("node", ["scripts/setup-supabase.js"]);
+} else if (command === "db:migrate") {
+  run("node", ["scripts/migrate-drive-to-supabase.js"]);
 } else if (command === "env") {
   vercel(["env", "ls"]);
 } else if (command === "env:add") {

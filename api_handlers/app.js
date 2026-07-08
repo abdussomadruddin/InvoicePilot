@@ -1306,7 +1306,9 @@ function pageHtml() {
     function renderClientList(clients, registryStatus) {
       currentClients = clients || [];
       dashboardClientCount.textContent = String(clients.length);
-      dashboardRegistryStatus.textContent = registryStatus?.ok ? "OK" : "Setup";
+      dashboardRegistryStatus.textContent = registryStatus?.ok
+        ? (registryStatus.source === "supabase" ? "DB OK" : "Drive OK")
+        : "Setup";
 
       if (!clients.length) {
         currentClients = [];
@@ -1350,8 +1352,10 @@ function pageHtml() {
         \${rows}
       \`;
       const statusLine = registryStatus?.ok
-        ? \`Senarai pelanggan dimuat. Registry Drive: \${registryStatus.loaded ? "loaded" : "belum ada file"}.\`
-        : \`Senarai config dimuat. \${registryStatus?.error || "Registry Drive belum tersedia."}\`;
+        ? (registryStatus.source === "supabase"
+          ? \`Senarai pelanggan dimuat dari Supabase. Rekod DB: \${registryStatus.count || 0}.\`
+          : \`Senarai pelanggan dimuat. Registry Drive: \${registryStatus.loaded ? "loaded" : "belum ada file"}.\`)
+        : \`Senarai config dimuat. \${registryStatus?.error || "Database belum tersedia."}\`;
       setMessage(clientResult, registryStatus?.ok ? "ok" : "err", statusLine);
     }
 
@@ -1434,7 +1438,9 @@ function pageHtml() {
         if (!response.ok || !json.ok) throw new Error(json.error || "Load settings failed.");
         fillSettingsForm(json.settings || {});
         const statusLine = json.status?.ok
-          ? (json.status.loaded ? "Settings dimuat dari Drive." : "Settings guna default config.")
+          ? (json.status.loaded
+            ? \`Settings dimuat dari \${json.status.source === "supabase" ? "Supabase" : "Drive"}.\`
+            : "Settings guna default config.")
           : \`Settings guna default config. \${json.status?.error || ""}\`;
         setMessage(settingsResult, json.status?.ok ? "ok" : "err", statusLine.trim());
       } catch (error) {
@@ -1462,7 +1468,7 @@ function pageHtml() {
         }
         if (!response.ok || !json.ok) throw new Error(json.error || "Save settings failed.");
         fillSettingsForm(json.settings || payload);
-        setMessage(settingsResult, "ok", "Settings syarikat sudah disimpan untuk PDF invoice.");
+        setMessage(settingsResult, "ok", "Settings syarikat sudah disimpan dalam database untuk PDF invoice.");
       } catch (error) {
         showSettingsError(error);
       } finally {
@@ -1618,7 +1624,7 @@ function pageHtml() {
         const savedMessage = isEditMode
           ? [
             \`Client updated: \${json.client?.brandClient || "-"}\`,
-            "Detail pelanggan sudah disimpan dalam registry Drive."
+            "Detail pelanggan sudah disimpan dalam database."
           ].join("\\n")
           : [
             \`Client saved: \${json.client?.brandClient || "-"}\`,

@@ -54,6 +54,7 @@ module.exports = async function handler(req, res) {
         client: publicClient(saved.client),
         folders: saved.folders,
         registryFile: saved.registryFile,
+        database: saved.database,
       }));
       return;
     }
@@ -66,6 +67,7 @@ module.exports = async function handler(req, res) {
         ok: true,
         client: publicClient(saved.client),
         registryFile: saved.registryFile,
+        database: saved.database,
       }));
       return;
     }

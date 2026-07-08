@@ -26,6 +26,7 @@ module.exports = async function handler(req, res) {
         ok: true,
         settings: saved.settings,
         file: saved.file,
+        database: saved.database,
       }));
       return;
     }
