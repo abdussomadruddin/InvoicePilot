@@ -279,6 +279,7 @@ function pageHtml() {
 
     .client-actions {
       display: flex;
+      flex-wrap: wrap;
       justify-content: flex-end;
       align-items: center;
       gap: 8px;
@@ -1649,6 +1650,7 @@ function pageHtml() {
             <span class="invoice-muted">\${escapeHtml(client.source || "config")}</span>
           </div>
           <div class="client-actions">
+            <button class="secondary copy-drive-link-button" type="button" data-client-code="\${escapeHtml(client.code)}">Copy Drive Link</button>
             <button class="secondary edit-client-button" type="button" data-client-code="\${escapeHtml(client.code)}">Edit</button>
             <button class="secondary service-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-next-status="\${client.serviceStatus === "paused" ? "active" : "paused"}">\${client.serviceStatus === "paused" ? "Recover" : "Stop Service"}</button>
           </div>
@@ -1738,6 +1740,46 @@ function pageHtml() {
         setMessage(clientResult, "ok", nextStatus === "active"
           ? \`Service disambung semula: \${label}. Client akan muncul semula dalam invoice/receipt.\`
           : \`Service dihentikan: \${label}. Client disimpan untuk recover akan datang dan tidak masuk invoice/receipt.\`);
+      } catch (error) {
+        showClientError(error);
+      }
+    }
+
+    async function copyClientDriveLink(clientCode) {
+      const client = currentClients.find((item) => item.code === clientCode);
+      const label = client?.brandClient || client?.name || clientCode;
+      setMessage(clientResult, "", "");
+
+      try {
+        const response = await fetch("/api/clients/share-link", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ clientCode })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Copy Drive link failed.");
+
+        const text = json.whatsappText || "";
+        let copied = false;
+        if (navigator.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+          } catch (clipboardError) {
+            copied = false;
+          }
+        }
+        if (!copied) {
+          window.prompt("Copy template WhatsApp ini:", text);
+        }
+        setMessage(clientResult, "ok", copied
+          ? \`Link WhatsApp copied untuk \${label}. Folder sudah set Anyone with link = Editor.\`
+          : \`Template WhatsApp siap untuk \${label}. Folder sudah set Anyone with link = Editor.\`);
+        await loadActivity();
       } catch (error) {
         showClientError(error);
       }
@@ -2567,6 +2609,11 @@ function pageHtml() {
       activateSubtab("client", "client-list-panel");
     });
     clientList.addEventListener("click", (event) => {
+      const copyDriveButton = event.target.closest(".copy-drive-link-button");
+      if (copyDriveButton) {
+        copyClientDriveLink(copyDriveButton.dataset.clientCode);
+        return;
+      }
       const editButton = event.target.closest(".edit-client-button");
       if (editButton) {
         editClient(editButton.dataset.clientCode);
