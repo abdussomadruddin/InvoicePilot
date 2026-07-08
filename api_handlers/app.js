@@ -150,7 +150,7 @@ function pageHtml() {
     }
 
     .quick-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1fr);
       margin: 18px 0 22px;
     }
 
@@ -784,7 +784,7 @@ function pageHtml() {
       }
 
       .quick-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: 1fr;
       }
     }
 
@@ -952,8 +952,6 @@ function pageHtml() {
         </div>
         <div class="quick-grid">
           <button class="quick-card" type="button" data-go-tab="postpilot">Buat Post</button>
-          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="document-panel">Generate Invoice</button>
-          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="bank-panel">Akaun Bank</button>
         </div>
         <h2>Live Feed</h2>
         <div id="activityFeed" class="activity-feed">
