@@ -37,10 +37,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
 
-    if (message?.type === "FILL_ACTIVE_POST" || message?.type === "FILL_ACTIVE_COMMENT") {
-      const result = await sendToActiveFacebookTab(message.type === "FILL_ACTIVE_POST"
-        ? "POSTPILOT_FILL_POST"
-        : "POSTPILOT_FILL_COMMENT");
+    if (message?.type === "FILL_ACTIVE_POST" || message?.type === "FILL_ACTIVE_COMMENT" || message?.type === "AUTO_POST_ACTIVE") {
+      const result = await sendToActiveFacebookTab(message.type === "FILL_ACTIVE_COMMENT"
+        ? "POSTPILOT_FILL_COMMENT"
+        : message.type === "AUTO_POST_ACTIVE"
+          ? "POSTPILOT_AUTO_POST"
+          : "POSTPILOT_FILL_POST");
       sendResponse(result || { ok: true });
       return;
     }

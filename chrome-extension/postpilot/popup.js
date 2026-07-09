@@ -4,6 +4,7 @@ const commentCta = document.getElementById("commentCta");
 const statusBox = document.getElementById("status");
 const openFacebookButton = document.getElementById("openFacebookButton");
 const fillPostButton = document.getElementById("fillPostButton");
+const autoPostButton = document.getElementById("autoPostButton");
 const copyCtaButton = document.getElementById("copyCtaButton");
 const fillCommentButton = document.getElementById("fillCommentButton");
 
@@ -65,7 +66,16 @@ openFacebookButton.addEventListener("click", async () => {
 fillPostButton.addEventListener("click", async () => {
   try {
     await sendMessage({ type: "FILL_ACTIVE_POST" });
-    setStatus("Post personal cuba diisi. Semak composer sebelum klik Post.");
+    setStatus("Post personal cuba diisi.");
+  } catch (error) {
+    setStatus(error.message || String(error), true);
+  }
+});
+
+autoPostButton.addEventListener("click", async () => {
+  try {
+    await sendMessage({ type: "AUTO_POST_ACTIVE" });
+    setStatus("Auto post sedang dicuba di tab Facebook aktif.");
   } catch (error) {
     setStatus(error.message || String(error), true);
   }

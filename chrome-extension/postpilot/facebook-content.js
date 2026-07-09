@@ -15,6 +15,12 @@ function textOf(element) {
   return String(element?.innerText || element?.textContent || element?.getAttribute("aria-label") || "").trim();
 }
 
+function disabled(element) {
+  return element?.disabled
+    || element?.getAttribute("aria-disabled") === "true"
+    || element?.getAttribute("disabled") !== null;
+}
+
 function dataUrlToFile(dataUrl, name, type) {
   const [header, data] = String(dataUrl || "").split(",");
   const mime = type || header.match(/data:([^;]+)/)?.[1] || "image/jpeg";
@@ -61,6 +67,35 @@ function findClickableByText(patterns) {
   const regexes = patterns.map((pattern) => new RegExp(pattern, "i"));
   const nodes = [...document.querySelectorAll("button, a, div[role='button'], span[role='button']")].filter(visible);
   return nodes.find((node) => regexes.some((regex) => regex.test(textOf(node))));
+}
+
+function findPostButton(textbox) {
+  const scope = textbox?.closest("[role='dialog']")
+    || textbox?.closest("[aria-modal='true']")
+    || document;
+  const labels = [/^post$/i, /^publish$/i, /^siar$/i, /^siarkan$/i, /^kongsi$/i, /^kongsikan$/i];
+  const nodes = [...scope.querySelectorAll("button, div[role='button'], span[role='button']")]
+    .filter((node) => visible(node) && !disabled(node));
+  return nodes.find((node) => labels.some((regex) => regex.test(textOf(node))));
+}
+
+async function clickFacebookPostButton(textbox, draft) {
+  const existing = await chrome.storage.local.get("autoPublishedDraftId");
+  if (existing.autoPublishedDraftId === draft.id) {
+    return "Draft ini sudah pernah auto-click Post. Hantar draft baru untuk post lagi.";
+  }
+
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const postButton = findPostButton(textbox);
+    if (postButton) {
+      postButton.click();
+      await chrome.storage.local.set({ autoPublishedDraftId: draft.id });
+      return "Butang Post Facebook sudah diklik automatik.";
+    }
+    await sleep(500);
+  }
+
+  throw new Error("Butang Post Facebook tidak dijumpai atau masih disabled. Semak composer, kemudian tekan Auto Post Now dari panel extension.");
 }
 
 async function openComposer() {
@@ -114,7 +149,12 @@ async function fillPost() {
   const textbox = await openComposer();
   setText(textbox, draft.postText);
   const imageStatus = await attachImage(draft.image);
-  showPanel(`${imageStatus}\n\nPost sudah diisi. Semak, kemudian klik Post sendiri.`, draft);
+  if (draft.autoPublish) {
+    const postStatus = await clickFacebookPostButton(textbox, draft);
+    showPanel(`${imageStatus}\n\n${postStatus}`, draft);
+    return { ok: true, message: `${imageStatus}\n${postStatus}` };
+  }
+  showPanel(`${imageStatus}\n\nPost sudah diisi.`, draft);
   return { ok: true, message: imageStatus };
 }
 
@@ -178,6 +218,15 @@ function showPanel(status, draft) {
   actions.style.cssText = "display:flex;flex-wrap:wrap;gap:8px";
   actions.append(
     button("Fill Personal Post", () => fillPost().catch((error) => showPanel(error.message, draft))),
+    button("Auto Post Now", async () => {
+      try {
+        const nextDraft = { ...(draft || await getDraft()), autoPublish: true };
+        await chrome.storage.local.set({ currentDraft: nextDraft });
+        await fillPost();
+      } catch (error) {
+        showPanel(error.message, draft);
+      }
+    }),
     button("Copy CTA", async () => {
       await navigator.clipboard.writeText(draft?.commentCta || "");
       showPanel("CTA komen sudah dicopy.", draft);
@@ -200,6 +249,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse(await fillPost());
       return;
     }
+    if (message?.type === "POSTPILOT_AUTO_POST") {
+      const draft = await getDraft();
+      await chrome.storage.local.set({ currentDraft: { ...draft, autoPublish: true } });
+      sendResponse(await fillPost());
+      return;
+    }
     if (message?.type === "POSTPILOT_FILL_COMMENT") {
       sendResponse(await fillComment());
       return;
@@ -215,7 +270,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 (async () => {
   try {
     const draft = await getDraft();
-    showPanel("Draft diterima dari webapp. Tekan Fill Personal Post bila composer Facebook sudah ready.", draft);
+    showPanel("Draft diterima dari webapp. Facebook akan cuba auto post sekarang.", draft);
     await sleep(1200);
     await fillPost();
   } catch (error) {

@@ -2084,7 +2084,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       threadsPreviewPanel.className = "preview show";
       threadsResult.className = "result ok";
       threadsResult.textContent = [
-        "Preview Post Pilot siap. Post utama kekal tanpa link; CTA berada di komen.",
+        "Preview Post Pilot siap. Post utama dan CTA komen sudah disediakan.",
         savedThreadsImage && !threadsHookImage.files[0] ? "Gambar hook last key in tersedia untuk extension." : "",
         preparedThreadsImageNotice || ""
       ].filter(Boolean).join("\\n\\n");
@@ -2122,6 +2122,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           affiliateLink: currentThreadsPreview.affiliate_link || "",
           postMode: currentThreadsPreview.post_mode || "soft",
           style: currentThreadsPreview.style || "",
+          autoPublish: true,
           image: imageDataUrl ? {
             name: (preparedThreadsImageFile || selectedImage)?.name || savedThreadsImage?.name || "post-hook.jpg",
             type: (preparedThreadsImageFile || selectedImage)?.type || savedThreadsImage?.type || "image/jpeg",
@@ -2446,7 +2447,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         threadsResult.className = "result ok";
         threadsResult.textContent = [
           "Draft dihantar ke Post Pilot extension.",
-          "Kalau extension sudah install, Facebook akan dibuka dan composer personal post akan diisi.",
+          "Kalau extension sudah install, Facebook akan dibuka, composer akan diisi, dan butang Post akan dicuba secara automatik.",
           message.draft.imageNotice || preparedThreadsImageNotice || ""
         ].filter(Boolean).join("\\n");
       } catch (error) {
