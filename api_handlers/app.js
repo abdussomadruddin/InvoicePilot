@@ -2098,11 +2098,11 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     function normalizePostPilotMainTextForSend(value, link) {
       const safeLink = String(link || "https://swiy.co/kmethod").trim() || "https://swiy.co/kmethod";
       const lines = String(value || "")
-        .replace(/https?:\/\/\S+/gi, "")
-        .split(/\r?\n/)
+        .replace(/https?:\\/\\/\\S+/gi, "")
+        .split(/\\r?\\n/)
         .map((line) => line.trim())
         .filter(Boolean)
-        .filter((line) => !/^klik\s+sini\s*:/i.test(line));
+        .filter((line) => !/^klik\\s+sini\\s*:/i.test(line));
       const selected = [];
       let total = 0;
       for (const line of lines) {
