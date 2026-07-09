@@ -350,9 +350,16 @@ async function clickPhotoVideo() {
 }
 
 async function ensureComposerOpen() {
-  const textbox = await waitUntil(() => findTextboxIn(activeComposerScope(), "post"), {
-    timeout: 9_000,
-    interval: 200,
+  const textbox = await waitUntil(() => {
+    const scope = activeComposerScope();
+    const found = findTextboxIn(scope, "post");
+    if (found) return found;
+    const prompt = findClickableIn(scope, ["what's on your mind", "what is on your mind", "apa yang anda fikir", "write something"]);
+    if (prompt) prompt.click();
+    return null;
+  }, {
+    timeout: 12_000,
+    interval: 220,
     label: "Composer Facebook",
   });
   return { scope: activeComposerScope(), textbox };
@@ -476,14 +483,14 @@ async function runFullAutomation({ manual = false } = {}) {
       label: "Facebook page",
     });
     await clickPhotoVideo();
-    const { textbox } = await ensureComposerOpen();
-    steps.push("1/8 Composer ready.");
+    steps.push("1/8 Photo/video ready.");
 
     showPanel(progress(steps, "2/8 Attach gambar hook..."), draft);
     await attachHookImageFromDraft(draft);
     steps.push("2/8 Gambar hook ready.");
 
-    showPanel(progress(steps, "3/8 Isi caption sekali sahaja..."), draft);
+    showPanel(progress(steps, "3/8 Tunggu composer dan isi caption sekali sahaja..."), draft);
+    const { textbox } = await ensureComposerOpen();
     await fillOnce(textbox, draft.postText, "Personal post");
     await removeLinkPreviewIfPresent();
     steps.push("3/8 Caption clean.");
@@ -518,8 +525,8 @@ async function fillPostOnly() {
   await acquireRunLock("fill-post", draft.automationId || draft.id || "", true);
   try {
     await clickPhotoVideo();
-    const { textbox } = await ensureComposerOpen();
     await attachHookImageFromDraft(draft);
+    const { textbox } = await ensureComposerOpen();
     await fillOnce(textbox, draft.postText, "Personal post");
     await removeLinkPreviewIfPresent();
     showPanel("Post personal sudah diisi sekali sahaja. Semak composer.", draft);

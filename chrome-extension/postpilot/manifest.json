@@ -7,9 +7,9 @@
   "host_permissions": [
     "https://www.facebook.com/*",
     "https://facebook.com/*",
+    "https://buddypilot.vercel.app/*",
     "http://localhost/*",
-    "http://127.0.0.1/*",
-    "https://*/*"
+    "http://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -20,7 +20,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost/*", "http://127.0.0.1/*", "https://*/*"],
+      "matches": ["https://buddypilot.vercel.app/*", "http://localhost/*", "http://127.0.0.1/*"],
       "js": ["webapp-content.js"],
       "run_at": "document_start"
     },

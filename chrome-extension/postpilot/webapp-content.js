@@ -3,15 +3,35 @@ window.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || data.source !== "postpilot-webapp" || data.type !== "POSTPILOT_SAVE_DRAFT") return;
 
-  chrome.runtime.sendMessage({
-    type: "SAVE_DRAFT_AND_OPEN_FACEBOOK",
-    draft: data.draft,
-  }, (response) => {
+  const runtime = globalThis.chrome?.runtime;
+  if (!runtime?.sendMessage) {
     window.postMessage({
       source: "postpilot-extension",
       type: "POSTPILOT_DRAFT_STATUS",
-      ok: Boolean(response?.ok),
-      error: response?.error || "",
+      ok: false,
+      error: "Post Pilot extension runtime belum ready. Reload extension dan refresh BuddyPilot.",
     }, window.location.origin);
-  });
+    return;
+  }
+
+  const sendStatus = (ok, error = "") => {
+    window.postMessage({
+      source: "postpilot-extension",
+      type: "POSTPILOT_DRAFT_STATUS",
+      ok,
+      error,
+    }, window.location.origin);
+  };
+
+  try {
+    runtime.sendMessage({
+      type: "SAVE_DRAFT_AND_OPEN_FACEBOOK",
+      draft: data.draft,
+    }, (response) => {
+      const runtimeError = runtime.lastError?.message || "";
+      sendStatus(!runtimeError && Boolean(response?.ok), runtimeError || response?.error || "");
+    });
+  } catch (error) {
+    sendStatus(false, error?.message || String(error));
+  }
 });
