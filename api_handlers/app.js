@@ -141,7 +141,6 @@ function pageHtml() {
       margin: 0;
     }
 
-    .mini-grid,
     .quick-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -152,21 +151,6 @@ function pageHtml() {
     .quick-grid {
       grid-template-columns: minmax(0, 1fr);
       margin: 18px 0 22px;
-    }
-
-    .mini-card {
-      border: 3px solid #ffffff;
-      border-radius: 22px;
-      padding: 16px;
-      background: var(--blue-soft);
-      box-shadow: 0 8px 0 rgba(29, 155, 240, 0.12);
-    }
-
-    .mini-card strong {
-      display: block;
-      margin-top: 4px;
-      font-size: 24px;
-      color: var(--red);
     }
 
     .quick-card {
@@ -785,17 +769,12 @@ function pageHtml() {
         width: min(100% - 24px, 900px);
       }
 
-      .mini-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
       .quick-grid {
         grid-template-columns: 1fr;
       }
     }
 
     @media (max-width: 840px) {
-      .mini-grid,
       .quick-grid,
       .client-grid {
         grid-template-columns: 1fr;
@@ -910,10 +889,6 @@ function pageHtml() {
         font-size: 16px;
       }
 
-      .mini-card strong {
-        font-size: 22px;
-      }
-
       .tab-button,
       .subtab-button,
       button {
@@ -951,15 +926,11 @@ function pageHtml() {
           </div>
           <button id="refreshActivityButton" class="secondary" type="button">Refresh</button>
         </div>
-        <div class="mini-grid">
-          <div class="mini-card">Pelanggan<strong id="dashboardClientCount">-</strong></div>
-          <div class="mini-card">Invoice bulan ini<strong id="dashboardInvoiceCount">-</strong></div>
-          <div class="mini-card">Database<strong id="dashboardRegistryStatus">-</strong></div>
-          <div class="mini-card">Akaun Bank<strong id="dashboardBankStatus">-</strong></div>
-        </div>
         <div class="quick-grid">
           <button class="quick-card" type="button" data-go-tab="postpilot">Buat Post</button>
           <button class="quick-card" type="button" data-go-tab="reportpilot">Buat Weekly Report</button>
+          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="document-panel" data-go-document-subtab="invoice-panel">Buat Invois</button>
+          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="document-panel" data-go-document-subtab="receipt-panel">Buat Resit</button>
         </div>
         <h2>Live Feed</h2>
         <div id="activityFeed" class="activity-feed">
@@ -1132,10 +1103,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           </div>
         </div>
         <div class="subtabs" aria-label="Invoice Pilot tabs">
-          <button class="subtab-button active" type="button" data-subtab-group="invoice-pilot" data-subtab-target="client-panel">Client</button>
-          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="settings-panel">Settings</button>
+          <button class="subtab-button active" type="button" data-subtab-group="invoice-pilot" data-subtab-target="client-panel">Pelanggan</button>
+          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="settings-panel">Tetapan</button>
           <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="bank-panel">Akaun Bank</button>
-          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="document-panel">Document</button>
+          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="document-panel">Dokumen</button>
         </div>
 
         <div id="client-panel" class="subtab-panel active" data-subtab-panel="invoice-pilot">
@@ -1449,6 +1420,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     function setMessage(node, type, message) {
       node.className = type ? \`result \${type}\` : "result";
       node.textContent = message || "";
+    }
+
+    function setTextIfPresent(node, text) {
+      if (node) node.textContent = text;
     }
 
     function sleep(ms) {
@@ -2164,10 +2139,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     function renderClientList(clients, registryStatus) {
       currentClients = clients || [];
-      dashboardClientCount.textContent = String(clients.length);
-      dashboardRegistryStatus.textContent = registryStatus?.ok
+      setTextIfPresent(dashboardClientCount, String(clients.length));
+      setTextIfPresent(dashboardRegistryStatus, registryStatus?.ok
         ? (registryStatus.source === "supabase" ? "DB OK" : "Drive OK")
-        : "Setup";
+        : "Setup");
 
       if (!clients.length) {
         currentClients = [];
@@ -2478,8 +2453,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         if (!response.ok || !json.ok) throw new Error(json.error || "Load client failed.");
         renderClientList(json.clients || [], json.registryStatus || {});
       } catch (error) {
-        dashboardClientCount.textContent = "-";
-        dashboardRegistryStatus.textContent = "Error";
+        setTextIfPresent(dashboardClientCount, "-");
+        setTextIfPresent(dashboardRegistryStatus, "Error");
         showClientError(error);
       } finally {
         refreshClientsButton.disabled = false;
@@ -2677,7 +2652,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     function renderBankAccounts(accounts = []) {
       currentBankAccounts = accounts || [];
       const defaultAccount = currentBankAccounts.find((account) => account.isDefault);
-      dashboardBankStatus.textContent = defaultAccount ? "OK" : "Setup";
+      setTextIfPresent(dashboardBankStatus, defaultAccount ? "OK" : "Setup");
 
       if (!currentBankAccounts.length) {
         bankList.innerHTML = '<div class="empty-state">Belum ada akaun bank. Tambah satu akaun dan jadikan default untuk invoice PDF.</div>';
@@ -2719,7 +2694,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         if (!response.ok || !json.ok) throw new Error(json.error || "Load bank account failed.");
         renderBankAccounts(json.accounts || []);
       } catch (error) {
-        dashboardBankStatus.textContent = "Error";
+        setTextIfPresent(dashboardBankStatus, "Error");
         showBankError(error);
       } finally {
         refreshBankButton.disabled = false;
@@ -3008,7 +2983,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     function renderInvoiceList(invoices) {
       currentInvoices = invoices;
-      dashboardInvoiceCount.textContent = String(invoices.length);
+      setTextIfPresent(dashboardInvoiceCount, String(invoices.length));
       if (!invoices.length) {
         invoiceList.className = "invoice-list";
         invoiceList.innerHTML = "";
@@ -3323,6 +3298,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       button.addEventListener("click", () => {
         activateTab(button.dataset.goTab);
         if (button.dataset.goSubtab) activateSubtab("invoice-pilot", button.dataset.goSubtab);
+        if (button.dataset.goDocumentSubtab) activateSubtab("document", button.dataset.goDocumentSubtab);
       });
     });
     clientForm.addEventListener("submit", saveClient);
