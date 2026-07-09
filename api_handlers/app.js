@@ -2095,6 +2095,25 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       });
     }
 
+    function normalizePostPilotMainTextForSend(value, link) {
+      const safeLink = String(link || "https://swiy.co/kmethod").trim() || "https://swiy.co/kmethod";
+      const lines = String(value || "")
+        .replace(/https?:\/\/\S+/gi, "")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .filter((line) => !/^klik\s+sini\s*:/i.test(line));
+      const selected = [];
+      let total = 0;
+      for (const line of lines) {
+        const nextTotal = total + line.length + (selected.length ? 2 : 0);
+        if (selected.length >= 3 || nextTotal > 430) break;
+        selected.push(line);
+        total = nextTotal;
+      }
+      return [...selected, \`klik sini: \${safeLink}\`].join("\\n\\n").trim();
+    }
+
     async function compressImageForPostPilotStorage(file) {
       if (!file || !file.type.startsWith("image/")) throw new Error("Gambar hook mesti image.");
       if (file.size <= POSTPILOT_SAVED_IMAGE_MAX_BYTES) return file;
@@ -2218,7 +2237,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         draft: {
           id: \`postpilot-\${Date.now()}\`,
           createdAt: new Date().toISOString(),
-          postText: threadsPostPreview.value.trim(),
+          postText: normalizePostPilotMainTextForSend(
+            threadsPostPreview.value,
+            currentThreadsPreview.affiliate_link || document.getElementById("threadsAffiliateLink").value
+          ),
           commentCta: threadsCommentPreview.value.trim(),
           productName: currentThreadsPreview.product_name || currentThreadsPreview.product_context?.product_name || "",
           affiliateLink: currentThreadsPreview.affiliate_link || "",

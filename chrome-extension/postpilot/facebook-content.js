@@ -46,13 +46,41 @@ function dataUrlToFile(dataUrl, name, type) {
   return new File([bytes], name || "post-hook.jpg", { type: mime });
 }
 
-function writePlainTextDom(target, content) {
-  while (target.firstChild) target.removeChild(target.firstChild);
-  const lines = String(content || "").split("\n");
-  lines.forEach((line, index) => {
-    if (index > 0) target.appendChild(document.createElement("br"));
-    target.appendChild(document.createTextNode(line));
+function countCompactOccurrences(haystack, needle) {
+  const safeNeedle = compactText(needle);
+  if (!safeNeedle) return 0;
+  return compactText(haystack).split(safeNeedle).length - 1;
+}
+
+function selectEditableContents(target) {
+  const range = document.createRange();
+  range.selectNodeContents(target);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+async function clearEditable(target) {
+  target.click();
+  target.focus();
+  document.execCommand("selectAll", false);
+  document.execCommand("delete", false);
+  selectEditableContents(target);
+  document.execCommand("delete", false);
+  target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
+  await sleep(250);
+}
+
+function pastePlainText(target, content) {
+  const data = new DataTransfer();
+  data.setData("text/plain", content);
+  const event = new ClipboardEvent("paste", {
+    bubbles: true,
+    cancelable: true,
+    clipboardData: data,
   });
+  const notHandled = target.dispatchEvent(event);
+  if (notHandled) document.execCommand("insertText", false, content);
   target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: content }));
   target.dispatchEvent(new Event("change", { bubbles: true }));
 }
@@ -70,25 +98,24 @@ async function setText(target, text) {
   }
 
   const expected = compactText(content);
-  target.click();
-  target.focus();
-  document.execCommand("selectAll", false);
-  document.execCommand("delete", false);
-  const range = document.createRange();
-  range.selectNodeContents(target);
-  const selection = window.getSelection();
-  selection.removeAllRanges();
-  selection.addRange(range);
-  document.execCommand("delete", false);
-  document.execCommand("insertText", false, content);
-  target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: content }));
-  target.dispatchEvent(new Event("change", { bubbles: true }));
-  await sleep(250);
+  if (countCompactOccurrences(textOf(target), content) === 1) return;
 
-  const actual = compactText(textOf(target));
-  if (actual !== expected) {
-    writePlainTextDom(target, content);
-    await sleep(250);
+  await clearEditable(target);
+  pastePlainText(target, content);
+  await sleep(500);
+
+  const actualText = textOf(target);
+  const occurrences = countCompactOccurrences(actualText, content);
+  if (occurrences !== 1 || !compactText(actualText).includes(expected)) {
+    await clearEditable(target);
+    document.execCommand("insertText", false, content);
+    target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: content }));
+    await sleep(500);
+  }
+
+  const finalOccurrences = countCompactOccurrences(textOf(target), content);
+  if (finalOccurrences !== 1) {
+    throw new Error("Composer text tidak clean. Auto-post dibatalkan supaya caption tidak duplicate.");
   }
 }
 
