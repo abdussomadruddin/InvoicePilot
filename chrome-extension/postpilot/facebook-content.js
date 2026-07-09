@@ -15,10 +15,26 @@ function textOf(element) {
   return String(element?.innerText || element?.textContent || element?.getAttribute("aria-label") || "").trim();
 }
 
+function compactText(value) {
+  return String(value || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
 function disabled(element) {
   return element?.disabled
     || element?.getAttribute("aria-disabled") === "true"
     || element?.getAttribute("disabled") !== null;
+}
+
+function activeComposerScope() {
+  const dialogs = [
+    ...document.querySelectorAll('[role="dialog"], [aria-modal="true"]'),
+  ].filter(visible);
+  return dialogs.find((dialog) => /create post|buat siaran|what's on your mind|apa yang anda fikir|post/i.test(textOf(dialog)))
+    || dialogs[dialogs.length - 1]
+    || document;
 }
 
 function dataUrlToFile(dataUrl, name, type) {
@@ -30,36 +46,73 @@ function dataUrlToFile(dataUrl, name, type) {
   return new File([bytes], name || "post-hook.jpg", { type: mime });
 }
 
-function setText(target, text) {
+function writePlainTextDom(target, content) {
+  while (target.firstChild) target.removeChild(target.firstChild);
+  const lines = String(content || "").split("\n");
+  lines.forEach((line, index) => {
+    if (index > 0) target.appendChild(document.createElement("br"));
+    target.appendChild(document.createTextNode(line));
+  });
+  target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: content }));
+  target.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+async function setText(target, text) {
+  const content = String(text || "").trim();
   target.focus();
   if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") {
     const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), "value")?.set;
-    if (setter) setter.call(target, text);
-    else target.value = text;
+    if (setter) setter.call(target, content);
+    else target.value = content;
     target.dispatchEvent(new Event("input", { bubbles: true }));
     target.dispatchEvent(new Event("change", { bubbles: true }));
     return;
   }
 
+  const expected = compactText(content);
+  target.click();
+  target.focus();
+  document.execCommand("selectAll", false);
+  document.execCommand("delete", false);
   const range = document.createRange();
   range.selectNodeContents(target);
   const selection = window.getSelection();
   selection.removeAllRanges();
   selection.addRange(range);
-  document.execCommand("insertText", false, text);
-  target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+  document.execCommand("delete", false);
+  document.execCommand("insertText", false, content);
+  target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: content }));
+  target.dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(250);
+
+  const actual = compactText(textOf(target));
+  if (actual !== expected) {
+    writePlainTextDom(target, content);
+    await sleep(250);
+  }
 }
 
 function findTextbox() {
+  const scope = activeComposerScope();
   const candidates = [
-    ...document.querySelectorAll('[contenteditable="true"][role="textbox"]'),
-    ...document.querySelectorAll('[contenteditable="true"]'),
-    ...document.querySelectorAll("textarea"),
-  ].filter(visible);
+    ...scope.querySelectorAll('[contenteditable="true"][role="textbox"]'),
+    ...scope.querySelectorAll('[contenteditable="true"]'),
+    ...scope.querySelectorAll("textarea"),
+  ].filter((node) => visible(node) && !node.closest(`#${PANEL_ID}`));
   return candidates.find((node) => {
     const label = String(node.getAttribute("aria-label") || "").toLowerCase();
+    const placeholder = String(node.getAttribute("aria-placeholder") || node.getAttribute("placeholder") || "").toLowerCase();
     const text = textOf(node).toLowerCase();
-    return label.includes("what") || label.includes("mind") || label.includes("post") || label.includes("comment") || label.includes("reply") || label.includes("apa") || label.includes("komen") || text.length < 200;
+    if (label.includes("search") || placeholder.includes("search")) return false;
+    if (label.includes("comment") || label.includes("reply") || label.includes("komen") || label.includes("balas")) return false;
+    return label.includes("what")
+      || label.includes("mind")
+      || label.includes("post")
+      || label.includes("apa")
+      || placeholder.includes("what")
+      || placeholder.includes("mind")
+      || placeholder.includes("apa")
+      || text.length < 200;
   }) || candidates[0] || null;
 }
 
@@ -69,33 +122,102 @@ function findClickableByText(patterns) {
   return nodes.find((node) => regexes.some((regex) => regex.test(textOf(node))));
 }
 
-function findPostButton(textbox) {
+function findClickableByTextIn(scope, patterns) {
+  const regexes = patterns.map((pattern) => new RegExp(pattern, "i"));
+  const nodes = [...scope.querySelectorAll("button, a, div[role='button'], span[role='button']")].filter(visible);
+  return nodes.find((node) => regexes.some((regex) => regex.test(textOf(node))));
+}
+
+function findActionButton(textbox, labels) {
   const scope = textbox?.closest("[role='dialog']")
     || textbox?.closest("[aria-modal='true']")
+    || activeComposerScope()
     || document;
-  const labels = [/^post$/i, /^publish$/i, /^siar$/i, /^siarkan$/i, /^kongsi$/i, /^kongsikan$/i];
   const nodes = [...scope.querySelectorAll("button, div[role='button'], span[role='button']")]
     .filter((node) => visible(node) && !disabled(node));
   return nodes.find((node) => labels.some((regex) => regex.test(textOf(node))));
 }
 
+function findPostButton(textbox) {
+  return findActionButton(textbox, [/^post$/i, /^publish$/i, /^siar$/i, /^siarkan$/i, /^kongsi$/i, /^kongsikan$/i]);
+}
+
+function findNextButton(textbox) {
+  return findActionButton(textbox, [/^next$/i, /^done$/i, /^continue$/i, /^seterusnya$/i, /^berikutnya$/i, /^selesai$/i, /^teruskan$/i]);
+}
+
 async function clickFacebookPostButton(textbox, draft) {
   const existing = await chrome.storage.local.get("autoPublishedDraftId");
-  if (existing.autoPublishedDraftId === draft.id) {
+  if (existing.autoPublishedDraftId === draft.id && !findPostButton(textbox) && !findNextButton(textbox)) {
     return "Draft ini sudah pernah auto-click Post. Hantar draft baru untuk post lagi.";
   }
 
-  for (let attempt = 0; attempt < 16; attempt += 1) {
+  let intermediateClicks = 0;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
     const postButton = findPostButton(textbox);
     if (postButton) {
       postButton.click();
       await chrome.storage.local.set({ autoPublishedDraftId: draft.id });
       return "Butang Post Facebook sudah diklik automatik.";
     }
+
+    const nextButton = findNextButton(textbox);
+    if (nextButton && intermediateClicks < 3) {
+      nextButton.click();
+      intermediateClicks += 1;
+      await sleep(1800);
+      continue;
+    }
+
     await sleep(500);
   }
 
-  throw new Error("Butang Post Facebook tidak dijumpai atau masih disabled. Semak composer, kemudian tekan Auto Post Now dari panel extension.");
+  throw new Error("Butang Post Facebook tidak dijumpai atau masih disabled selepas cuba Next. Semak composer, kemudian tekan Auto Post Now dari panel extension.");
+}
+
+async function removeLinkPreview(textbox) {
+  const scope = textbox?.closest("[role='dialog']")
+    || textbox?.closest("[aria-modal='true']")
+    || activeComposerScope()
+    || document;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const removePreview = findClickableByTextIn(scope, [
+      "^remove link preview",
+      "remove link preview from your post",
+      "^remove preview",
+      "buang pratonton pautan",
+    ]);
+    if (removePreview) {
+      removePreview.click();
+      await sleep(500);
+      return true;
+    }
+    await sleep(300);
+  }
+  return false;
+}
+
+function visibleLargeImageCount(scope) {
+  return [...scope.querySelectorAll("img")]
+    .filter((node) => {
+      if (!visible(node)) return false;
+      const rect = node.getBoundingClientRect();
+      return rect.width >= 140 && rect.height >= 90;
+    }).length;
+}
+
+function composerHasImageAttachment(scope, initialImageCount) {
+  const text = textOf(scope).toLowerCase();
+  if (text.includes("remove post attachment")) return true;
+  return visibleLargeImageCount(scope) > initialImageCount;
+}
+
+async function waitForImageAttachment(scope, initialImageCount) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (composerHasImageAttachment(scope, initialImageCount)) return true;
+    await sleep(500);
+  }
+  return false;
 }
 
 async function openComposer() {
@@ -124,18 +246,33 @@ async function openComposer() {
 async function attachImage(image) {
   if (!image?.dataUrl) return "No image in draft.";
   const file = dataUrlToFile(image.dataUrl, image.name, image.type);
-  const input = [...document.querySelectorAll("input[type='file']")]
+  const scope = activeComposerScope();
+  const initialImageCount = visibleLargeImageCount(scope);
+  let input = [...scope.querySelectorAll("input[type='file']")]
     .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept)));
 
-  if (!input) return "Image input tidak dijumpai. Upload gambar hook secara manual.";
+  if (!input) {
+    const photoButton = findClickableByTextIn(scope, ["^photo/video$", "^gambar/video$", "^foto/video$"]);
+    if (photoButton) {
+      photoButton.click();
+      await sleep(900);
+    }
+    input = [...scope.querySelectorAll("input[type='file']"), ...document.querySelectorAll("input[type='file']")]
+      .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept)));
+  }
+
+  if (!input) throw new Error("Image input tidak dijumpai. Auto-post dibatalkan supaya post tidak publish tanpa gambar hook.");
 
   const transfer = new DataTransfer();
   transfer.items.add(file);
   input.files = transfer.files;
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
-  await sleep(700);
-  return "Gambar hook cuba diattach. Semak preview sebelum publish.";
+  const attached = await waitForImageAttachment(scope, initialImageCount);
+  if (!attached) {
+    throw new Error("Gambar hook belum confirm attach di Facebook. Auto-post dibatalkan supaya post tidak publish tanpa gambar hook.");
+  }
+  return "Gambar hook sudah diattach dan ready.";
 }
 
 async function getDraft() {
@@ -147,7 +284,8 @@ async function getDraft() {
 async function fillPost() {
   const draft = await getDraft();
   const textbox = await openComposer();
-  setText(textbox, draft.postText);
+  await setText(textbox, draft.postText);
+  await removeLinkPreview(textbox);
   const imageStatus = await attachImage(draft.image);
   if (draft.autoPublish) {
     const postStatus = await clickFacebookPostButton(textbox, draft);
@@ -170,7 +308,7 @@ async function fillComment() {
     }
   }
   if (!textbox) throw new Error("Reply composer tidak dijumpai. Buka post/reply box dahulu, kemudian tekan Fill CTA Comment.");
-  setText(textbox, draft.commentCta);
+  await setText(textbox, draft.commentCta);
   showPanel("CTA komen sudah diisi. Semak, kemudian klik Reply sendiri.", draft);
   return { ok: true };
 }
@@ -221,7 +359,7 @@ function showPanel(status, draft) {
     button("Auto Post Now", async () => {
       try {
         const nextDraft = { ...(draft || await getDraft()), autoPublish: true };
-        await chrome.storage.local.set({ currentDraft: nextDraft });
+        await chrome.storage.local.set({ currentDraft: nextDraft, autoPublishedDraftId: "" });
         await fillPost();
       } catch (error) {
         showPanel(error.message, draft);
@@ -251,7 +389,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message?.type === "POSTPILOT_AUTO_POST") {
       const draft = await getDraft();
-      await chrome.storage.local.set({ currentDraft: { ...draft, autoPublish: true } });
+      await chrome.storage.local.set({ currentDraft: { ...draft, autoPublish: true }, autoPublishedDraftId: "" });
       sendResponse(await fillPost());
       return;
     }
