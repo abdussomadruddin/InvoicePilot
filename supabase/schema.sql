@@ -136,6 +136,44 @@ set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'postpilot-assets',
+  'postpilot-assets',
+  false,
+  2097152,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set
+  public = false,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+create table if not exists public.postpilot_drafts (
+  id text primary key default 'default',
+  product_name text not null default 'K-Method',
+  affiliate_link text not null default 'https://swiy.co/kmethod',
+  post_mode text not null default 'soft',
+  hook_image_path text not null default '',
+  hook_image_name text not null default '',
+  hook_image_mime text not null default '',
+  hook_image_size integer not null default 0,
+  hook_image_updated_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint postpilot_drafts_singleton check (id = 'default')
+);
+
+alter table public.postpilot_drafts add column if not exists product_name text not null default 'K-Method';
+alter table public.postpilot_drafts add column if not exists affiliate_link text not null default 'https://swiy.co/kmethod';
+alter table public.postpilot_drafts add column if not exists post_mode text not null default 'soft';
+alter table public.postpilot_drafts add column if not exists hook_image_path text not null default '';
+alter table public.postpilot_drafts add column if not exists hook_image_name text not null default '';
+alter table public.postpilot_drafts add column if not exists hook_image_mime text not null default '';
+alter table public.postpilot_drafts add column if not exists hook_image_size integer not null default 0;
+alter table public.postpilot_drafts add column if not exists hook_image_updated_at timestamptz;
+
 create table if not exists public.app_activity (
   id uuid primary key default gen_random_uuid(),
   activity_type text not null default 'info',
@@ -184,8 +222,14 @@ create trigger bank_accounts_touch_updated_at
 before update on public.bank_accounts
 for each row execute function public.touch_updated_at();
 
+drop trigger if exists postpilot_drafts_touch_updated_at on public.postpilot_drafts;
+create trigger postpilot_drafts_touch_updated_at
+before update on public.postpilot_drafts
+for each row execute function public.touch_updated_at();
+
 alter table public.invoice_clients enable row level security;
 alter table public.business_settings enable row level security;
 alter table public.invoice_uploads enable row level security;
 alter table public.bank_accounts enable row level security;
 alter table public.app_activity enable row level security;
+alter table public.postpilot_drafts enable row level security;

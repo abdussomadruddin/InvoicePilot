@@ -1438,6 +1438,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     let preparedThreadsImageFile = null;
     let preparedThreadsImageNotice = "";
     let savedThreadsImage = null;
+    let postPilotSaveTimer = null;
     let currentInvoices = [];
     let currentReceipts = [];
     let currentClients = [];
@@ -1925,6 +1926,48 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       }
     }
 
+    function applyPostPilotDraft(draft) {
+      if (!draft) return;
+      const values = {
+        product_name: draft.productName,
+        affiliate_link: draft.affiliateLink,
+        post_mode: draft.postMode
+      };
+      const fields = {
+        product_name: "threadsProductName",
+        affiliate_link: "threadsAffiliateLink",
+        post_mode: "threadsPostMode"
+      };
+      Object.entries(fields).forEach(([key, id]) => {
+        const node = document.getElementById(id);
+        if (node && typeof values[key] === "string") node.value = values[key];
+      });
+      savePostPilotInputs();
+      if (draft.hasHookImage) {
+        savedThreadsImage = {
+          name: draft.hookImageName || "post-hook.jpg",
+          type: draft.hookImageMime || "image/jpeg",
+          url: \`/api/personal-post-hook-image?t=\${encodeURIComponent(draft.hookImageUpdatedAt || Date.now())}\`,
+          savedAt: draft.hookImageUpdatedAt || ""
+        };
+      }
+    }
+
+    async function loadPostPilotDraftFromSupabase() {
+      try {
+        const response = await fetch("/api/personal-post-draft");
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Load Post Pilot draft failed.");
+        applyPostPilotDraft(json.draft);
+      } catch {
+        // Local storage remains the fallback when Supabase is not configured yet.
+      }
+    }
+
     function savePostPilotInputs() {
       try {
         localStorage.setItem(POSTPILOT_INPUT_STORAGE_KEY, JSON.stringify(threadsPayloadFromForm()));
@@ -1933,12 +1976,36 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       }
     }
 
+    async function savePostPilotInputsToSupabase() {
+      const response = await fetch("/api/personal-post-draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(threadsPayloadFromForm())
+      });
+      const json = await readApiJson(response);
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      if (!response.ok || !json.ok) throw new Error(json.error || "Save Post Pilot draft failed.");
+      applyPostPilotDraft(json.draft);
+    }
+
+    function schedulePostPilotSave() {
+      savePostPilotInputs();
+      window.clearTimeout(postPilotSaveTimer);
+      postPilotSaveTimer = window.setTimeout(() => {
+        savePostPilotInputsToSupabase().catch(() => {});
+      }, 650);
+    }
+
     function setupPostPilotInputStorage() {
       restorePostPilotInputs();
       threadsForm.querySelectorAll("input:not([type='file']), textarea, select").forEach((node) => {
-        node.addEventListener("input", savePostPilotInputs);
-        node.addEventListener("change", savePostPilotInputs);
+        node.addEventListener("input", schedulePostPilotSave);
+        node.addEventListener("change", schedulePostPilotSave);
       });
+      loadPostPilotDraftFromSupabase();
     }
 
     function blobToDataUrl(blob) {
@@ -1980,16 +2047,28 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     async function savePostPilotImageInput(file) {
       const storedFile = await compressImageForPostPilotStorage(file);
+      const payload = new FormData();
+      payload.append("hookImage", storedFile);
+      const response = await fetch("/api/personal-post-hook-image", {
+        method: "POST",
+        body: payload
+      });
+      const json = await readApiJson(response);
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      if (!response.ok || !json.ok) throw new Error(json.error || "Upload gambar hook failed.");
       const image = {
-        name: storedFile.name || "post-hook.jpg",
-        type: storedFile.type || "image/jpeg",
-        dataUrl: await blobToDataUrl(storedFile),
-        savedAt: new Date().toISOString()
+        name: json.draft?.hookImageName || storedFile.name || "post-hook.jpg",
+        type: json.draft?.hookImageMime || storedFile.type || "image/jpeg",
+        url: \`/api/personal-post-hook-image?t=\${encodeURIComponent(json.draft?.hookImageUpdatedAt || Date.now())}\`,
+        savedAt: json.draft?.hookImageUpdatedAt || new Date().toISOString()
       };
       localStorage.setItem(POSTPILOT_IMAGE_STORAGE_KEY, JSON.stringify(image));
       savedThreadsImage = image;
       threadsResult.className = "result ok";
-      threadsResult.textContent = "Gambar hook last key in sudah disimpan untuk Post Pilot.";
+      threadsResult.textContent = "Gambar hook sudah disimpan dalam Supabase untuk Post Pilot.";
     }
 
     function showThreadsPreview(json) {
@@ -2025,6 +2104,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         }
       } else if (savedThreadsImage?.dataUrl) {
         imageDataUrl = savedThreadsImage.dataUrl;
+      } else if (savedThreadsImage?.url) {
+        const response = await fetch(savedThreadsImage.url);
+        if (!response.ok) throw new Error("Gagal load gambar hook dari Supabase.");
+        imageDataUrl = await blobToDataUrl(await response.blob());
       }
 
       return {
