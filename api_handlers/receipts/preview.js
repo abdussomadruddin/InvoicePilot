@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
     const body = await readJsonBody(req);
     const { config, clients, registryStatus } = await getMergedClientsWithStatus();
     const period = validatePeriod(body.period || currentPeriod(config.timezone), config.timezone);
-    const receipts = buildReceiptListFromClients(period, clients, config);
+    const receipts = await buildReceiptListFromClients(period, clients, config);
 
     res.statusCode = 200;
     res.end(JSON.stringify({

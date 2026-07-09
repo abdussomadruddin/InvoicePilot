@@ -2930,8 +2930,14 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         clientCode: row.dataset.clientCode,
         servicePrice: numericValue(row.dataset.servicePrice),
         discount: numericValue(row.dataset.discount),
+        canGenerateReceipt: row.dataset.canGenerateReceipt === "true",
         paid: Boolean(row.querySelector(".receipt-paid-input")?.checked)
       }));
+    }
+
+    function updateUploadReceiptsButtonState() {
+      const bankMissing = currentBankStatus && currentBankStatus.source === "supabase" && !currentBankStatus.loaded;
+      uploadReceiptsButton.disabled = bankMissing || !collectReceiptDrafts().some((draft) => draft.paid && draft.canGenerateReceipt);
     }
 
     function renderReceiptList(receipts) {
@@ -2950,11 +2956,14 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         const servicePrice = Number(receipt.servicePrice || receipt.amount || 0).toFixed(2);
         const discount = Number(receipt.discount || 0).toFixed(2);
         const total = invoiceTotal(servicePrice, discount);
+        const canGenerateReceipt = Boolean(receipt.canGenerateReceipt);
+        const totalText = canGenerateReceipt ? formatMoneyValue(total) : "Upload invoice dahulu";
+        const statusNote = receipt.receiptStatusNote || (canGenerateReceipt ? "" : "Upload invoice dahulu");
         return \`
-          <div class="invoice-row" data-client-code="\${escapeHtml(receipt.clientCode)}" data-service-price="\${escapeHtml(servicePrice)}" data-discount="\${escapeHtml(discount)}">
+          <div class="invoice-row" data-client-code="\${escapeHtml(receipt.clientCode)}" data-service-price="\${escapeHtml(servicePrice)}" data-discount="\${escapeHtml(discount)}" data-can-generate-receipt="\${escapeHtml(String(canGenerateReceipt))}">
             <div>
               <label class="check-row">
-                <input class="receipt-paid-input" type="checkbox">
+                <input class="receipt-paid-input" type="checkbox" \${canGenerateReceipt ? "" : "disabled"}>
                 Telah dibayar
               </label>
             </div>
@@ -2965,10 +2974,11 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
             <div>
               \${escapeHtml(receipt.invoiceNumber)}
               <span class="invoice-muted">\${escapeHtml(receipt.fileName)}</span>
+              <span class="invoice-muted">\${escapeHtml(statusNote)}</span>
             </div>
-            <div class="total-payment" data-total="\${escapeHtml(String(total))}">\${escapeHtml(formatMoneyValue(total))}</div>
+            <div class="total-payment" data-total="\${escapeHtml(String(total))}">\${escapeHtml(totalText)}</div>
             <div>
-              <button class="link-button review-receipt-button" type="button" data-client-code="\${escapeHtml(receipt.clientCode)}">Review Resit</button>
+              <button class="link-button review-receipt-button" type="button" data-client-code="\${escapeHtml(receipt.clientCode)}" \${canGenerateReceipt ? "" : "disabled"}>Review Resit</button>
               \${folderNote}
             </div>
           </div>
@@ -2991,6 +3001,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       receiptResult.className = "result ok";
       receiptResult.textContent = bankMissing
         ? "Receipt draft siap. Tambah atau set default akaun bank dahulu sebelum review/upload PDF."
+        : receipts.every((receipt) => !receipt.canGenerateReceipt)
+        ? "Upload invoice bulan ini dahulu. Receipt akan ikut harga dan diskaun invoice yang sudah di-upload."
         : "Tick invoice yang sudah dibayar, review resit, kemudian upload selected receipts.";
     }
 
@@ -3258,7 +3270,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       receiptResult.className = "result";
       receiptResult.textContent = "";
       const drafts = collectReceiptDrafts();
-      if (!drafts.some((draft) => draft.paid)) {
+      if (!drafts.some((draft) => draft.paid && draft.canGenerateReceipt)) {
         showReceiptError(new Error("Tick sekurang-kurangnya satu invoice yang telah dibayar."));
         return;
       }
@@ -3292,9 +3304,9 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       } catch (error) {
         showReceiptError(error);
       } finally {
-        uploadReceiptsButton.disabled = false;
         generateReceiptsButton.disabled = false;
         uploadReceiptsButton.textContent = "Upload Selected Receipts";
+        updateUploadReceiptsButtonState();
       }
     }
 
@@ -3402,8 +3414,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     uploadInvoicesButton.addEventListener("click", uploadInvoices);
     receiptList.addEventListener("change", (event) => {
       if (!event.target.matches(".receipt-paid-input")) return;
-      const bankMissing = currentBankStatus && currentBankStatus.source === "supabase" && !currentBankStatus.loaded;
-      uploadReceiptsButton.disabled = bankMissing || !collectReceiptDrafts().some((draft) => draft.paid);
+      updateUploadReceiptsButtonState();
     });
     receiptList.addEventListener("click", (event) => {
       const button = event.target.closest(".review-receipt-button");
