@@ -566,15 +566,16 @@ async function runThreadsTextBatchAutomation({ manual = false } = {}) {
   const draft = await getDraft();
   const automationId = draft.automationId || draft.id || `postpilot-threads-batch-${Date.now()}`;
   const posts = (Array.isArray(draft.posts) ? draft.posts : [])
-    .slice(0, 10)
+    .slice(0, 50)
     .filter((post) => String(post?.postText || "").trim());
-  if (posts.length !== 10) throw new Error("Threads batch perlu ada 10 post.");
+  const totalPosts = posts.length;
+  if (!totalPosts || totalPosts > 50) throw new Error("Threads batch perlu ada 1 sampai 50 post.");
 
   const batchDelayMs = Math.max(0, Number(draft.batchDelayMs) || 30000);
   await acquireRunLock("threads-text-batch-flow", automationId, manual);
   const steps = [];
   try {
-    showPanel("Threads batch 0/10 Buka page Threads...", draft);
+    showPanel(`Threads batch 0/${totalPosts} Buka page Threads...`, draft);
     await waitStep(() => document.readyState === "complete" || document.readyState === "interactive", {
       label: "Threads page",
       draft,
@@ -587,22 +588,22 @@ async function runThreadsTextBatchAutomation({ manual = false } = {}) {
         postText: posts[index].postText,
       };
 
-      showPanel(`Threads batch ${postNumber}/10 Buka New thread...`, postDraft);
+      showPanel(`Threads batch ${postNumber}/${totalPosts} Buka New thread...`, postDraft);
       await openNewThread(postDraft);
 
-      showPanel(`Threads batch ${postNumber}/10 Isi caption sekali sahaja...`, postDraft);
+      showPanel(`Threads batch ${postNumber}/${totalPosts} Isi caption sekali sahaja...`, postDraft);
       await fillCaptionOnce(postDraft);
 
-      showPanel(`Threads batch ${postNumber}/10 Tekan Post...`, postDraft);
+      showPanel(`Threads batch ${postNumber}/${totalPosts} Tekan Post...`, postDraft);
       await clickThreadsPost(postDraft);
 
-      showPanel(`Threads batch ${postNumber}/10 Tunggu post selesai...`, postDraft);
+      showPanel(`Threads batch ${postNumber}/${totalPosts} Tunggu post selesai...`, postDraft);
       await waitThreadsPosted(postDraft);
 
-      steps.push(`${postNumber}/10 posted.`);
+      steps.push(`${postNumber}/${totalPosts} posted.`);
       showPanel(steps.join("\n"), draft);
-      if (postNumber < posts.length && batchDelayMs > 0) {
-        await waitBeforeNextBatchPost(batchDelayMs, postNumber, posts.length, draft);
+      if (postNumber < totalPosts && batchDelayMs > 0) {
+        await waitBeforeNextBatchPost(batchDelayMs, postNumber, totalPosts, draft);
       }
     }
 

@@ -152,8 +152,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message?.type === "SAVE_THREADS_TEXT_BATCH_AND_OPEN_THREADS") {
-      const posts = Array.isArray(message.draft?.posts) ? message.draft.posts.slice(0, 10) : [];
-      if (posts.length !== 10) throw new Error("Threads batch needs exactly 10 posts.");
+      const posts = Array.isArray(message.draft?.posts) ? message.draft.posts.slice(0, 50) : [];
+      if (!posts.length || posts.length > 50) throw new Error("Threads batch needs 1 to 50 posts.");
       if (posts.some((post) => !post?.postText)) throw new Error("Threads batch has empty post text.");
       const draft = {
         ...message.draft,

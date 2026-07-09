@@ -1264,8 +1264,8 @@ function pageHtml() {
             <div class="actions">
               <button id="generateViralOneButton" type="button">Generate 1 Post</button>
               <button id="generateViralTenButton" class="secondary" type="button">Generate 10 Posts</button>
-              <button id="generateViralHundredButton" class="secondary" type="button">Generate 100 Posts</button>
-              <button id="autoPostViralTenButton" class="approve" type="button">Auto Post 10 to Threads</button>
+              <button id="generateViralFiftyButton" class="secondary" type="button">Generate 50 Posts</button>
+              <button id="autoPostViralFiftyButton" class="approve" type="button">Auto Post 50 to Threads</button>
               <button id="exportViralCsvButton" class="secondary" type="button">Export CSV</button>
             </div>
             <div id="viralResult" class="result"></div>
@@ -1643,8 +1643,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     const viralHashtags = document.getElementById("viralHashtags");
     const generateViralOneButton = document.getElementById("generateViralOneButton");
     const generateViralTenButton = document.getElementById("generateViralTenButton");
-    const generateViralHundredButton = document.getElementById("generateViralHundredButton");
-    const autoPostViralTenButton = document.getElementById("autoPostViralTenButton");
+    const generateViralFiftyButton = document.getElementById("generateViralFiftyButton");
+    const autoPostViralFiftyButton = document.getElementById("autoPostViralFiftyButton");
     const exportViralCsvButton = document.getElementById("exportViralCsvButton");
     const viralResult = document.getElementById("viralResult");
     const viralOutput = document.getElementById("viralOutput");
@@ -2751,10 +2751,28 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       setMessage(viralResult, "ok", count + " Threads viral post generated.");
     }
 
+    function randomViralOverride() {
+      return {
+        audience: pickRandom(viralTemplates.audienceTypes || []),
+        category: pickRandom(viralTemplates.categories || []),
+        tone: pickRandom(viralTemplates.toneOptions || []),
+      };
+    }
+
+    function generateRandomViralPosts(count) {
+      const posts = [];
+      for (let index = 0; index < count; index += 1) {
+        posts.push(makeViralPost(posts, randomViralOverride()));
+      }
+      viralGeneratedPosts = posts;
+      renderViralPosts();
+      setMessage(viralResult, "ok", count + " random Threads viral post generated.");
+    }
+
     function ensureViralPostCount(count) {
       const posts = [...viralGeneratedPosts];
       while (posts.length < count) {
-        posts.push(makeViralPost(posts));
+        posts.push(makeViralPost(posts, randomViralOverride()));
       }
       viralGeneratedPosts = posts;
       renderViralPosts();
@@ -2845,8 +2863,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       setMessage(viralResult, "ok", "Draft Threads viral dihantar. Extension akan buka Threads dan post text sahaja.");
     }
 
-    function postViralBatchToThreads() {
-      const posts = ensureViralPostCount(10);
+    function postViralBatchToThreads(count) {
+      const posts = ensureViralPostCount(count);
       window.postMessage({
         source: "postpilot-webapp",
         type: "POSTPILOT_THREADS_TEXT_BATCH_DRAFT",
@@ -2868,7 +2886,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           batchDelayMs: 30000,
         }
       }, window.location.origin);
-      setMessage(viralResult, "ok", "10 Threads posts dihantar ke extension.");
+      setMessage(viralResult, "ok", posts.length + " Threads posts dihantar ke extension.");
     }
 
     function viralCard(post, options = {}) {
@@ -3267,8 +3285,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     generateViralOneButton.addEventListener("click", () => generateViralPosts(1));
     generateViralTenButton.addEventListener("click", () => generateViralPosts(10));
-    generateViralHundredButton.addEventListener("click", () => generateViralPosts(100));
-    autoPostViralTenButton.addEventListener("click", postViralBatchToThreads);
+    generateViralFiftyButton.addEventListener("click", () => generateRandomViralPosts(50));
+    autoPostViralFiftyButton.addEventListener("click", () => postViralBatchToThreads(50));
     exportViralCsvButton.addEventListener("click", () => exportViralCsv(viralGeneratedPosts, "threads-viral-posts.csv"));
     exportSavedViralButton.addEventListener("click", () => exportViralCsv(filteredSavedViralPosts(), "threads-viral-saved-posts.csv"));
     clearSavedViralButton.addEventListener("click", () => {
