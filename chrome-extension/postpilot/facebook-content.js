@@ -23,8 +23,12 @@ function visible(element) {
   return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
 }
 
+function attrOf(element, name) {
+  return typeof element?.getAttribute === "function" ? element.getAttribute(name) : "";
+}
+
 function textOf(element) {
-  return String(element?.innerText || element?.textContent || element?.getAttribute("aria-label") || "").trim();
+  return String(element?.innerText || element?.textContent || attrOf(element, "aria-label") || "").trim();
 }
 
 function normalized(value) {
@@ -42,8 +46,8 @@ function countNeedle(haystack, needle) {
 
 function disabled(element) {
   return element?.disabled
-    || element?.getAttribute("aria-disabled") === "true"
-    || element?.getAttribute("disabled") !== null;
+    || attrOf(element, "aria-disabled") === "true"
+    || attrOf(element, "disabled") !== "";
 }
 
 async function waitUntil(check, { timeout = 8_000, interval = 180, label = "Step" } = {}) {
@@ -87,6 +91,25 @@ function findClickable(patterns) {
   return findClickableIn(document, patterns);
 }
 
+function findFileInput(scope = activeComposerScope()) {
+  return [...scope.querySelectorAll("input[type='file']"), ...document.querySelectorAll("input[type='file']")]
+    .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept)));
+}
+
+function findPhotoVideoButton(scope = document) {
+  return findClickableIn(scope, [
+    "^photo/video$",
+    "^gambar/video$",
+    "^foto/video$",
+    "photo/video",
+    "gambar/video",
+    "foto/video",
+    "add photo",
+    "tambah foto",
+    "tambah gambar",
+  ]);
+}
+
 function findTextboxIn(scope, purpose = "post") {
   const candidates = [
     ...scope.querySelectorAll('[contenteditable="true"][role="textbox"]'),
@@ -95,8 +118,8 @@ function findTextboxIn(scope, purpose = "post") {
   ].filter((node) => visible(node) && !node.closest(`#${PANEL_ID}`));
 
   return candidates.find((node) => {
-    const label = String(node.getAttribute("aria-label") || "").toLowerCase();
-    const placeholder = String(node.getAttribute("aria-placeholder") || node.getAttribute("placeholder") || "").toLowerCase();
+    const label = String(attrOf(node, "aria-label") || "").toLowerCase();
+    const placeholder = String(attrOf(node, "aria-placeholder") || attrOf(node, "placeholder") || "").toLowerCase();
     const text = textOf(node).toLowerCase();
     const combined = `${label} ${placeholder}`;
     if (combined.includes("search")) return false;
@@ -210,7 +233,7 @@ function findAttachmentControl(scope) {
   return [...scope.querySelectorAll("button, div[role='button'], span[role='button'], a")]
     .filter((node) => visible(node) && !node.closest(`#${PANEL_ID}`))
     .find((node) => /remove.*(photo|image|attachment)|edit.*(photo|image)|buang.*(gambar|lampiran)|edit.*gambar|remove all/i
-      .test(`${textOf(node)} ${node.getAttribute("aria-label") || ""}`));
+      .test(`${textOf(node)} ${attrOf(node, "aria-label") || ""}`));
 }
 
 function uploadTextSeen(scope) {
@@ -444,15 +467,52 @@ async function waitStep(check, { timeout = SHORT_STEP_RETRY_MS, interval = 250, 
   throw new Error(`${label} belum siap.`);
 }
 
-async function clickPhotoVideo() {
-  const trigger = await waitUntil(() => findClickable(["^photo/video$", "^gambar/video$", "^foto/video$"])
-    || findClickable(["what's on your mind", "what is on your mind", "apa yang anda fikir"]), {
-    timeout: 10_000,
+async function clickPhotoVideo(draft) {
+  const inputBeforeClick = findFileInput(activeComposerScope());
+  if (inputBeforeClick) return inputBeforeClick;
+
+  let photoButton = await waitStep(() => findPhotoVideoButton(document), {
+    timeout: 18_000,
     interval: 250,
-    label: "Facebook home",
+    label: "1/8 Button Photo/video",
+    draft,
+  }).catch(() => null);
+
+  if (!photoButton) {
+    const composerPrompt = await waitStep(() => findClickable([
+      "what's on your mind",
+      "what is on your mind",
+      "apa yang anda fikir",
+      "create post",
+      "buat siaran",
+    ]), {
+      timeout: 18_000,
+      interval: 250,
+      label: "1/8 Composer Facebook",
+      draft,
+    });
+    composerPrompt.click();
+    await sleep(700);
+
+    photoButton = await waitStep(() => findPhotoVideoButton(activeComposerScope()) || findFileInput(activeComposerScope()), {
+      timeout: 18_000,
+      interval: 250,
+      label: "1/8 Button Photo/video dalam composer",
+      draft,
+    });
+  }
+
+  if (typeof photoButton.click === "function") {
+    photoButton.click();
+    await sleep(800);
+  }
+
+  return waitStep(() => findFileInput(activeComposerScope()) || findFileInput(document), {
+    timeout: 18_000,
+    interval: 250,
+    label: "1/8 Input gambar selepas Photo/video",
+    draft,
   });
-  trigger.click();
-  await sleep(500);
 }
 
 async function ensureComposerOpen() {
@@ -487,17 +547,11 @@ async function attachHookImageFromDraft(draft) {
       if (composerHasAttachment(scope, baselineMediaCount)) return;
       showPanel(`2/8 Attach gambar hook...\nAttempt ${attempt}. Baki ${remainingSeconds}s.`, draft);
 
-      let input = [...scope.querySelectorAll("input[type='file']"), ...document.querySelectorAll("input[type='file']")]
-        .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept)));
+      let input = findFileInput(scope) || findFileInput(document);
       if (!input) {
-        const photoButton = findClickableIn(scope, ["^photo/video$", "^gambar/video$", "^foto/video$"])
-          || findClickable(["^photo/video$", "^gambar/video$", "^foto/video$"]);
-        if (photoButton) {
-          photoButton.click();
-          await sleep(500);
-        }
-        input = await waitUntil(() => [...activeComposerScope().querySelectorAll("input[type='file']"), ...document.querySelectorAll("input[type='file']")]
-          .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept))), {
+        showPanel(`2/8 Input gambar belum ready.\nPatah balik ke step 1: tekan Photo/video semula.`, draft);
+        await clickPhotoVideo(draft);
+        input = await waitUntil(() => findFileInput(activeComposerScope()) || findFileInput(document), {
           timeout: 8_000,
           interval: 200,
           label: "Input gambar hook",
@@ -519,7 +573,8 @@ async function attachHookImageFromDraft(draft) {
       return;
     } catch (error) {
       lastError = error?.message || String(error);
-      showPanel(`2/8 Gambar hook belum ready.\nAttempt ${attempt} gagal: ${lastError}\nCuba lagi sampai 5 minit...`, draft);
+      showPanel(`2/8 Gambar hook belum ready.\nAttempt ${attempt} gagal: ${lastError}\nPatah balik ke step 1, kemudian cuba lagi sampai 5 minit...`, draft);
+      await clickPhotoVideo(draft).catch(() => {});
       await sleep(2_000);
     }
   }
@@ -630,7 +685,7 @@ async function runFullAutomation({ manual = false } = {}) {
       interval: 200,
       label: "Facebook page",
     });
-    await clickPhotoVideo();
+    await clickPhotoVideo(draft);
     steps.push("1/8 Facebook ready dan Photo/video ditekan.");
 
     showPanel(progress(steps, "2/8 Pilih/attach gambar hook dari draft tersimpan..."), draft);
@@ -682,7 +737,7 @@ async function fillPostOnly() {
   const draft = await getDraft();
   await acquireRunLock("fill-post", draft.automationId || draft.id || "", true);
   try {
-    await clickPhotoVideo();
+    await clickPhotoVideo(draft);
     await attachHookImageFromDraft(draft);
     const { textbox } = await ensureComposerOpen();
     await fillOnce(textbox, draft.postText, "Personal post");
