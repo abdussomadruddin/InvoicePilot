@@ -930,8 +930,8 @@ function pageHtml() {
       <button class="tab-button active" type="button" data-tab-target="dashboard">Dashboard</button>
       <button class="tab-button" type="button" data-tab-target="postpilot">Page Pilot</button>
       <button class="tab-button" type="button" data-tab-target="personalpostpilot">Post Pilot</button>
-      <button class="tab-button" type="button" data-tab-target="reportpilot">Report Pilot</button>
       <button class="tab-button" type="button" data-tab-target="clientpilot">Client Pilot</button>
+      <button class="tab-button" type="button" data-tab-target="reportpilot">Report Pilot</button>
       <button class="tab-button" type="button" data-tab-target="invoicepilot">Invoice Pilot</button>
     </nav>
 
