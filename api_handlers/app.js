@@ -912,7 +912,7 @@ function pageHtml() {
 
     <nav class="tabs" aria-label="Main tabs">
       <button class="tab-button active" type="button" data-tab-target="dashboard">Dashboard</button>
-      <button class="tab-button" type="button" data-tab-target="postpilot">FBpagePilot</button>
+      <button class="tab-button" type="button" data-tab-target="postpilot">PagePilot</button>
       <button class="tab-button" type="button" data-tab-target="reportpilot">Report Pilot</button>
       <button class="tab-button" type="button" data-tab-target="invoicepilot">Invoice Pilot</button>
     </nav>
@@ -944,7 +944,7 @@ function pageHtml() {
       <section class="card app-panel" data-panel="postpilot">
         <div class="hero">
           <div>
-            <h1>FBpagePilot</h1>
+            <h1>PagePilot</h1>
             <p>Upload creative, review ayat, kemudian post ke Facebook Page.</p>
           </div>
         </div>
