@@ -5,6 +5,7 @@ const COMPLETED_AUTOMATION_KEY = "postpilotCompletedAutomationId";
 const LOCK_TTL_MS = 7 * 60_000;
 const STEP_RETRY_MS = 5 * 60_000;
 const SHORT_STEP_RETRY_MS = 90_000;
+const STEP_RETRY_INTERVAL_MS = 5_000;
 
 let inPageRun = false;
 
@@ -24,7 +25,11 @@ function visible(element) {
 }
 
 function attrOf(element, name) {
-  return typeof element?.getAttribute === "function" ? element.getAttribute(name) : "";
+  return typeof element?.getAttribute === "function" ? element.getAttribute(name) || "" : "";
+}
+
+function hasAttr(element, name) {
+  return typeof element?.hasAttribute === "function" && element.hasAttribute(name);
 }
 
 function textOf(element) {
@@ -45,9 +50,9 @@ function countNeedle(haystack, needle) {
 }
 
 function disabled(element) {
-  return element?.disabled
+  return Boolean(element?.disabled)
     || attrOf(element, "aria-disabled") === "true"
-    || attrOf(element, "disabled") !== "";
+    || hasAttr(element, "disabled");
 }
 
 async function waitUntil(check, { timeout = 8_000, interval = 180, label = "Step" } = {}) {
@@ -303,9 +308,15 @@ function dispatchFileToFacebook(input, file) {
 
 function findActionInComposer(scope, labels) {
   const regexes = labels.map((label) => new RegExp(label, "i"));
-  const nodes = [...scope.querySelectorAll("button, div[role='button'], span[role='button']")]
+  const root = scope || document;
+  const nodes = [...root.querySelectorAll("button, div[role='button'], span[role='button']")]
     .filter((node) => visible(node) && !disabled(node) && !node.closest(`#${PANEL_ID}`));
   return nodes.find((node) => regexes.some((regex) => regex.test(textOf(node))));
+}
+
+function findActionButton(scope, labels) {
+  return findActionInComposer(scope, labels)
+    || (scope !== document ? findActionInComposer(document, labels) : null);
 }
 
 function postTextProbe(text) {
@@ -451,17 +462,15 @@ function progress(steps, current) {
   return [...steps, current].join("\n");
 }
 
-async function waitStep(check, { timeout = SHORT_STEP_RETRY_MS, interval = 250, label = "Step", draft = null } = {}) {
+async function waitStep(check, { timeout = SHORT_STEP_RETRY_MS, interval = STEP_RETRY_INTERVAL_MS, label = "Step", draft = null } = {}) {
   const started = now();
   let attempt = 0;
   while (now() - started <= timeout) {
     attempt += 1;
     const result = await check();
     if (result) return result;
-    if (attempt % 8 === 0) {
-      const remainingSeconds = Math.max(0, Math.ceil((timeout - (now() - started)) / 1000));
-      showPanel(`${label} belum ready. Cuba lagi...\nBaki ${remainingSeconds}s.`, draft);
-    }
+    const remainingSeconds = Math.max(0, Math.ceil((timeout - (now() - started)) / 1000));
+    showPanel(`${label} belum ready. Cuba lagi dalam 5s...\nAttempt ${attempt}. Baki ${remainingSeconds}s.`, draft);
     await sleep(interval);
   }
   throw new Error(`${label} belum siap.`);
@@ -473,7 +482,7 @@ async function clickPhotoVideo(draft) {
 
   let photoButton = await waitStep(() => findPhotoVideoButton(document), {
     timeout: 18_000,
-    interval: 250,
+    interval: STEP_RETRY_INTERVAL_MS,
     label: "1/8 Button Photo/video",
     draft,
   }).catch(() => null);
@@ -487,7 +496,7 @@ async function clickPhotoVideo(draft) {
       "buat siaran",
     ]), {
       timeout: 18_000,
-      interval: 250,
+      interval: STEP_RETRY_INTERVAL_MS,
       label: "1/8 Composer Facebook",
       draft,
     });
@@ -496,7 +505,7 @@ async function clickPhotoVideo(draft) {
 
     photoButton = await waitStep(() => findPhotoVideoButton(activeComposerScope()) || findFileInput(activeComposerScope()), {
       timeout: 18_000,
-      interval: 250,
+      interval: STEP_RETRY_INTERVAL_MS,
       label: "1/8 Button Photo/video dalam composer",
       draft,
     });
@@ -509,7 +518,7 @@ async function clickPhotoVideo(draft) {
 
   return waitStep(() => findFileInput(activeComposerScope()) || findFileInput(document), {
     timeout: 18_000,
-    interval: 250,
+    interval: STEP_RETRY_INTERVAL_MS,
     label: "1/8 Input gambar selepas Photo/video",
     draft,
   });
@@ -575,7 +584,7 @@ async function attachHookImageFromDraft(draft) {
       lastError = error?.message || String(error);
       showPanel(`2/8 Gambar hook belum ready.\nAttempt ${attempt} gagal: ${lastError}\nPatah balik ke step 1, kemudian cuba lagi sampai 5 minit...`, draft);
       await clickPhotoVideo(draft).catch(() => {});
-      await sleep(2_000);
+      await sleep(STEP_RETRY_INTERVAL_MS);
     }
   }
 
@@ -597,29 +606,33 @@ async function removeLinkPreviewIfPresent() {
 }
 
 function findNextButton(scope) {
-  return findActionInComposer(scope, [/^next$/i, /^continue$/i, /^done$/i, /^seterusnya$/i, /^teruskan$/i, /^selesai$/i].map((r) => r.source));
+  return findActionButton(scope, [/^next$/i, /^continue$/i, /^done$/i, /^seterusnya$/i, /^teruskan$/i, /^selesai$/i].map((r) => r.source));
 }
 
 function findPostButton(scope) {
-  return findActionInComposer(scope, [/^post$/i, /^publish$/i, /^siar$/i, /^siarkan$/i, /^kongsi$/i, /^kongsikan$/i].map((r) => r.source));
+  return findActionButton(scope, [/^post$/i, /^publish$/i, /^siar$/i, /^siarkan$/i, /^kongsi$/i, /^kongsikan$/i].map((r) => r.source));
 }
 
 async function clickNextStep(draft) {
-  const nextButton = await waitStep(() => {
+  const result = await waitStep(() => {
     const scope = activeComposerScope();
-    return findNextButton(scope) || findPostButton(scope);
+    const nextButton = findNextButton(scope);
+    if (nextButton) return { button: nextButton, type: "next" };
+    const postButton = findPostButton(scope);
+    if (postButton) return { button: postButton, type: "post" };
+    return null;
   }, {
     timeout: SHORT_STEP_RETRY_MS,
-    interval: 250,
+    interval: STEP_RETRY_INTERVAL_MS,
     label: "4/8 Button Next",
     draft,
   });
 
-  if (findPostButton(activeComposerScope()) === nextButton) {
+  if (result.type === "post") {
     return "skipped";
   }
 
-  nextButton.click();
+  result.button.click();
   await sleep(750);
   return "clicked";
 }
@@ -627,7 +640,7 @@ async function clickNextStep(draft) {
 async function clickPostStep(draft) {
   const postButton = await waitStep(() => findPostButton(activeComposerScope()), {
     timeout: STEP_RETRY_MS,
-    interval: 300,
+    interval: STEP_RETRY_INTERVAL_MS,
     label: "5/8 Button Post",
     draft,
   });
