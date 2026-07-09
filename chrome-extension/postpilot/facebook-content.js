@@ -4,6 +4,7 @@ const STARTED_AUTOMATION_KEY = "postpilotStartedAutomationId";
 const COMPLETED_AUTOMATION_KEY = "postpilotCompletedAutomationId";
 const LOCK_TTL_MS = 7 * 60_000;
 const STEP_RETRY_MS = 5 * 60_000;
+const SHORT_STEP_RETRY_MS = 90_000;
 
 let inPageRun = false;
 
@@ -427,6 +428,22 @@ function progress(steps, current) {
   return [...steps, current].join("\n");
 }
 
+async function waitStep(check, { timeout = SHORT_STEP_RETRY_MS, interval = 250, label = "Step", draft = null } = {}) {
+  const started = now();
+  let attempt = 0;
+  while (now() - started <= timeout) {
+    attempt += 1;
+    const result = await check();
+    if (result) return result;
+    if (attempt % 8 === 0) {
+      const remainingSeconds = Math.max(0, Math.ceil((timeout - (now() - started)) / 1000));
+      showPanel(`${label} belum ready. Cuba lagi...\nBaki ${remainingSeconds}s.`, draft);
+    }
+    await sleep(interval);
+  }
+  throw new Error(`${label} belum siap.`);
+}
+
 async function clickPhotoVideo() {
   const trigger = await waitUntil(() => findClickable(["^photo/video$", "^gambar/video$", "^foto/video$"])
     || findClickable(["what's on your mind", "what is on your mind", "apa yang anda fikir"]), {
@@ -524,25 +541,42 @@ async function removeLinkPreviewIfPresent() {
   }
 }
 
-async function clickNextThenPost() {
-  let nextClicks = 0;
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+function findNextButton(scope) {
+  return findActionInComposer(scope, [/^next$/i, /^continue$/i, /^done$/i, /^seterusnya$/i, /^teruskan$/i, /^selesai$/i].map((r) => r.source));
+}
+
+function findPostButton(scope) {
+  return findActionInComposer(scope, [/^post$/i, /^publish$/i, /^siar$/i, /^siarkan$/i, /^kongsi$/i, /^kongsikan$/i].map((r) => r.source));
+}
+
+async function clickNextStep(draft) {
+  const nextButton = await waitStep(() => {
     const scope = activeComposerScope();
-    const postButton = findActionInComposer(scope, [/^post$/i, /^publish$/i, /^siar$/i, /^siarkan$/i, /^kongsi$/i, /^kongsikan$/i].map((r) => r.source));
-    if (postButton) {
-      postButton.click();
-      return;
-    }
-    const nextButton = findActionInComposer(scope, [/^next$/i, /^continue$/i, /^done$/i, /^seterusnya$/i, /^teruskan$/i, /^selesai$/i].map((r) => r.source));
-    if (nextButton && nextClicks < 3) {
-      nextButton.click();
-      nextClicks += 1;
-      await sleep(500);
-      continue;
-    }
-    await sleep(220);
+    return findNextButton(scope) || findPostButton(scope);
+  }, {
+    timeout: SHORT_STEP_RETRY_MS,
+    interval: 250,
+    label: "4/8 Button Next",
+    draft,
+  });
+
+  if (findPostButton(activeComposerScope()) === nextButton) {
+    return "skipped";
   }
-  throw new Error("Button Next/Post tidak dijumpai atau disabled.");
+
+  nextButton.click();
+  await sleep(750);
+  return "clicked";
+}
+
+async function clickPostStep(draft) {
+  const postButton = await waitStep(() => findPostButton(activeComposerScope()), {
+    timeout: STEP_RETRY_MS,
+    interval: 300,
+    label: "5/8 Button Post",
+    draft,
+  });
+  postButton.click();
 }
 
 async function waitForPostPublished(postText) {
@@ -569,8 +603,11 @@ async function openCommentBoxForPost(postNode) {
   });
 }
 
-async function submitCommentOnce(commentBox, ctaText) {
+async function fillCommentOnce(commentBox, ctaText) {
   await fillOnce(commentBox, ctaText, "CTA komen");
+}
+
+async function submitCommentButtonOnce(commentBox) {
   const scope = commentSubmitScope(commentBox);
   const submit = await waitUntil(() => findSubmitCommentButton(scope) || findSubmitCommentButton(document), {
     timeout: 6_000,
@@ -587,43 +624,53 @@ async function runFullAutomation({ manual = false } = {}) {
   await acquireRunLock("full-auto-flow", automationId, manual);
   const steps = [];
   try {
-    showPanel(progress(steps, "1/8 Buka Facebook dan cari Photo/video..."), draft);
+    showPanel(progress(steps, "1/8 Facebook tab baru sudah dibuka. Cari Photo/video..."), draft);
     await waitUntil(() => document.readyState === "complete" || document.readyState === "interactive", {
       timeout: 8_000,
       interval: 200,
       label: "Facebook page",
     });
     await clickPhotoVideo();
-    steps.push("1/8 Photo/video ready.");
+    steps.push("1/8 Facebook ready dan Photo/video ditekan.");
 
-    showPanel(progress(steps, "2/8 Attach gambar hook..."), draft);
+    showPanel(progress(steps, "2/8 Pilih/attach gambar hook dari draft tersimpan..."), draft);
     await attachHookImageFromDraft(draft);
-    steps.push("2/8 Gambar hook ready.");
+    steps.push("2/8 Gambar hook sudah dihantar ke composer.");
 
-    showPanel(progress(steps, "3/8 Tunggu composer dan isi caption sekali sahaja..."), draft);
+    showPanel(progress(steps, "3/8 Isi personal post sekali sahaja..."), draft);
     const { textbox } = await ensureComposerOpen();
     await fillOnce(textbox, draft.postText, "Personal post");
     await removeLinkPreviewIfPresent();
-    steps.push("3/8 Caption clean.");
+    steps.push("3/8 Personal post clean, tiada duplicate.");
 
-    showPanel(progress(steps, "4/8 Tekan Next/Post..."), draft);
-    await clickNextThenPost();
-    steps.push("4/8 Post button clicked.");
+    showPanel(progress(steps, "4/8 Tekan Next..."), draft);
+    const nextStatus = await clickNextStep(draft);
+    steps.push(nextStatus === "skipped"
+      ? "4/8 Next tidak diperlukan, terus ke Post."
+      : "4/8 Next ditekan.");
+
+    showPanel(progress(steps, "5/8 Tekan Post..."), draft);
+    await clickPostStep(draft);
+    steps.push("5/8 Post ditekan.");
 
     showPanel(progress(steps, "5/8 Tunggu post baru muncul..."), draft);
     const postNode = await waitForPostPublished(draft.postText);
     steps.push("5/8 Post live dijumpai.");
 
-    showPanel(progress(steps, "6/8 Buka bahagian komen..."), draft);
+    showPanel(progress(steps, "6/8 Tekan bahagian komen..."), draft);
     const commentBox = await openCommentBoxForPost(postNode);
     steps.push("6/8 Ruang komen ready.");
 
     showPanel(progress(steps, "7/8 Isi CTA komen sekali sahaja..."), draft);
-    await submitCommentOnce(commentBox, draft.commentCta);
-    steps.push("7/8 CTA komen dipost.");
+    await fillCommentOnce(commentBox, draft.commentCta);
+    steps.push("7/8 CTA komen clean, tiada duplicate.");
+
+    showPanel(progress(steps, "8/8 Post komen..."), draft);
+    await submitCommentButtonOnce(commentBox);
+    steps.push("8/8 CTA komen dipost.");
 
     await chrome.storage.local.set({ [COMPLETED_AUTOMATION_KEY]: automationId, autoPublishedDraftId: draft.id || automationId });
-    steps.push("8/8 Full flow selesai.");
+    steps.push("Full flow selesai.");
     showPanel(steps.join("\n"), draft);
     return { ok: true, message: steps.join("\n") };
   } finally {
