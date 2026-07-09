@@ -19,26 +19,19 @@ async function sendToActiveFacebookTab(type) {
   return chrome.tabs.sendMessage(tab.id, { type });
 }
 
-async function waitForFacebookTabReady(tabId) {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const tab = await chrome.tabs.get(tabId).catch(() => null);
-    if (tab?.status === "complete" && FACEBOOK_URL_PATTERN.test(tab.url || "")) return tab;
-    await delay(500);
-  }
-  throw new Error("Facebook tab belum ready.");
-}
-
 async function sendToFacebookTabWithRetry(tabId, type) {
   let lastError = "";
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  for (let attempt = 0; attempt < 90; attempt += 1) {
     try {
       const response = await chrome.tabs.sendMessage(tabId, { type });
       if (response?.ok) return response;
+      if (/sedang jalan|already running/i.test(response?.error || "")) return { ok: true, message: response.error };
       lastError = response?.error || "Facebook content script belum ready.";
     } catch (error) {
       lastError = error?.message || String(error);
     }
-    await delay(600);
+    await chrome.storage.local.set({ postpilotAutomationStatus: `Waiting Facebook content script... attempt ${attempt + 1}` });
+    await delay(1000);
   }
   throw new Error(lastError || "Post Pilot content script tidak respond.");
 }
@@ -47,8 +40,7 @@ async function openFacebookAndRunAutomation() {
   await chrome.storage.local.set({ postpilotAutomationStatus: "Opening Facebook..." });
   const tab = await chrome.tabs.create({ url: FACEBOOK_HOME_URL, active: true });
   if (!tab?.id) throw new Error("Gagal buka tab Facebook.");
-  await chrome.storage.local.set({ postpilotAutomationStatus: "Waiting for Facebook tab..." });
-  await waitForFacebookTabReady(tab.id);
+  await chrome.storage.local.set({ postpilotAutomationStatus: "Facebook opened. Starting auto flow..." });
   await chrome.storage.local.set({ postpilotAutomationStatus: "Starting auto flow in Facebook..." });
   const response = await sendToFacebookTabWithRetry(tab.id, "POSTPILOT_AUTO_POST");
   await chrome.storage.local.set({ postpilotAutomationStatus: "Auto flow started in Facebook." });
@@ -72,12 +64,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         postpilotLastError: "",
         postpilotAutomationStatus: "Draft saved. Preparing Facebook...",
       });
-      openFacebookAndRunAutomation().catch(async (error) => {
-        await chrome.storage.local.set({
-          postpilotLastError: error?.message || String(error),
-        });
-      });
-      sendResponse({ ok: true });
+      const response = await openFacebookAndRunAutomation();
+      sendResponse(response || { ok: true });
       return;
     }
 
@@ -113,7 +101,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     sendResponse({ ok: false, error: "Unknown message." });
-  })().catch((error) => {
+  })().catch(async (error) => {
+    await chrome.storage.local.set({
+      postpilotLastError: error?.message || String(error),
+      postpilotAutomationStatus: "Auto flow failed.",
+    }).catch(() => {});
     sendResponse({ ok: false, error: error?.message || String(error) });
   });
 

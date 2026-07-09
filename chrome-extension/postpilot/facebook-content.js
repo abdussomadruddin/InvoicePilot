@@ -379,6 +379,16 @@ async function getDraft() {
   return currentDraft;
 }
 
+async function shouldAutoStartDraft(draft) {
+  if (!draft?.autoPublish) return false;
+  const automationId = draft.automationId || draft.id || "";
+  const state = await chrome.storage.local.get([RUN_LOCK_KEY, STARTED_AUTOMATION_KEY, COMPLETED_AUTOMATION_KEY]);
+  if (state[RUN_LOCK_KEY]?.startedAt && now() - Number(state[RUN_LOCK_KEY].startedAt) < LOCK_TTL_MS) return false;
+  if (automationId && state[STARTED_AUTOMATION_KEY] === automationId) return false;
+  if (automationId && state[COMPLETED_AUTOMATION_KEY] === automationId) return false;
+  return true;
+}
+
 async function acquireRunLock(label, automationId, manual = false) {
   if (inPageRun) throw new Error("Post Pilot sedang jalan. Tunggu step sekarang siap dulu.");
 
@@ -829,6 +839,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
     if (message?.type === "POSTPILOT_AUTO_POST") {
+      const draft = await getDraft().catch(() => null);
+      const autoBlocked = draft?.autoPublish && !(await shouldAutoStartDraft(draft));
+      if (inPageRun || autoBlocked) {
+        sendResponse({ ok: true, message: "Full auto flow already running." });
+        return;
+      }
       runFullAutomation({ manual: true }).catch((error) => {
         showPanel(error?.message || String(error), null);
       });
@@ -850,8 +866,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 (async () => {
   try {
     const draft = await getDraft();
+    if (await shouldAutoStartDraft(draft)) {
+      showPanel("Draft diterima. Auto flow mula sekarang...", draft);
+      window.setTimeout(() => {
+        shouldAutoStartDraft(draft)
+          .then((ready) => {
+            if (!ready) return null;
+            return runFullAutomation({ manual: false });
+          })
+          .catch((error) => {
+            showPanel(error?.message || String(error), draft);
+          });
+      }, 800);
+      return;
+    }
     showPanel(draft.autoPublish
-      ? "Draft diterima. Auto flow standby, tunggu arahan dari Post Pilot extension."
+      ? "Draft diterima. Auto flow sudah start atau sedang berjalan."
       : "Draft diterima. Tekan Auto Full Flow bila ready.", draft);
   } catch (error) {
     if (!String(error?.message || error).includes("Tiada draft") && !String(error?.message || error).includes("sudah pernah start")) {

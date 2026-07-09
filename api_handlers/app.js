@@ -1509,6 +1509,16 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       threadsResult.textContent = error.message || String(error);
     }
 
+    window.addEventListener("message", (event) => {
+      if (event.source !== window) return;
+      const data = event.data;
+      if (!data || data.source !== "postpilot-extension" || data.type !== "POSTPILOT_DRAFT_STATUS") return;
+      threadsResult.className = data.ok ? "result ok" : "result err";
+      threadsResult.textContent = data.ok
+        ? (data.message || "Post Pilot extension sudah start. Facebook sedang dibuka dan auto flow berjalan.")
+        : (data.error || "Post Pilot extension tidak respond. Reload extension dan refresh webapp.");
+    });
+
     function showInvoiceError(error) {
       invoiceResult.className = "result err";
       invoiceResult.textContent = error.message || String(error);
@@ -2275,7 +2285,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       window.postMessage(message, window.location.origin);
       threadsResult.className = "result ok";
       threadsResult.textContent = [
-        "Draft dihantar ke Post Pilot extension. Facebook akan dibuka dan auto post akan dimulakan.",
+        "Draft dihantar. Menunggu Post Pilot extension buka Facebook dan start auto flow...",
         message.draft.imageNotice || preparedThreadsImageNotice || ""
       ].filter(Boolean).join("\\n");
       return message;

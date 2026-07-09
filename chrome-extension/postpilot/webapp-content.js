@@ -14,12 +14,13 @@ window.addEventListener("message", (event) => {
     return;
   }
 
-  const sendStatus = (ok, error = "") => {
+  const sendStatus = (ok, error = "", message = "") => {
     window.postMessage({
       source: "postpilot-extension",
       type: "POSTPILOT_DRAFT_STATUS",
       ok,
       error,
+      message,
     }, window.location.origin);
   };
 
@@ -29,7 +30,7 @@ window.addEventListener("message", (event) => {
       draft: data.draft,
     }, (response) => {
       const runtimeError = runtime.lastError?.message || "";
-      sendStatus(!runtimeError && Boolean(response?.ok), runtimeError || response?.error || "");
+      sendStatus(!runtimeError && Boolean(response?.ok), runtimeError || response?.error || "", response?.message || "");
     });
   } catch (error) {
     sendStatus(false, error?.message || String(error));
