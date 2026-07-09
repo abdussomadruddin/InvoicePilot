@@ -21,6 +21,8 @@ const routes = {
   "receipts/preview": require("../api_handlers/receipts/preview"),
   "receipts/upload": require("../api_handlers/receipts/upload"),
   regenerate: require("../api_handlers/regenerate"),
+  "reports/pdf": require("../api_handlers/reports/pdf"),
+  "reports/upload": require("../api_handlers/reports/upload"),
   settings: require("../api_handlers/settings"),
   "settings/logo": require("../api_handlers/settings/logo"),
 };

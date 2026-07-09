@@ -458,6 +458,7 @@ function pageHtml() {
     }
 
     input,
+    select,
     textarea {
       width: 100%;
       box-sizing: border-box;
@@ -471,6 +472,7 @@ function pageHtml() {
     }
 
     input:focus,
+    select:focus,
     textarea:focus {
       border-color: var(--blue);
       box-shadow: 0 0 0 5px rgba(29, 155, 240, 0.14);
@@ -932,6 +934,7 @@ function pageHtml() {
     <nav class="tabs" aria-label="Main tabs">
       <button class="tab-button active" type="button" data-tab-target="dashboard">Dashboard</button>
       <button class="tab-button" type="button" data-tab-target="postpilot">Post Pilot</button>
+      <button class="tab-button" type="button" data-tab-target="reportpilot">Report Pilot</button>
       <button class="tab-button" type="button" data-tab-target="invoicepilot">Invoice Pilot</button>
     </nav>
 
@@ -952,6 +955,7 @@ function pageHtml() {
         </div>
         <div class="quick-grid">
           <button class="quick-card" type="button" data-go-tab="postpilot">Buat Post</button>
+          <button class="quick-card" type="button" data-go-tab="reportpilot">Buat Weekly Report</button>
         </div>
         <h2>Live Feed</h2>
         <div id="activityFeed" class="activity-feed">
@@ -1007,6 +1011,111 @@ function pageHtml() {
         </section>
 
         <div id="result" class="result"></div>
+      </section>
+    </section>
+
+    <section id="tab-reportpilot" class="tab-panel" data-tab-panel="reportpilot">
+      <section class="card">
+        <div class="section-heading">
+          <div>
+            <h1>Report Pilot</h1>
+            <p class="note">Isi details weekly report, preview PDF, kemudian upload terus ke folder Weekly Report client.</p>
+          </div>
+        </div>
+
+        <form id="reportForm" class="client-form">
+          <div class="client-grid">
+            <div>
+              <label for="reportClient">Client</label>
+              <select id="reportClient" name="clientCode" required></select>
+            </div>
+            <div>
+              <label for="reportPhase">Phase</label>
+              <input id="reportPhase" name="phase" type="text" value="SETUP PHASE" required>
+            </div>
+            <div>
+              <label for="reportStartDate">Tarikh mula minggu</label>
+              <input id="reportStartDate" name="startDate" type="date" required>
+            </div>
+            <div>
+              <label for="reportEndDate">Tarikh akhir minggu</label>
+              <input id="reportEndDate" name="endDate" type="date" required>
+            </div>
+            <div class="full">
+              <label for="reportTitle">Report title</label>
+              <input id="reportTitle" name="reportTitle" type="text" value="EXECUTIVE LEAD GENERATION BRIEF" required>
+            </div>
+            <div>
+              <label for="reportAdSpend">Ad spend</label>
+              <input id="reportAdSpend" name="adSpend" type="number" min="0" step="0.01" inputmode="decimal" value="0" required>
+            </div>
+            <div>
+              <label for="reportLeadsGenerated">Leads generated</label>
+              <input id="reportLeadsGenerated" name="leadsGenerated" type="number" min="0" step="1" inputmode="numeric" value="0" required>
+            </div>
+            <div>
+              <label for="reportCostPerLead">Cost per lead</label>
+              <input id="reportCostPerLead" name="costPerLead" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Auto dari spend/leads">
+            </div>
+            <div>
+              <label for="reportTargetLeads">Target leads</label>
+              <input id="reportTargetLeads" name="targetLeads" type="number" min="0" step="1" inputmode="numeric" value="50" required>
+            </div>
+            <div>
+              <label for="reportTargetCpl">Target CPL</label>
+              <input id="reportTargetCpl" name="targetCpl" type="number" min="0" step="0.01" inputmode="decimal" value="10" required>
+            </div>
+            <div class="full">
+              <label for="reportWhatWeProved">What we proved</label>
+              <textarea id="reportWhatWeProved" name="whatWeProved" required>Setup technical automation telah disiapkan
+Ads campaign telah mula berjalan
+Tracking dan automation sudah aktif
+Data awal sedang dikumpul
+Optimization dibuat selepas data mencukupi</textarea>
+            </div>
+            <div>
+              <label for="reportWinningCreative">Winning creative</label>
+              <input id="reportWinningCreative" name="winningCreative" type="text" value="N/A">
+            </div>
+            <div>
+              <label for="reportBestPerformance">Performance</label>
+              <input id="reportBestPerformance" name="bestPerformance" type="text" placeholder="Contoh: N/A Leads | RM0 CPL">
+            </div>
+            <div class="full">
+              <label for="reportBestAudience">Audience</label>
+              <input id="reportBestAudience" name="bestAudience" type="text" value="N/A">
+            </div>
+            <div class="full">
+              <label for="reportLeadLeaks">Lead leaks</label>
+              <textarea id="reportLeadLeaks" name="leadLeaks">Belum ada leads sebab minggu pertama setup technical automation dahulu
+Ads dah jalan tunggu result minggu ini</textarea>
+            </div>
+            <div class="full">
+              <label for="reportNext7Days">Next 7 days</label>
+              <textarea id="reportNext7Days" name="next7Days" required>Monitor Ads Campaign
+Check Average CPL
+Find Winning Video for TOP Funnel
+Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
+            </div>
+            <div class="full">
+              <label for="reportRecommendation">Executive recommendation</label>
+              <textarea id="reportRecommendation" name="recommendation" required>Tunggu result untuk minggu ini sebelum optimize iklan. Fokus utama adalah mengumpul data awal sebelum membuat keputusan optimization dan scaling.</textarea>
+            </div>
+            <div>
+              <label for="reportPreparedBy">Prepared by</label>
+              <input id="reportPreparedBy" name="preparedBy" type="text" value="Abdussomad Ruddin | Growth Partner" required>
+            </div>
+            <div>
+              <label for="reportFileName">Nama fail PDF</label>
+              <input id="reportFileName" name="fileName" type="text" required>
+            </div>
+          </div>
+          <div class="client-form-actions">
+            <button id="previewReportButton" class="secondary" type="button">Preview PDF</button>
+            <button id="uploadReportButton" class="approve" type="submit">Generate & Upload Report</button>
+          </div>
+        </form>
+        <div id="reportResult" class="result"></div>
       </section>
     </section>
 
@@ -1262,6 +1371,14 @@ function pageHtml() {
     const refreshBankButton = document.getElementById("refreshBankButton");
     const bankQrImage = document.getElementById("bankQrImage");
     const bankQrPreview = document.getElementById("bankQrPreview");
+    const reportForm = document.getElementById("reportForm");
+    const reportClient = document.getElementById("reportClient");
+    const reportStartDate = document.getElementById("reportStartDate");
+    const reportEndDate = document.getElementById("reportEndDate");
+    const reportFileName = document.getElementById("reportFileName");
+    const previewReportButton = document.getElementById("previewReportButton");
+    const uploadReportButton = document.getElementById("uploadReportButton");
+    const reportResult = document.getElementById("reportResult");
     const MAX_DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
     const TARGET_UPLOAD_BYTES = Math.floor(3.75 * 1024 * 1024);
     let currentPreview = null;
@@ -1273,6 +1390,7 @@ function pageHtml() {
     let currentClients = [];
     let currentBankAccounts = [];
     let currentBankStatus = null;
+    let reportFileNameTouched = false;
 
     creativeInput.addEventListener("change", () => {
       currentPreview = null;
@@ -1297,6 +1415,11 @@ function pageHtml() {
     function showReceiptError(error) {
       receiptResult.className = "result err";
       receiptResult.textContent = error.message || String(error);
+    }
+
+    function showReportError(error) {
+      reportResult.className = "result err";
+      reportResult.textContent = error.message || String(error);
     }
 
     function defaultInvoicePeriod() {
@@ -1882,6 +2005,159 @@ function pageHtml() {
       }).format(numericValue(value));
     }
 
+    function localIsoDate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return \`\${year}-\${month}-\${day}\`;
+    }
+
+    function defaultReportWeek() {
+      const today = new Date();
+      const day = today.getDay() || 7;
+      const start = new Date(today);
+      start.setDate(today.getDate() - day + 1);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      return { start: localIsoDate(start), end: localIsoDate(end) };
+    }
+
+    function reportDateParts(value) {
+      const [year, month, day] = String(value || "").split("-").map(Number);
+      return { year, month, day };
+    }
+
+    function reportMonthName(month) {
+      return new Intl.DateTimeFormat("en-MY", { month: "long" }).format(new Date(Date.UTC(2026, month - 1, 1))).replace(/\\s+/g, "");
+    }
+
+    function reportFileDateRange(startDate, endDate) {
+      const start = reportDateParts(startDate);
+      const end = reportDateParts(endDate);
+      const startDay = String(start.day || 1).padStart(2, "0");
+      const endDay = String(end.day || 1).padStart(2, "0");
+      if (start.year === end.year && start.month === end.month) {
+        return \`\${reportMonthName(start.month)}\${startDay}-\${endDay}_\${end.year}\`;
+      }
+      return \`\${reportMonthName(start.month)}\${startDay}-\${reportMonthName(end.month)}\${endDay}_\${end.year}\`;
+    }
+
+    function safeReportFilePart(value) {
+      return String(value || "")
+        .replace(/[\\\\/:*?"<>|#%{}~&]/g, " ")
+        .replace(/\\s+/g, " ")
+        .trim()
+        .slice(0, 90);
+    }
+
+    function selectedReportClient() {
+      return currentClients.find((client) => client.code === reportClient.value);
+    }
+
+    function updateReportFileName(force = false) {
+      if (!force && reportFileNameTouched) return;
+      const client = selectedReportClient();
+      if (!client || !reportStartDate.value || !reportEndDate.value) return;
+      const brand = client.name || client.brandClient || client.code;
+      reportFileName.value = \`\${safeReportFilePart(brand)} Weekly Report \${reportFileDateRange(reportStartDate.value, reportEndDate.value)}.pdf\`;
+    }
+
+    function populateReportClientOptions() {
+      if (!reportClient) return;
+      const previous = reportClient.value;
+      const activeClients = currentClients.filter((client) => client.serviceStatus !== "paused");
+      reportClient.innerHTML = activeClients.length
+        ? activeClients.map((client) => \`<option value="\${escapeHtml(client.code)}">\${escapeHtml(client.brandClient || client.name || client.code)}</option>\`).join("")
+        : '<option value="">Belum ada client aktif</option>';
+      if (activeClients.some((client) => client.code === previous)) reportClient.value = previous;
+      updateReportFileName();
+    }
+
+    function collectReportPayload() {
+      const payload = Object.fromEntries(new FormData(reportForm).entries());
+      payload.fileName = String(payload.fileName || "").trim();
+      if (!payload.clientCode) throw new Error("Pilih client dahulu.");
+      if (!payload.fileName.toLowerCase().endsWith(".pdf")) payload.fileName += ".pdf";
+      return payload;
+    }
+
+    async function previewReportPdf() {
+      setMessage(reportResult, "", "");
+      const payload = collectReportPayload();
+      previewReportButton.disabled = true;
+      uploadReportButton.disabled = true;
+      previewReportButton.textContent = "Generating...";
+
+      try {
+        const response = await fetch("/api/reports/pdf", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok) throw new Error(await response.text() || "Generate report PDF failed.");
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const opened = window.open(url, "_blank");
+        if (!opened) setMessage(reportResult, "ok", "PDF preview siap, tapi popup browser disekat. Benarkan popup untuk buka preview.");
+        else setMessage(reportResult, "ok", "Preview PDF dibuka di tab baru.");
+      } catch (error) {
+        showReportError(error);
+      } finally {
+        previewReportButton.disabled = false;
+        uploadReportButton.disabled = false;
+        previewReportButton.textContent = "Preview PDF";
+      }
+    }
+
+    async function uploadReport(event) {
+      event.preventDefault();
+      setMessage(reportResult, "", "");
+      let payload;
+      try {
+        payload = collectReportPayload();
+      } catch (error) {
+        showReportError(error);
+        return;
+      }
+
+      previewReportButton.disabled = true;
+      uploadReportButton.disabled = true;
+      uploadReportButton.textContent = "Uploading...";
+
+      try {
+        const response = await fetch("/api/reports/upload", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Upload report failed.");
+        const upload = json.upload || {};
+        const action = upload.replaced ? "replaced" : "uploaded";
+        reportResult.className = "result ok";
+        reportResult.textContent = [
+          "Weekly report selesai diupload.",
+          \`\${upload.fileName || payload.fileName}: \${action}\`,
+          upload.webViewLink || upload.fileId || ""
+        ].filter(Boolean).join("\\n");
+        await loadActivity();
+      } catch (error) {
+        showReportError(error);
+      } finally {
+        previewReportButton.disabled = false;
+        uploadReportButton.disabled = false;
+        uploadReportButton.textContent = "Generate & Upload Report";
+      }
+    }
+
     function renderClientList(clients, registryStatus) {
       currentClients = clients || [];
       dashboardClientCount.textContent = String(clients.length);
@@ -1891,10 +2167,12 @@ function pageHtml() {
 
       if (!clients.length) {
         currentClients = [];
+        populateReportClientOptions();
         clientList.innerHTML = "";
         setMessage(clientResult, "err", "Belum ada pelanggan.");
         return;
       }
+      populateReportClientOptions();
 
       const rows = clients.map((client) => \`
         <div class="client-row" data-client-code="\${escapeHtml(client.code)}">
@@ -2962,6 +3240,9 @@ function pageHtml() {
 
     invoicePeriod.value = defaultInvoicePeriod();
     receiptPeriod.value = invoicePeriod.value;
+    const reportWeek = defaultReportWeek();
+    reportStartDate.value = reportWeek.start;
+    reportEndDate.value = reportWeek.end;
     setupTabs();
     setupPanels();
     resetClientFormMode();
@@ -3017,6 +3298,16 @@ function pageHtml() {
     });
     refreshBankButton.addEventListener("click", loadBankAccounts);
     refreshActivityButton.addEventListener("click", loadActivity);
+    reportClient.addEventListener("change", () => updateReportFileName(true));
+    reportStartDate.addEventListener("change", () => updateReportFileName());
+    reportEndDate.addEventListener("change", () => updateReportFileName());
+    reportFileName.addEventListener("input", () => {
+      reportFileNameTouched = true;
+    });
+    previewReportButton.addEventListener("click", () => {
+      previewReportPdf().catch(showReportError);
+    });
+    reportForm.addEventListener("submit", uploadReport);
     bankList.addEventListener("click", (event) => {
       const editButton = event.target.closest(".edit-bank-button");
       if (editButton) {
