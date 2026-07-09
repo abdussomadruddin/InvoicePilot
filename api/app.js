@@ -6,6 +6,7 @@ const routes = {
   clients: require("../api_handlers/clients"),
   "clients/delete-permanent": require("../api_handlers/clients/delete-permanent"),
   "clients/share-link": require("../api_handlers/clients/share-link"),
+  "clients/whatsapp": require("../api_handlers/clients/whatsapp"),
   "google/oauth-callback": require("../api_handlers/google/oauth-callback"),
   "google/oauth-start": require("../api_handlers/google/oauth-start"),
   "invoices/pdf": require("../api_handlers/invoices/pdf"),

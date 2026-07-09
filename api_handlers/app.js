@@ -192,7 +192,7 @@ function pageHtml() {
 
     .client-row {
       display: grid;
-      grid-template-columns: minmax(150px, 1.1fr) minmax(180px, 1.15fr) minmax(220px, 1.35fr) minmax(120px, 0.78fr) minmax(140px, 0.55fr);
+      grid-template-columns: minmax(150px, 1.05fr) minmax(180px, 1.1fr) minmax(220px, 1.3fr) minmax(120px, 0.72fr) minmax(190px, 0.72fr);
       gap: 16px;
       padding: 14px 16px;
       border-top: 2px solid #e8f0ff;
@@ -358,7 +358,7 @@ function pageHtml() {
     }
 
     .action-menu {
-      width: 140px;
+      width: 190px;
       margin: 0 auto;
     }
 
@@ -2198,6 +2198,9 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
               <summary>Actions</summary>
               <div class="action-menu-list">
                 <button class="secondary copy-drive-link-button" type="button" data-client-code="\${escapeHtml(client.code)}">Copy Drive Link</button>
+                <button class="secondary whatsapp-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-whatsapp-type="invoice">WhatsApp Invoice</button>
+                <button class="secondary whatsapp-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-whatsapp-type="receipt">WhatsApp Receipt</button>
+                <button class="secondary whatsapp-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-whatsapp-type="custom">WhatsApp Custom</button>
                 <button class="secondary edit-client-button" type="button" data-client-code="\${escapeHtml(client.code)}">Edit</button>
                 <button class="secondary service-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-next-status="\${client.serviceStatus === "paused" ? "active" : "paused"}">\${client.serviceStatus === "paused" ? "Recover" : "Stop Service"}</button>
                 <button class="danger delete-client-button" type="button" data-client-code="\${escapeHtml(client.code)}">Delete</button>
@@ -2396,6 +2399,59 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         setMessage(clientResult, "ok", copied
           ? \`Link WhatsApp copied untuk \${label}. Folder sudah set Anyone with link = Editor.\`
           : \`Template WhatsApp siap untuk \${label}. Folder sudah set Anyone with link = Editor.\`);
+        await loadActivity();
+      } catch (error) {
+        finishButton();
+        showClientError(error);
+      }
+    }
+
+    async function sendClientWhatsapp(clientCode, type, triggerButton) {
+      const client = currentClients.find((item) => item.code === clientCode);
+      const label = client?.brandClient || client?.name || clientCode;
+      if (!client?.phone) {
+        showClientError(new Error(\`Tambah nombor telefon untuk \${label} dahulu.\`));
+        return;
+      }
+
+      let customMessage = "";
+      if (type === "custom") {
+        customMessage = window.prompt(\`Tulis mesej WhatsApp untuk \${label}:\`, "");
+        if (customMessage === null) return;
+        customMessage = customMessage.trim();
+        if (!customMessage) {
+          showClientError(new Error("Custom message tidak boleh kosong."));
+          return;
+        }
+      }
+
+      const finishButton = setButtonBusy(triggerButton, "Opening...");
+      setMessage(clientResult, "", "");
+
+      try {
+        const response = await fetch("/api/clients/whatsapp", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            clientCode,
+            type,
+            customMessage,
+            period: invoicePeriod.value || defaultInvoicePeriod()
+          })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "WhatsApp failed.");
+
+        const opened = window.open(json.whatsappUrl, "_blank");
+        if (!opened) window.location.href = json.whatsappUrl;
+        finishButton("Opened");
+        await sleep(250);
+        closeActionMenu(triggerButton);
+        setMessage(clientResult, "ok", \`WhatsApp \${type} siap untuk \${label}.\`);
         await loadActivity();
       } catch (error) {
         finishButton();
@@ -3263,6 +3319,11 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       const copyDriveButton = event.target.closest(".copy-drive-link-button");
       if (copyDriveButton) {
         copyClientDriveLink(copyDriveButton.dataset.clientCode, copyDriveButton);
+        return;
+      }
+      const whatsappButton = event.target.closest(".whatsapp-client-button");
+      if (whatsappButton) {
+        sendClientWhatsapp(whatsappButton.dataset.clientCode, whatsappButton.dataset.whatsappType, whatsappButton);
         return;
       }
       const editButton = event.target.closest(".edit-client-button");
