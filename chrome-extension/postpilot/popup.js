@@ -75,7 +75,7 @@ fillPostButton.addEventListener("click", async () => {
 autoPostButton.addEventListener("click", async () => {
   try {
     await sendMessage({ type: "AUTO_POST_ACTIVE" });
-    setStatus("Auto post sedang dicuba di tab Facebook aktif.");
+    setStatus("Full auto flow sedang dicuba di tab Facebook aktif.");
   } catch (error) {
     setStatus(error.message || String(error), true);
   }
@@ -93,7 +93,7 @@ copyCtaButton.addEventListener("click", async () => {
 fillCommentButton.addEventListener("click", async () => {
   try {
     await sendMessage({ type: "FILL_ACTIVE_COMMENT" });
-    setStatus("CTA komen cuba diisi. Semak sebelum reply.");
+    setStatus("CTA komen cuba diisi sekali sahaja. Semak sebelum post komen.");
   } catch (error) {
     setStatus(error.message || String(error), true);
   }

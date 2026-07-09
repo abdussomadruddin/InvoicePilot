@@ -1,9 +1,17 @@
 const PANEL_ID = "postpilot-assist-panel";
 const RUN_LOCK_KEY = "postpilotRunLock";
-let isRunningPostPilot = false;
+const STARTED_AUTOMATION_KEY = "postpilotStartedAutomationId";
+const COMPLETED_AUTOMATION_KEY = "postpilotCompletedAutomationId";
+const LOCK_TTL_MS = 90_000;
+
+let inPageRun = false;
 
 function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function now() {
+  return Date.now();
 }
 
 function visible(element) {
@@ -17,25 +25,17 @@ function textOf(element) {
   return String(element?.innerText || element?.textContent || element?.getAttribute("aria-label") || "").trim();
 }
 
-function now() {
-  return Date.now();
-}
-
-async function waitUntil(check, { timeout = 6000, interval = 180, label = "step" } = {}) {
-  const started = now();
-  while (now() - started <= timeout) {
-    const result = await check();
-    if (result) return result;
-    await sleep(interval);
-  }
-  throw new Error(`${label} belum siap. Auto-post dibatalkan.`);
-}
-
-function compactText(value) {
+function normalized(value) {
   return String(value || "")
     .replace(/\u00a0/g, " ")
     .replace(/\s+/g, "")
     .trim();
+}
+
+function countNeedle(haystack, needle) {
+  const safeNeedle = normalized(needle);
+  if (!safeNeedle) return 0;
+  return normalized(haystack).split(safeNeedle).length - 1;
 }
 
 function disabled(element) {
@@ -44,13 +44,14 @@ function disabled(element) {
     || element?.getAttribute("disabled") !== null;
 }
 
-function activeComposerScope() {
-  const dialogs = [
-    ...document.querySelectorAll('[role="dialog"], [aria-modal="true"]'),
-  ].filter(visible);
-  return dialogs.find((dialog) => /create post|buat siaran|what's on your mind|apa yang anda fikir|post/i.test(textOf(dialog)))
-    || dialogs[dialogs.length - 1]
-    || document;
+async function waitUntil(check, { timeout = 8_000, interval = 180, label = "Step" } = {}) {
+  const started = now();
+  while (now() - started <= timeout) {
+    const result = await check();
+    if (result) return result;
+    await sleep(interval);
+  }
+  throw new Error(`${label} belum siap.`);
 }
 
 function dataUrlToFile(dataUrl, name, type) {
@@ -62,13 +63,58 @@ function dataUrlToFile(dataUrl, name, type) {
   return new File([bytes], name || "post-hook.jpg", { type: mime });
 }
 
-function countCompactOccurrences(haystack, needle) {
-  const safeNeedle = compactText(needle);
-  if (!safeNeedle) return 0;
-  return compactText(haystack).split(safeNeedle).length - 1;
+function activeDialog() {
+  const dialogs = [...document.querySelectorAll('[role="dialog"], [aria-modal="true"]')].filter(visible);
+  return dialogs.find((dialog) => /create post|buat siaran|what's on your mind|apa yang anda fikir|post/i.test(textOf(dialog)))
+    || dialogs[dialogs.length - 1]
+    || null;
 }
 
-function selectEditableContents(target) {
+function activeComposerScope() {
+  return activeDialog() || document;
+}
+
+function findClickableIn(scope, patterns) {
+  const regexes = patterns.map((pattern) => new RegExp(pattern, "i"));
+  const nodes = [...scope.querySelectorAll("button, a, div[role='button'], span[role='button']")]
+    .filter((node) => visible(node) && !disabled(node) && !node.closest(`#${PANEL_ID}`));
+  return nodes.find((node) => regexes.some((regex) => regex.test(textOf(node))));
+}
+
+function findClickable(patterns) {
+  return findClickableIn(document, patterns);
+}
+
+function findTextboxIn(scope, purpose = "post") {
+  const candidates = [
+    ...scope.querySelectorAll('[contenteditable="true"][role="textbox"]'),
+    ...scope.querySelectorAll('[contenteditable="true"]'),
+    ...scope.querySelectorAll("textarea"),
+  ].filter((node) => visible(node) && !node.closest(`#${PANEL_ID}`));
+
+  return candidates.find((node) => {
+    const label = String(node.getAttribute("aria-label") || "").toLowerCase();
+    const placeholder = String(node.getAttribute("aria-placeholder") || node.getAttribute("placeholder") || "").toLowerCase();
+    const text = textOf(node).toLowerCase();
+    const combined = `${label} ${placeholder}`;
+    if (combined.includes("search")) return false;
+    if (purpose === "comment") {
+      return combined.includes("comment")
+        || combined.includes("reply")
+        || combined.includes("komen")
+        || combined.includes("balas")
+        || text.length < 120;
+    }
+    if (combined.includes("comment") || combined.includes("reply") || combined.includes("komen") || combined.includes("balas")) return false;
+    return combined.includes("what")
+      || combined.includes("mind")
+      || combined.includes("post")
+      || combined.includes("apa")
+      || text.length < 120;
+  }) || candidates[0] || null;
+}
+
+function selectContents(target) {
   const range = document.createRange();
   range.selectNodeContents(target);
   const selection = window.getSelection();
@@ -76,247 +122,117 @@ function selectEditableContents(target) {
   selection.addRange(range);
 }
 
-async function clearEditable(target) {
+async function clearTextBox(target, label) {
   target.click();
   target.focus();
-  document.execCommand("selectAll", false);
-  document.execCommand("delete", false);
-  selectEditableContents(target);
-  document.execCommand("delete", false);
-  target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
-  await sleep(250);
-}
-
-function pastePlainText(target, content) {
-  const data = new DataTransfer();
-  data.setData("text/plain", content);
-  const event = new ClipboardEvent("paste", {
-    bubbles: true,
-    cancelable: true,
-    clipboardData: data,
-  });
-  const notHandled = target.dispatchEvent(event);
-  if (notHandled) document.execCommand("insertText", false, content);
-  target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: content }));
-  target.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-async function verifyTextboxText(target, content) {
-  const expected = compactText(content);
-  await waitUntil(() => {
-    const actual = compactText(textOf(target));
-    if (actual === expected) return true;
-    if (actual.includes(expected) && countCompactOccurrences(textOf(target), content) === 1) return true;
-    return false;
-  }, { timeout: 2500, interval: 120, label: "Caption Facebook" });
-  if (countCompactOccurrences(textOf(target), content) !== 1) {
-    throw new Error("Composer text tidak clean. Auto-post dibatalkan supaya caption tidak duplicate.");
+  if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") {
+    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), "value")?.set;
+    if (setter) setter.call(target, "");
+    else target.value = "";
+    target.dispatchEvent(new Event("input", { bubbles: true }));
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+  } else {
+    document.execCommand("selectAll", false);
+    document.execCommand("delete", false);
+    selectContents(target);
+    document.execCommand("delete", false);
+    target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
   }
+  await waitUntil(() => normalized(textOf(target)).length === 0, {
+    timeout: 2_500,
+    interval: 120,
+    label: `${label} kosong`,
+  });
 }
 
-async function setText(target, text) {
+async function fillOnce(target, text, label) {
   const content = String(text || "").trim();
+  if (!content) throw new Error(`${label} kosong.`);
+
+  await clearTextBox(target, label);
+  target.click();
   target.focus();
+
   if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") {
     const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), "value")?.set;
     if (setter) setter.call(target, content);
     else target.value = content;
     target.dispatchEvent(new Event("input", { bubbles: true }));
     target.dispatchEvent(new Event("change", { bubbles: true }));
-    await verifyTextboxText(target, content);
-    return;
+  } else {
+    document.execCommand("insertText", false, content);
+    target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: content }));
+    target.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  if (countCompactOccurrences(textOf(target), content) === 1) return;
-
-  await clearEditable(target);
-  await waitUntil(() => compactText(textOf(target)).length === 0, {
-    timeout: 2500,
+  await waitUntil(() => countNeedle(textOf(target), content) === 1, {
+    timeout: 3_500,
     interval: 120,
-    label: "Kosongkan composer",
+    label,
   });
-  pastePlainText(target, content);
-  await verifyTextboxText(target, content);
-}
-
-function findTextbox() {
-  const scope = activeComposerScope();
-  const candidates = [
-    ...scope.querySelectorAll('[contenteditable="true"][role="textbox"]'),
-    ...scope.querySelectorAll('[contenteditable="true"]'),
-    ...scope.querySelectorAll("textarea"),
-  ].filter((node) => visible(node) && !node.closest(`#${PANEL_ID}`));
-  return candidates.find((node) => {
-    const label = String(node.getAttribute("aria-label") || "").toLowerCase();
-    const placeholder = String(node.getAttribute("aria-placeholder") || node.getAttribute("placeholder") || "").toLowerCase();
-    const text = textOf(node).toLowerCase();
-    if (label.includes("search") || placeholder.includes("search")) return false;
-    if (label.includes("comment") || label.includes("reply") || label.includes("komen") || label.includes("balas")) return false;
-    return label.includes("what")
-      || label.includes("mind")
-      || label.includes("post")
-      || label.includes("apa")
-      || placeholder.includes("what")
-      || placeholder.includes("mind")
-      || placeholder.includes("apa")
-      || text.length < 200;
-  }) || candidates[0] || null;
-}
-
-function findClickableByText(patterns) {
-  const regexes = patterns.map((pattern) => new RegExp(pattern, "i"));
-  const nodes = [...document.querySelectorAll("button, a, div[role='button'], span[role='button']")].filter(visible);
-  return nodes.find((node) => regexes.some((regex) => regex.test(textOf(node))));
-}
-
-function findClickableByTextIn(scope, patterns) {
-  const regexes = patterns.map((pattern) => new RegExp(pattern, "i"));
-  const nodes = [...scope.querySelectorAll("button, a, div[role='button'], span[role='button']")].filter(visible);
-  return nodes.find((node) => regexes.some((regex) => regex.test(textOf(node))));
-}
-
-function findActionButton(textbox, labels) {
-  const scope = textbox?.closest("[role='dialog']")
-    || textbox?.closest("[aria-modal='true']")
-    || activeComposerScope()
-    || document;
-  const nodes = [...scope.querySelectorAll("button, div[role='button'], span[role='button']")]
-    .filter((node) => visible(node) && !disabled(node));
-  return nodes.find((node) => labels.some((regex) => regex.test(textOf(node))));
-}
-
-function findPostButton(textbox) {
-  return findActionButton(textbox, [/^post$/i, /^publish$/i, /^siar$/i, /^siarkan$/i, /^kongsi$/i, /^kongsikan$/i]);
-}
-
-function findNextButton(textbox) {
-  return findActionButton(textbox, [/^next$/i, /^done$/i, /^continue$/i, /^seterusnya$/i, /^berikutnya$/i, /^selesai$/i, /^teruskan$/i]);
-}
-
-async function clickFacebookPostButton(textbox, draft) {
-  const existing = await chrome.storage.local.get("autoPublishedDraftId");
-  if (existing.autoPublishedDraftId === draft.id && !findPostButton(textbox) && !findNextButton(textbox)) {
-    return "Draft ini sudah pernah auto-click Post. Hantar draft baru untuk post lagi.";
+  if (countNeedle(textOf(target), content) !== 1) {
+    throw new Error(`${label} tidak clean. Auto-post dibatalkan supaya tidak duplicate.`);
   }
-
-  let intermediateClicks = 0;
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    const postButton = findPostButton(textbox);
-    if (postButton) {
-      postButton.click();
-      await chrome.storage.local.set({ autoPublishedDraftId: draft.id });
-      return "Butang Post Facebook sudah diklik automatik.";
-    }
-
-    const nextButton = findNextButton(textbox);
-    if (nextButton && intermediateClicks < 3) {
-      nextButton.click();
-      intermediateClicks += 1;
-      await sleep(450);
-      continue;
-    }
-
-    await sleep(220);
-  }
-
-  throw new Error("Butang Post Facebook tidak dijumpai atau masih disabled selepas cuba Next. Semak composer, kemudian tekan Auto Post Now dari panel extension.");
-}
-
-async function removeLinkPreview(textbox) {
-  const scope = textbox?.closest("[role='dialog']")
-    || textbox?.closest("[aria-modal='true']")
-    || activeComposerScope()
-    || document;
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const removePreview = findClickableByTextIn(scope, [
-      "^remove link preview",
-      "remove link preview from your post",
-      "^remove preview",
-      "buang pratonton pautan",
-    ]);
-    if (removePreview) {
-      removePreview.click();
-      await sleep(500);
-      return true;
-    }
-    await sleep(300);
-  }
-  return false;
 }
 
 function visibleLargeImageCount(scope) {
-  return [...scope.querySelectorAll("img")]
-    .filter((node) => {
-      if (!visible(node)) return false;
-      const rect = node.getBoundingClientRect();
-      return rect.width >= 140 && rect.height >= 90;
-    }).length;
+  return [...scope.querySelectorAll("img")].filter((node) => {
+    if (!visible(node)) return false;
+    const rect = node.getBoundingClientRect();
+    return rect.width >= 140 && rect.height >= 90;
+  }).length;
 }
 
-function composerHasImageAttachment(scope, initialImageCount) {
+function composerHasAttachment(scope, initialImageCount) {
   const text = textOf(scope).toLowerCase();
-  if (text.includes("remove post attachment")) return true;
+  if (text.includes("remove post attachment") || text.includes("remove all")) return true;
   return visibleLargeImageCount(scope) > initialImageCount;
 }
 
-async function waitForImageAttachment(scope, initialImageCount) {
-  return waitUntil(() => composerHasImageAttachment(scope, initialImageCount), {
-    timeout: 9000,
-    interval: 220,
-    label: "Gambar hook",
-  });
+function findActionInComposer(scope, labels) {
+  const regexes = labels.map((label) => new RegExp(label, "i"));
+  const nodes = [...scope.querySelectorAll("button, div[role='button'], span[role='button']")]
+    .filter((node) => visible(node) && !disabled(node) && !node.closest(`#${PANEL_ID}`));
+  return nodes.find((node) => regexes.some((regex) => regex.test(textOf(node))));
 }
 
-async function openComposer() {
-  let textbox = findTextbox();
-  if (textbox) return textbox;
-
-  const trigger = findClickableByText([
-    "what's on your mind",
-    "what is on your mind",
-    "create post",
-    "buat siaran",
-    "apa yang anda fikir",
-    "post",
-    "photo/video",
-  ]);
-  if (trigger) {
-    trigger.click();
-    await sleep(900);
-  }
-
-  textbox = findTextbox();
-  if (!textbox) throw new Error("Composer Facebook personal tidak dijumpai. Buka composer secara manual, kemudian tekan Fill Personal Post dari extension.");
-  return textbox;
+function postTextProbe(text) {
+  return String(text || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .find((line) => !/^klik\s+sini\s*:/i.test(line) && !/^https?:\/\//i.test(line))
+    || String(text || "").trim().slice(0, 50);
 }
 
-async function attachImage(image) {
-  if (!image?.dataUrl) return "No image in draft.";
-  const file = dataUrlToFile(image.dataUrl, image.name, image.type);
-  const scope = activeComposerScope();
-  const initialImageCount = visibleLargeImageCount(scope);
-  let input = [...scope.querySelectorAll("input[type='file']")]
-    .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept)));
+function findNewestPostByCaption(postText) {
+  const probe = normalized(postTextProbe(postText));
+  if (!probe) return null;
+  const articles = [...document.querySelectorAll('[role="article"], div[data-pagelet*="FeedUnit"], div[data-ft]')]
+    .filter(visible);
+  return articles.find((article) => normalized(textOf(article)).includes(probe)) || null;
+}
 
-  if (!input) {
-    const photoButton = findClickableByTextIn(scope, ["^photo/video$", "^gambar/video$", "^foto/video$"]);
-    if (photoButton) {
-      photoButton.click();
-      await sleep(350);
-    }
-    input = [...scope.querySelectorAll("input[type='file']"), ...document.querySelectorAll("input[type='file']")]
-      .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept)));
+function findCommentButtonForPost(postNode) {
+  return findClickableIn(postNode, ["^comment$", "^komen$", "^reply$", "^balas$"]);
+}
+
+function findSubmitCommentButton(scope) {
+  const regexes = ["^comment$", "^post$", "^reply$", "^send$", "^komen$", "^siar$", "^balas$"]
+    .map((pattern) => new RegExp(pattern, "i"));
+  const nodes = [...scope.querySelectorAll("button, div[role='button'], span[role='button']")]
+    .filter((node) => visible(node) && !disabled(node) && !node.closest(`#${PANEL_ID}`));
+  return nodes.reverse().find((node) => regexes.some((regex) => regex.test(textOf(node))));
+}
+
+function commentSubmitScope(commentBox) {
+  let node = commentBox;
+  for (let depth = 0; node && depth < 7; depth += 1) {
+    const submit = findSubmitCommentButton(node);
+    if (submit) return node;
+    node = node.parentElement;
   }
-
-  if (!input) throw new Error("Image input tidak dijumpai. Auto-post dibatalkan supaya post tidak publish tanpa gambar hook.");
-
-  const transfer = new DataTransfer();
-  transfer.items.add(file);
-  input.files = transfer.files;
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
-  await waitForImageAttachment(scope, initialImageCount);
-  return "Gambar hook sudah diattach dan ready.";
+  return commentBox.closest('[role="article"]') || document;
 }
 
 async function getDraft() {
@@ -325,77 +241,31 @@ async function getDraft() {
   return currentDraft;
 }
 
-async function runExclusive(label, task) {
-  if (isRunningPostPilot) {
-    throw new Error("Post Pilot sedang jalan. Tunggu step sekarang siap dulu.");
-  }
-  isRunningPostPilot = true;
-  await chrome.storage.local.set({ [RUN_LOCK_KEY]: { label, startedAt: Date.now() } }).catch(() => {});
-  try {
-    return await task();
-  } finally {
-    isRunningPostPilot = false;
-    await chrome.storage.local.remove(RUN_LOCK_KEY).catch(() => {});
-  }
-}
+async function acquireRunLock(label, automationId, manual = false) {
+  if (inPageRun) throw new Error("Post Pilot sedang jalan. Tunggu step sekarang siap dulu.");
 
-function statusLine(lines, next) {
-  return [...lines, next].join("\n");
-}
-
-async function fillPost({ forceAuto = false } = {}) {
-  const draft = await getDraft();
-  return runExclusive(forceAuto || draft.autoPublish ? "auto-post" : "fill-post", async () => {
-  const steps = [];
-  showPanel(statusLine(steps, "1/5 Buka composer Facebook..."), draft);
-  const textbox = await openComposer();
-  steps.push("1/5 Composer ready.");
-  showPanel(statusLine(steps, "2/5 Isi caption sekali sahaja..."), draft);
-  await setText(textbox, draft.postText);
-  steps.push("2/5 Caption siap dan clean.");
-  showPanel(statusLine(steps, "3/5 Buang link preview jika ada..."), draft);
-  await removeLinkPreview(textbox);
-  steps.push("3/5 Link preview checked.");
-  showPanel(statusLine(steps, "4/5 Attach gambar hook..."), draft);
-  const imageStatus = await attachImage(draft.image);
-  steps.push(`4/5 ${imageStatus}`);
-  if (forceAuto || draft.autoPublish) {
-    showPanel(statusLine(steps, "5/5 Tunggu button Next/Post..."), draft);
-    const postStatus = await clickFacebookPostButton(textbox, draft);
-    steps.push(`5/5 ${postStatus}`);
-    showPanel(steps.join("\n"), draft);
-    return { ok: true, message: steps.join("\n") };
+  const state = await chrome.storage.local.get([RUN_LOCK_KEY, COMPLETED_AUTOMATION_KEY, STARTED_AUTOMATION_KEY]);
+  const lock = state[RUN_LOCK_KEY];
+  if (lock?.startedAt && now() - Number(lock.startedAt) < LOCK_TTL_MS) {
+    throw new Error(`Post Pilot sedang jalan (${lock.label || "automation"}). Tunggu siap dulu.`);
   }
-  showPanel(`${steps.join("\n")}\n\nPost sudah diisi.`, draft);
-  return { ok: true, message: imageStatus };
+  if (!manual && automationId && state[COMPLETED_AUTOMATION_KEY] === automationId) {
+    throw new Error("Automation ini sudah selesai. Hantar draft baru untuk run lagi.");
+  }
+  if (!manual && automationId && state[STARTED_AUTOMATION_KEY] === automationId) {
+    throw new Error("Automation ini sudah pernah start. Hantar draft baru untuk elak duplicate.");
+  }
+
+  inPageRun = true;
+  await chrome.storage.local.set({
+    [RUN_LOCK_KEY]: { label, automationId, startedAt: now() },
+    ...(automationId ? { [STARTED_AUTOMATION_KEY]: automationId } : {}),
   });
 }
 
-async function fillComment() {
-  const draft = await getDraft();
-  return runExclusive("fill-comment", async () => {
-  let textbox = findTextbox();
-  if (!textbox) {
-    const replyTrigger = findClickableByText(["reply", "balas", "comment", "komen"]);
-    if (replyTrigger) {
-      replyTrigger.click();
-      await sleep(700);
-      textbox = findTextbox();
-    }
-  }
-  if (!textbox) throw new Error("Reply composer tidak dijumpai. Buka post/reply box dahulu, kemudian tekan Fill CTA Comment.");
-  await setText(textbox, draft.commentCta);
-  showPanel("CTA komen sudah diisi. Semak, kemudian klik Reply sendiri.", draft);
-  return { ok: true };
-  });
-}
-
-function button(label, handler) {
-  const node = document.createElement("button");
-  node.type = "button";
-  node.textContent = label;
-  node.addEventListener("click", handler);
-  return node;
+async function releaseRunLock() {
+  inPageRun = false;
+  await chrome.storage.local.remove(RUN_LOCK_KEY).catch(() => {});
 }
 
 function showPanel(status, draft) {
@@ -409,7 +279,7 @@ function showPanel(status, draft) {
     "right:16px",
     "bottom:16px",
     "z-index:2147483647",
-    "width:min(330px,calc(100vw - 32px))",
+    "width:min(360px,calc(100vw - 32px))",
     "padding:14px",
     "border-radius:16px",
     "background:#ffffff",
@@ -432,12 +302,11 @@ function showPanel(status, draft) {
   const actions = document.createElement("div");
   actions.style.cssText = "display:flex;flex-wrap:wrap;gap:8px";
   actions.append(
-    button("Fill Personal Post", () => fillPost().catch((error) => showPanel(error.message, draft))),
-    button("Auto Post Now", async () => {
+    button("Auto Full Flow", async () => {
       try {
         const nextDraft = { ...(draft || await getDraft()), autoPublish: true };
-        await chrome.storage.local.set({ currentDraft: nextDraft, autoPublishedDraftId: "" });
-        await fillPost({ forceAuto: true });
+        await chrome.storage.local.set({ currentDraft: nextDraft, [STARTED_AUTOMATION_KEY]: "", [COMPLETED_AUTOMATION_KEY]: "" });
+        await runFullAutomation({ manual: true });
       } catch (error) {
         showPanel(error.message, draft);
       }
@@ -446,7 +315,6 @@ function showPanel(status, draft) {
       await navigator.clipboard.writeText(draft?.commentCta || "");
       showPanel("CTA komen sudah dicopy.", draft);
     }),
-    button("Fill CTA Comment", () => fillComment().catch((error) => showPanel(error.message, draft))),
     button("Close", () => panel.remove())
   );
 
@@ -458,20 +326,235 @@ function showPanel(status, draft) {
   document.documentElement.appendChild(panel);
 }
 
+function button(label, handler) {
+  const node = document.createElement("button");
+  node.type = "button";
+  node.textContent = label;
+  node.addEventListener("click", handler);
+  return node;
+}
+
+function progress(steps, current) {
+  return [...steps, current].join("\n");
+}
+
+async function clickPhotoVideo() {
+  const trigger = await waitUntil(() => findClickable(["^photo/video$", "^gambar/video$", "^foto/video$"])
+    || findClickable(["what's on your mind", "what is on your mind", "apa yang anda fikir"]), {
+    timeout: 10_000,
+    interval: 250,
+    label: "Facebook home",
+  });
+  trigger.click();
+  await sleep(500);
+}
+
+async function ensureComposerOpen() {
+  const textbox = await waitUntil(() => findTextboxIn(activeComposerScope(), "post"), {
+    timeout: 9_000,
+    interval: 200,
+    label: "Composer Facebook",
+  });
+  return { scope: activeComposerScope(), textbox };
+}
+
+async function attachHookImageFromDraft(draft) {
+  if (!draft.image?.dataUrl) throw new Error("Gambar hook tiada dalam draft. Auto-post dibatalkan.");
+  const file = dataUrlToFile(draft.image.dataUrl, draft.image.name, draft.image.type);
+  const scope = activeComposerScope();
+  const initialImageCount = visibleLargeImageCount(scope);
+  let input = [...scope.querySelectorAll("input[type='file']")]
+    .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept)));
+  if (!input) {
+    const photoButton = findClickableIn(scope, ["^photo/video$", "^gambar/video$", "^foto/video$"]);
+    if (photoButton) {
+      photoButton.click();
+      await sleep(350);
+    }
+    input = await waitUntil(() => [...activeComposerScope().querySelectorAll("input[type='file']"), ...document.querySelectorAll("input[type='file']")]
+      .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept))), {
+      timeout: 4_000,
+      interval: 160,
+      label: "Input gambar hook",
+    });
+  }
+
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  input.files = transfer.files;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+
+  await waitUntil(() => composerHasAttachment(activeComposerScope(), initialImageCount), {
+    timeout: 12_000,
+    interval: 220,
+    label: "Preview gambar hook",
+  });
+}
+
+async function removeLinkPreviewIfPresent() {
+  const scope = activeComposerScope();
+  const removeButton = findClickableIn(scope, [
+    "^remove link preview",
+    "remove link preview from your post",
+    "^remove preview",
+    "buang pratonton pautan",
+  ]);
+  if (removeButton) {
+    removeButton.click();
+    await sleep(350);
+  }
+}
+
+async function clickNextThenPost() {
+  let nextClicks = 0;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const scope = activeComposerScope();
+    const postButton = findActionInComposer(scope, [/^post$/i, /^publish$/i, /^siar$/i, /^siarkan$/i, /^kongsi$/i, /^kongsikan$/i].map((r) => r.source));
+    if (postButton) {
+      postButton.click();
+      return;
+    }
+    const nextButton = findActionInComposer(scope, [/^next$/i, /^continue$/i, /^done$/i, /^seterusnya$/i, /^teruskan$/i, /^selesai$/i].map((r) => r.source));
+    if (nextButton && nextClicks < 3) {
+      nextButton.click();
+      nextClicks += 1;
+      await sleep(500);
+      continue;
+    }
+    await sleep(220);
+  }
+  throw new Error("Button Next/Post tidak dijumpai atau disabled.");
+}
+
+async function waitForPostPublished(postText) {
+  await waitUntil(() => !activeDialog(), {
+    timeout: 15_000,
+    interval: 300,
+    label: "Composer tutup selepas post",
+  }).catch(() => {});
+  return waitUntil(() => findNewestPostByCaption(postText), {
+    timeout: 25_000,
+    interval: 600,
+    label: "Post baru dalam feed",
+  });
+}
+
+async function openCommentBoxForPost(postNode) {
+  const commentButton = findCommentButtonForPost(postNode);
+  if (!commentButton) throw new Error("Button komen tidak dijumpai pada post baru.");
+  commentButton.click();
+  return waitUntil(() => findTextboxIn(postNode, "comment") || findTextboxIn(document, "comment"), {
+    timeout: 8_000,
+    interval: 200,
+    label: "Ruang komen",
+  });
+}
+
+async function submitCommentOnce(commentBox, ctaText) {
+  await fillOnce(commentBox, ctaText, "CTA komen");
+  const scope = commentSubmitScope(commentBox);
+  const submit = await waitUntil(() => findSubmitCommentButton(scope) || findSubmitCommentButton(document), {
+    timeout: 6_000,
+    interval: 200,
+    label: "Button post komen",
+  });
+  submit.click();
+  await sleep(600);
+}
+
+async function runFullAutomation({ manual = false } = {}) {
+  const draft = await getDraft();
+  const automationId = draft.automationId || draft.id || `postpilot-${Date.now()}`;
+  await acquireRunLock("full-auto-flow", automationId, manual);
+  const steps = [];
+  try {
+    showPanel(progress(steps, "1/8 Buka Facebook dan cari Photo/video..."), draft);
+    await waitUntil(() => document.readyState === "complete" || document.readyState === "interactive", {
+      timeout: 8_000,
+      interval: 200,
+      label: "Facebook page",
+    });
+    await clickPhotoVideo();
+    const { textbox } = await ensureComposerOpen();
+    steps.push("1/8 Composer ready.");
+
+    showPanel(progress(steps, "2/8 Attach gambar hook..."), draft);
+    await attachHookImageFromDraft(draft);
+    steps.push("2/8 Gambar hook ready.");
+
+    showPanel(progress(steps, "3/8 Isi caption sekali sahaja..."), draft);
+    await fillOnce(textbox, draft.postText, "Personal post");
+    await removeLinkPreviewIfPresent();
+    steps.push("3/8 Caption clean.");
+
+    showPanel(progress(steps, "4/8 Tekan Next/Post..."), draft);
+    await clickNextThenPost();
+    steps.push("4/8 Post button clicked.");
+
+    showPanel(progress(steps, "5/8 Tunggu post baru muncul..."), draft);
+    const postNode = await waitForPostPublished(draft.postText);
+    steps.push("5/8 Post live dijumpai.");
+
+    showPanel(progress(steps, "6/8 Buka bahagian komen..."), draft);
+    const commentBox = await openCommentBoxForPost(postNode);
+    steps.push("6/8 Ruang komen ready.");
+
+    showPanel(progress(steps, "7/8 Isi CTA komen sekali sahaja..."), draft);
+    await submitCommentOnce(commentBox, draft.commentCta);
+    steps.push("7/8 CTA komen dipost.");
+
+    await chrome.storage.local.set({ [COMPLETED_AUTOMATION_KEY]: automationId, autoPublishedDraftId: draft.id || automationId });
+    steps.push("8/8 Full flow selesai.");
+    showPanel(steps.join("\n"), draft);
+    return { ok: true, message: steps.join("\n") };
+  } finally {
+    await releaseRunLock();
+  }
+}
+
+async function fillPostOnly() {
+  const draft = await getDraft();
+  await acquireRunLock("fill-post", draft.automationId || draft.id || "", true);
+  try {
+    await clickPhotoVideo();
+    const { textbox } = await ensureComposerOpen();
+    await attachHookImageFromDraft(draft);
+    await fillOnce(textbox, draft.postText, "Personal post");
+    await removeLinkPreviewIfPresent();
+    showPanel("Post personal sudah diisi sekali sahaja. Semak composer.", draft);
+    return { ok: true };
+  } finally {
+    await releaseRunLock();
+  }
+}
+
+async function fillCommentOnly() {
+  const draft = await getDraft();
+  await acquireRunLock("fill-comment", draft.automationId || draft.id || "", true);
+  try {
+    const postNode = findNewestPostByCaption(draft.postText) || document;
+    const commentBox = await openCommentBoxForPost(postNode);
+    await fillOnce(commentBox, draft.commentCta, "CTA komen");
+    showPanel("CTA komen sudah diisi sekali sahaja. Semak sebelum post komen.", draft);
+    return { ok: true };
+  } finally {
+    await releaseRunLock();
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message?.type === "POSTPILOT_FILL_POST") {
-      sendResponse(await fillPost());
+      sendResponse(await fillPostOnly());
       return;
     }
     if (message?.type === "POSTPILOT_AUTO_POST") {
-      const draft = await getDraft();
-      await chrome.storage.local.set({ currentDraft: { ...draft, autoPublish: true }, autoPublishedDraftId: "" });
-      sendResponse(await fillPost({ forceAuto: true }));
+      sendResponse(await runFullAutomation({ manual: true }));
       return;
     }
     if (message?.type === "POSTPILOT_FILL_COMMENT") {
-      sendResponse(await fillComment());
+      sendResponse(await fillCommentOnly());
       return;
     }
     sendResponse({ ok: false, error: "Unknown message." });
@@ -485,11 +568,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 (async () => {
   try {
     const draft = await getDraft();
-    showPanel("Draft diterima dari webapp. Facebook akan cuba auto post sekarang.", draft);
+    if (!draft.autoPublish) {
+      showPanel("Draft diterima. Tekan Auto Full Flow bila ready.", draft);
+      return;
+    }
+    showPanel("Draft diterima. Full auto flow akan bermula.", draft);
     await sleep(500);
-    await fillPost();
+    await runFullAutomation();
   } catch (error) {
-    if (!String(error?.message || error).includes("Tiada draft")) {
+    if (!String(error?.message || error).includes("Tiada draft") && !String(error?.message || error).includes("sudah pernah start")) {
       showPanel(error?.message || String(error), null);
     }
   }

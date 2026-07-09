@@ -17,9 +17,18 @@ async function sendToActiveFacebookTab(type) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message?.type === "SAVE_DRAFT_AND_OPEN_FACEBOOK") {
-      const draft = message.draft;
+      const draft = {
+        ...message.draft,
+        automationId: message.draft?.automationId || `postpilot-auto-${Date.now()}`,
+        autoPublish: true,
+      };
       if (!draft?.postText || !draft?.commentCta) throw new Error("Draft is missing post or CTA text.");
-      await chrome.storage.local.set({ currentDraft: draft });
+      await chrome.storage.local.set({
+        currentDraft: draft,
+        postpilotStartedAutomationId: "",
+        postpilotCompletedAutomationId: "",
+        postpilotRunLock: null,
+      });
       await chrome.tabs.create({ url: FACEBOOK_HOME_URL });
       sendResponse({ ok: true });
       return;
