@@ -549,6 +549,16 @@ function button(label, handler) {
   return node;
 }
 
+function notifyFacebookDone(automationId) {
+  try {
+    chrome.runtime.sendMessage({ type: "POSTPILOT_FACEBOOK_DONE", automationId }, () => {
+      void chrome.runtime.lastError;
+    });
+  } catch {
+    // Background wake-up is best effort; Facebook post has already completed.
+  }
+}
+
 function progress(steps, current) {
   return [...steps, current].join("\n");
 }
@@ -580,7 +590,7 @@ async function clickPhotoVideo(draft) {
   let photoButton = await waitStep(() => findPhotoVideoButton(document), {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "1/8 Button Photo/video",
+    label: "1/5 Button Photo/video",
     draft,
   }).catch(() => null);
 
@@ -594,7 +604,7 @@ async function clickPhotoVideo(draft) {
     ]), {
       timeout: STEP_RETRY_MS,
       interval: STEP_RETRY_INTERVAL_MS,
-      label: "1/8 Composer Facebook",
+      label: "1/5 Composer Facebook",
       draft,
     });
     composerPrompt.click();
@@ -603,7 +613,7 @@ async function clickPhotoVideo(draft) {
     photoButton = await waitStep(() => findPhotoVideoButton(activeComposerScope()) || findFileInput(activeComposerScope()), {
       timeout: STEP_RETRY_MS,
       interval: STEP_RETRY_INTERVAL_MS,
-      label: "1/8 Button Photo/video dalam composer",
+      label: "1/5 Button Photo/video dalam composer",
       draft,
     });
   }
@@ -616,7 +626,7 @@ async function clickPhotoVideo(draft) {
   return waitStep(() => findFileInput(activeComposerScope()) || findFileInput(document), {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "1/8 Input gambar selepas Photo/video",
+    label: "1/5 Input gambar selepas Photo/video",
     draft,
   });
 }
@@ -632,7 +642,7 @@ async function ensureComposerOpen(draft) {
   }, {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "3/8 Composer Facebook",
+    label: "3/5 Composer Facebook",
     draft,
   });
   return { scope: activeComposerScope(), textbox };
@@ -664,7 +674,7 @@ async function attachHookImageFromDraft(draft) {
     const readyStatus = attachmentReadyStatus(scope, baselineMediaCount, lastInput, uploadedAt);
     if (readyStatus) {
       if (readyStatus === "file-input") {
-        showPanel("2/8 Gambar hook sudah dihantar ke Facebook.\nPreview visual tidak dapat dibaca, teruskan tunggu button Next/Post ready.", draft);
+        showPanel("2/5 Gambar hook sudah dihantar ke Facebook.\nPreview visual tidak dapat dibaca, teruskan tunggu button Next/Post ready.", draft);
       }
       return true;
     }
@@ -684,7 +694,7 @@ async function attachHookImageFromDraft(draft) {
   }, {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "2/8 Attach gambar hook",
+    label: "2/5 Attach gambar hook",
     draft,
   });
 }
@@ -722,7 +732,7 @@ async function clickNextStep(draft) {
   }, {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "4/8 Button Next",
+    label: "4/5 Button Next",
     draft,
   });
 
@@ -739,7 +749,7 @@ async function clickPostStep(draft) {
   const postButton = await waitStep(() => findPostButton(activeComposerScope()), {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "5/8 Button Post",
+    label: "5/5 Button Post",
     draft,
   });
   postButton.click();
@@ -749,7 +759,7 @@ async function waitForPostPublished(draft) {
   await waitStep(() => !activeDialog(), {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "5/8 Composer tutup selepas Post",
+    label: "5/5 Composer tutup selepas Post",
     draft,
   }).catch(() => {});
 
@@ -762,7 +772,7 @@ async function waitForPostPublished(draft) {
   }, {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "5/8 Post baru dalam feed",
+    label: "5/5 Post baru dalam feed",
     draft,
   });
 }
@@ -788,13 +798,13 @@ async function openCommentBoxForPost(postNode, draft) {
   }, {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "6/8 Ruang komen",
+    label: "Ruang komen",
     draft,
   });
 }
 
 async function fillCommentOnce(commentBox, ctaText, draft) {
-  await fillOnceWithRetry(() => (visible(commentBox) ? commentBox : findTextboxIn(document, "comment")), ctaText, "CTA komen", "7/8 Isi CTA komen", draft);
+  await fillOnceWithRetry(() => (visible(commentBox) ? commentBox : findTextboxIn(document, "comment")), ctaText, "CTA komen", "Isi CTA komen", draft);
 }
 
 async function submitCommentButtonOnce(commentBox, draft) {
@@ -804,7 +814,7 @@ async function submitCommentButtonOnce(commentBox, draft) {
   }, {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
-    label: "8/8 Button post komen",
+    label: "Button post komen",
     draft,
   });
   submit.click();
@@ -817,54 +827,43 @@ async function runFullAutomation({ manual = false } = {}) {
   await acquireRunLock("full-auto-flow", automationId, manual);
   const steps = [];
   try {
-    showPanel(progress(steps, "1/8 Facebook tab baru sudah dibuka. Cari Photo/video..."), draft);
+    showPanel(progress(steps, "1/5 Facebook tab baru sudah dibuka. Cari Photo/video..."), draft);
     await waitStep(() => document.readyState === "complete" || document.readyState === "interactive", {
       timeout: STEP_RETRY_MS,
       interval: STEP_RETRY_INTERVAL_MS,
-      label: "1/8 Facebook page",
+      label: "1/5 Facebook page",
       draft,
     });
     await clickPhotoVideo(draft);
-    steps.push("1/8 Facebook ready dan Photo/video ditekan.");
+    steps.push("1/5 Facebook ready dan Photo/video ditekan.");
 
-    showPanel(progress(steps, "2/8 Pilih/attach gambar hook dari draft tersimpan..."), draft);
+    showPanel(progress(steps, "2/5 Pilih/attach gambar hook dari draft tersimpan..."), draft);
     await attachHookImageFromDraft(draft);
-    steps.push("2/8 Gambar hook sudah dihantar ke composer.");
+    steps.push("2/5 Gambar hook sudah dihantar ke composer.");
 
-    showPanel(progress(steps, "3/8 Isi personal post sekali sahaja..."), draft);
+    showPanel(progress(steps, "3/5 Isi personal post sekali sahaja..."), draft);
     await ensureComposerOpen(draft);
-    await fillOnceWithRetry(() => findTextboxIn(activeComposerScope(), "post"), draft.postText, "Personal post", "3/8 Isi personal post", draft);
+    await fillOnceWithRetry(() => findTextboxIn(activeComposerScope(), "post"), draft.postText, "Personal post", "3/5 Isi personal post", draft);
     await removeLinkPreviewIfPresent();
-    steps.push("3/8 Personal post clean, tiada duplicate.");
+    steps.push("3/5 Personal post clean, tiada duplicate.");
 
-    showPanel(progress(steps, "4/8 Tekan Next..."), draft);
+    showPanel(progress(steps, "4/5 Tekan Next..."), draft);
     const nextStatus = await clickNextStep(draft);
     steps.push(nextStatus === "skipped"
-      ? "4/8 Next tidak diperlukan, terus ke Post."
-      : "4/8 Next ditekan.");
+      ? "4/5 Next tidak diperlukan, terus ke Post."
+      : "4/5 Next ditekan.");
 
-    showPanel(progress(steps, "5/8 Tekan Post..."), draft);
+    showPanel(progress(steps, "5/5 Tekan Post..."), draft);
     await clickPostStep(draft);
-    steps.push("5/8 Post ditekan.");
+    steps.push("5/5 Post ditekan.");
 
-    showPanel(progress(steps, "5/8 Tunggu post baru muncul..."), draft);
-    const postNode = await waitForPostPublished(draft);
-    steps.push("5/8 Post live dijumpai.");
-
-    showPanel(progress(steps, "6/8 Tekan bahagian komen..."), draft);
-    const commentBox = await openCommentBoxForPost(postNode, draft);
-    steps.push("6/8 Ruang komen ready.");
-
-    showPanel(progress(steps, "7/8 Isi CTA komen sekali sahaja..."), draft);
-    await fillCommentOnce(commentBox, draft.commentCta, draft);
-    steps.push("7/8 CTA komen clean, tiada duplicate.");
-
-    showPanel(progress(steps, "8/8 Post komen..."), draft);
-    await submitCommentButtonOnce(commentBox, draft);
-    steps.push("8/8 CTA komen dipost.");
+    showPanel(progress(steps, "5/5 Tunggu post baru muncul..."), draft);
+    await waitForPostPublished(draft);
+    steps.push("5/5 Post live dijumpai. Auto comment CTA dibuang.");
 
     await chrome.storage.local.set({ [COMPLETED_AUTOMATION_KEY]: automationId, autoPublishedDraftId: draft.id || automationId });
-    steps.push("Full flow selesai.");
+    notifyFacebookDone(automationId);
+    steps.push("Full flow selesai. Komen CTA tidak dipost secara automatik.");
     showPanel(steps.join("\n"), draft);
     return { ok: true, message: steps.join("\n") };
   } finally {
@@ -879,7 +878,7 @@ async function fillPostOnly() {
     await clickPhotoVideo(draft);
     await attachHookImageFromDraft(draft);
     await ensureComposerOpen(draft);
-    await fillOnceWithRetry(() => findTextboxIn(activeComposerScope(), "post"), draft.postText, "Personal post", "3/8 Isi personal post", draft);
+    await fillOnceWithRetry(() => findTextboxIn(activeComposerScope(), "post"), draft.postText, "Personal post", "3/5 Isi personal post", draft);
     await removeLinkPreviewIfPresent();
     showPanel("Post personal sudah diisi sekali sahaja. Semak composer.", draft);
     return { ok: true };

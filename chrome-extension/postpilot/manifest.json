@@ -2,11 +2,15 @@
   "manifest_version": 3,
   "name": "Post Pilot Assist",
   "version": "0.1.0",
-  "description": "Assist-click helper for Post Pilot Facebook personal drafts from BuddyPilot.",
+  "description": "Auto-post helper for Post Pilot Facebook personal and Threads drafts from BuddyPilot.",
   "permissions": ["storage", "tabs", "clipboardWrite", "unlimitedStorage"],
   "host_permissions": [
     "https://www.facebook.com/*",
     "https://facebook.com/*",
+    "https://www.threads.com/*",
+    "https://threads.com/*",
+    "https://www.threads.net/*",
+    "https://threads.net/*",
     "https://buddypilot.vercel.app/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
@@ -27,6 +31,11 @@
     {
       "matches": ["https://www.facebook.com/*", "https://facebook.com/*"],
       "js": ["facebook-content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.threads.com/*", "https://threads.com/*", "https://www.threads.net/*", "https://threads.net/*"],
+      "js": ["threads-content.js"],
       "run_at": "document_idle"
     }
   ]

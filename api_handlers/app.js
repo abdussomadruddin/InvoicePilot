@@ -1011,7 +1011,7 @@ function pageHtml() {
         <div class="hero">
           <div>
             <h1>Post Pilot</h1>
-            <p>Jana post Facebook personal pendek, gambar hook, dan CTA komen. Chrome extension terus control Chrome untuk post.</p>
+            <p>Jana post Facebook personal pendek dan gambar hook. Chrome extension terus post ke Facebook, kemudian Threads.</p>
           </div>
         </div>
 
@@ -1044,7 +1044,7 @@ function pageHtml() {
               </div>
             </div>
           </div>
-          <button id="threadsPreviewButton" type="submit">Terus Post Facebook</button>
+          <button id="threadsPreviewButton" type="submit">POST NOW</button>
         </form>
 
         <section id="threadsPreviewPanel" class="preview">
@@ -1058,7 +1058,7 @@ function pageHtml() {
           <textarea id="threadsCommentPreview"></textarea>
 
           <div class="actions">
-            <button class="approve" id="sendThreadsExtensionButton" type="button">Terus Post Facebook</button>
+            <button class="approve" id="sendThreadsExtensionButton" type="button">POST NOW</button>
             <button class="regenerate" id="regenerateThreadsButton" type="button">Jana Semula Post</button>
             <button class="secondary" id="copyThreadsCtaButton" type="button">Copy CTA</button>
           </div>
@@ -1515,7 +1515,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       if (!data || data.source !== "postpilot-extension" || data.type !== "POSTPILOT_DRAFT_STATUS") return;
       threadsResult.className = data.ok ? "result ok" : "result err";
       threadsResult.textContent = data.ok
-        ? (data.message || "Post Pilot extension sudah start. Facebook sedang dibuka dan auto flow berjalan.")
+        ? (data.message || "Post Pilot extension sudah start. Facebook dibuka dahulu, kemudian Threads.")
         : (data.error || "Post Pilot extension tidak respond. Reload extension dan refresh webapp.");
     });
 
@@ -2281,11 +2281,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     async function sendThreadsDraftToExtension() {
       const message = await buildThreadsExtensionDraft();
       if (!message.draft.postText) throw new Error("Post utama kosong.");
-      if (!message.draft.commentCta) throw new Error("Komen CTA kosong.");
       window.postMessage(message, window.location.origin);
       threadsResult.className = "result ok";
       threadsResult.textContent = [
-        "Draft dihantar. Menunggu Post Pilot extension buka Facebook dan start auto flow...",
+        "Draft dihantar. Menunggu Post Pilot extension buka Facebook, kemudian Threads...",
         message.draft.imageNotice || preparedThreadsImageNotice || ""
       ].filter(Boolean).join("\\n");
       return message;
@@ -2526,7 +2525,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         showThreadsError(error);
       } finally {
         threadsPreviewButton.disabled = false;
-        threadsPreviewButton.textContent = "Terus Post Facebook";
+        threadsPreviewButton.textContent = "POST NOW";
       }
     });
 
@@ -2605,7 +2604,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         showThreadsError(error);
       } finally {
         sendThreadsExtensionButton.disabled = false;
-        sendThreadsExtensionButton.textContent = "Terus Post Facebook";
+        sendThreadsExtensionButton.textContent = "POST NOW";
       }
     });
 
