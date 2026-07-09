@@ -2,7 +2,8 @@ const PANEL_ID = "postpilot-assist-panel";
 const RUN_LOCK_KEY = "postpilotRunLock";
 const STARTED_AUTOMATION_KEY = "postpilotStartedAutomationId";
 const COMPLETED_AUTOMATION_KEY = "postpilotCompletedAutomationId";
-const LOCK_TTL_MS = 90_000;
+const LOCK_TTL_MS = 7 * 60_000;
+const STEP_RETRY_MS = 5 * 60_000;
 
 let inPageRun = false;
 
@@ -183,10 +184,24 @@ function visibleLargeImageCount(scope) {
   }).length;
 }
 
+function visibleBackgroundImageCount(scope) {
+  return [...scope.querySelectorAll("div, span")].filter((node) => {
+    if (!visible(node) || node.closest(`#${PANEL_ID}`)) return false;
+    const rect = node.getBoundingClientRect();
+    const background = window.getComputedStyle(node).backgroundImage || "";
+    return rect.width >= 140 && rect.height >= 90 && background !== "none" && /url\(/i.test(background);
+  }).length;
+}
+
+function visibleMediaCount(scope) {
+  return visibleLargeImageCount(scope) + visibleBackgroundImageCount(scope);
+}
+
 function composerHasAttachment(scope, initialImageCount) {
   const text = textOf(scope).toLowerCase();
   if (text.includes("remove post attachment") || text.includes("remove all")) return true;
-  return visibleLargeImageCount(scope) > initialImageCount;
+  if (text.includes("edit") && (text.includes("photo") || text.includes("image") || text.includes("gambar"))) return true;
+  return visibleMediaCount(scope) > initialImageCount;
 }
 
 function findActionInComposer(scope, labels) {
@@ -369,35 +384,56 @@ async function ensureComposerOpen() {
 async function attachHookImageFromDraft(draft) {
   if (!draft.image?.dataUrl) throw new Error("Gambar hook tiada dalam draft. Auto-post dibatalkan.");
   const file = dataUrlToFile(draft.image.dataUrl, draft.image.name, draft.image.type);
-  const scope = activeComposerScope();
-  const initialImageCount = visibleLargeImageCount(scope);
-  let input = [...scope.querySelectorAll("input[type='file']")]
-    .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept)));
-  if (!input) {
-    const photoButton = findClickableIn(scope, ["^photo/video$", "^gambar/video$", "^foto/video$"]);
-    if (photoButton) {
-      photoButton.click();
-      await sleep(350);
+  const baselineMediaCount = visibleMediaCount(activeComposerScope());
+  const started = now();
+  let attempt = 0;
+  let lastError = "";
+
+  while (now() - started <= STEP_RETRY_MS) {
+    attempt += 1;
+    const remainingSeconds = Math.max(0, Math.ceil((STEP_RETRY_MS - (now() - started)) / 1000));
+    try {
+      const scope = activeComposerScope();
+      if (composerHasAttachment(scope, baselineMediaCount)) return;
+      showPanel(`2/8 Attach gambar hook...\nAttempt ${attempt}. Baki ${remainingSeconds}s.`, draft);
+
+      let input = [...scope.querySelectorAll("input[type='file']"), ...document.querySelectorAll("input[type='file']")]
+        .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept)));
+      if (!input) {
+        const photoButton = findClickableIn(scope, ["^photo/video$", "^gambar/video$", "^foto/video$"])
+          || findClickable(["^photo/video$", "^gambar/video$", "^foto/video$"]);
+        if (photoButton) {
+          photoButton.click();
+          await sleep(500);
+        }
+        input = await waitUntil(() => [...activeComposerScope().querySelectorAll("input[type='file']"), ...document.querySelectorAll("input[type='file']")]
+          .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept))), {
+          timeout: 8_000,
+          interval: 200,
+          label: "Input gambar hook",
+        });
+      }
+
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+
+      await waitUntil(() => composerHasAttachment(activeComposerScope(), baselineMediaCount), {
+        timeout: 18_000,
+        interval: 300,
+        label: "Preview gambar hook",
+      });
+      return;
+    } catch (error) {
+      lastError = error?.message || String(error);
+      showPanel(`2/8 Gambar hook belum ready.\nAttempt ${attempt} gagal: ${lastError}\nCuba lagi sampai 5 minit...`, draft);
+      await sleep(2_000);
     }
-    input = await waitUntil(() => [...activeComposerScope().querySelectorAll("input[type='file']"), ...document.querySelectorAll("input[type='file']")]
-      .find((node) => !node.disabled && (!node.accept || /image|\*/i.test(node.accept))), {
-      timeout: 4_000,
-      interval: 160,
-      label: "Input gambar hook",
-    });
   }
 
-  const transfer = new DataTransfer();
-  transfer.items.add(file);
-  input.files = transfer.files;
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
-
-  await waitUntil(() => composerHasAttachment(activeComposerScope(), initialImageCount), {
-    timeout: 12_000,
-    interval: 220,
-    label: "Preview gambar hook",
-  });
+  throw new Error(`Preview gambar hook masih belum siap selepas 5 minit. Last error: ${lastError || "unknown"}`);
 }
 
 async function removeLinkPreviewIfPresent() {
