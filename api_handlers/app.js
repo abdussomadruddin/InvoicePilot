@@ -82,6 +82,77 @@ function pageHtml() {
       box-shadow: 0 5px 0 rgba(20, 33, 61, 0.12);
     }
 
+    .topbar-menu {
+      position: relative;
+      margin-left: auto;
+    }
+
+    .topbar-menu summary {
+      list-style: none;
+      margin-top: 0;
+      border-radius: 999px;
+      padding: 14px 22px;
+      background: var(--blue-soft);
+      color: var(--ink);
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 7px 0 rgba(29, 155, 240, 0.14);
+      user-select: none;
+    }
+
+    .topbar-menu summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .topbar-menu summary::after {
+      content: "⌄";
+      display: inline-block;
+      margin-left: 8px;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .topbar-menu[open] summary::after {
+      transform: rotate(180deg);
+    }
+
+    .topbar-menu-list {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      z-index: 20;
+      min-width: 190px;
+      padding: 8px;
+      border: 3px solid #ffffff;
+      border-radius: 20px;
+      background: #ffffff;
+      box-shadow: 0 16px 32px rgba(20, 33, 61, 0.16);
+    }
+
+    .topbar-menu-list form {
+      margin: 0;
+    }
+
+    .topbar-menu-list button {
+      width: 100%;
+      margin-top: 0;
+      background: transparent;
+      color: var(--ink);
+      box-shadow: none;
+      text-align: left;
+      padding: 12px 14px;
+    }
+
+    .topbar-menu-list button:hover,
+    .topbar-menu-list button:focus-visible {
+      background: var(--blue-soft);
+      outline: 0;
+    }
+
+    .topbar-menu-list button.logout-option {
+      color: var(--red-dark);
+    }
+
     .card {
       background: var(--panel);
       border: 3px solid #ffffff;
@@ -855,6 +926,21 @@ function pageHtml() {
         border-radius: 22px;
       }
 
+      .topbar-menu {
+        width: 100%;
+      }
+
+      .topbar-menu summary {
+        width: 100%;
+        text-align: center;
+      }
+
+      .topbar-menu-list {
+        left: 0;
+        right: 0;
+        min-width: 0;
+      }
+
       .topbar form,
       .topbar button {
         width: 100%;
@@ -921,9 +1007,16 @@ function pageHtml() {
         <img src="/logo.svg" alt="" width="34" height="34">
         <span>BuddyPilot</span>
       </div>
-      <form method="post" action="/api/logout">
-        <button class="secondary" type="submit">Logout</button>
-      </form>
+      <details class="topbar-menu">
+        <summary>Menu</summary>
+        <div class="topbar-menu-list">
+          <button type="button" data-menu-subtab="settings-panel">Tetapan</button>
+          <button type="button" data-menu-subtab="bank-panel">Akaun Bank</button>
+          <form method="post" action="/api/logout">
+            <button class="logout-option" type="submit">Logout</button>
+          </form>
+        </div>
+      </details>
     </div>
 
     <nav class="tabs" aria-label="Main tabs">
@@ -948,8 +1041,8 @@ function pageHtml() {
           <button class="quick-card" type="button" data-go-tab="postpilot">Buat Post</button>
           <button class="quick-card" type="button" data-go-tab="personalpostpilot">Buat Post Personal</button>
           <button class="quick-card" type="button" data-go-tab="reportpilot">Buat Weekly Report</button>
-          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="document-panel" data-go-document-subtab="invoice-panel">Buat Invois</button>
-          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="document-panel" data-go-document-subtab="receipt-panel">Buat Resit</button>
+          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="invoice-panel">Buat Invois</button>
+          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="receipt-panel">Buat Resit</button>
         </div>
         <h2>Live Feed</h2>
         <div id="activityFeed" class="activity-feed">
@@ -1248,13 +1341,12 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         <div class="section-heading">
           <div>
             <h1>Invoice Pilot</h1>
-            <p class="note">Urus settings, bank, invoice PDF, dan receipt PDF di sini.</p>
+            <p class="note">Generate invoice PDF dan receipt PDF di sini.</p>
           </div>
         </div>
         <div class="subtabs" aria-label="Invoice Pilot tabs">
-          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="settings-panel">Tetapan</button>
-          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="bank-panel">Akaun Bank</button>
-          <button class="subtab-button active" type="button" data-subtab-group="invoice-pilot" data-subtab-target="document-panel">Dokumen</button>
+          <button class="subtab-button active" type="button" data-subtab-group="invoice-pilot" data-subtab-target="invoice-panel">Invoice</button>
+          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="receipt-panel">Receipt</button>
         </div>
 
         <div id="settings-panel" class="subtab-panel" data-subtab-panel="invoice-pilot">
@@ -1343,13 +1435,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           <div id="bankResult" class="result"></div>
         </div>
 
-        <div id="document-panel" class="subtab-panel active" data-subtab-panel="invoice-pilot">
-        <div class="subtabs" aria-label="Document tabs">
-          <button class="subtab-button active" type="button" data-subtab-group="document" data-subtab-target="invoice-panel">Invoice</button>
-          <button class="subtab-button" type="button" data-subtab-group="document" data-subtab-target="receipt-panel">Receipt</button>
-        </div>
-
-        <div id="invoice-panel" class="subtab-panel active" data-subtab-panel="document">
+        <div id="invoice-panel" class="subtab-panel active" data-subtab-panel="invoice-pilot">
           <p>Generate invoice PDF semua client ads untuk bulan terpilih, review dahulu, kemudian upload terus ke Google Drive folder client.</p>
 
           <div class="toolbar">
@@ -1365,7 +1451,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           <div id="invoiceResult" class="result"></div>
         </div>
 
-        <div id="receipt-panel" class="subtab-panel" data-subtab-panel="document">
+        <div id="receipt-panel" class="subtab-panel" data-subtab-panel="invoice-pilot">
           <p>Pilih invoice yang telah dibayar, review resit PDF dahulu, kemudian upload resit ke folder Google Drive yang sama.</p>
 
           <div class="toolbar">
@@ -1379,7 +1465,6 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
           <div id="receiptList" class="invoice-list"></div>
           <div id="receiptResult" class="result"></div>
-        </div>
         </div>
       </section>
     </section>
@@ -1646,28 +1731,41 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       localStorage.setItem(\`active-subtab-\${group}\`, targetId);
     }
 
+    function openInvoicePilotPanel(targetId) {
+      activateTab("invoicepilot");
+      activateSubtab("invoice-pilot", targetId);
+    }
+
     function setupTabs() {
       const savedMainTab = localStorage.getItem("active-main-tab") || "dashboard";
       const mainTab = document.querySelector(\`.tab-button[data-tab-target="\${savedMainTab}"]\`) ? savedMainTab : "dashboard";
       activateTab(mainTab);
       document.querySelectorAll(".tab-button").forEach((button) => {
-        button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
+        button.addEventListener("click", () => {
+          activateTab(button.dataset.tabTarget);
+          if (button.dataset.tabTarget === "invoicepilot") activateSubtab("invoice-pilot", "invoice-panel");
+        });
       });
 
       const subtabDefaults = {
-        "invoice-pilot": "document-panel",
-        client: "client-list-panel",
-        document: "invoice-panel"
+        "invoice-pilot": "invoice-panel",
+        client: "client-list-panel"
       };
-      ["invoice-pilot", "client", "document"].forEach((group) => {
+      ["invoice-pilot", "client"].forEach((group) => {
         const fallback = subtabDefaults[group] || document.querySelector(\`.subtab-button[data-subtab-group="\${group}"]\`)?.dataset.subtabTarget;
-        const saved = localStorage.getItem(\`active-subtab-\${group}\`);
+        const saved = group === "invoice-pilot" ? "" : localStorage.getItem(\`active-subtab-\${group}\`);
         const savedPanel = saved ? document.getElementById(saved) : null;
         const target = savedPanel?.dataset.subtabPanel === group ? saved : fallback;
         if (target) activateSubtab(group, target);
       });
       document.querySelectorAll(".subtab-button").forEach((button) => {
         button.addEventListener("click", () => activateSubtab(button.dataset.subtabGroup, button.dataset.subtabTarget));
+      });
+      document.querySelectorAll("[data-menu-subtab]").forEach((button) => {
+        button.addEventListener("click", () => {
+          openInvoicePilotPanel(button.dataset.menuSubtab);
+          button.closest(".topbar-menu")?.removeAttribute("open");
+        });
       });
     }
 
@@ -3952,7 +4050,6 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       button.addEventListener("click", () => {
         activateTab(button.dataset.goTab);
         if (button.dataset.goSubtab) activateSubtab("invoice-pilot", button.dataset.goSubtab);
-        if (button.dataset.goDocumentSubtab) activateSubtab("document", button.dataset.goDocumentSubtab);
       });
     });
     clientForm.addEventListener("submit", saveClient);
