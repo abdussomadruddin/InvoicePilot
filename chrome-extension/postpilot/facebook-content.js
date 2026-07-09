@@ -269,6 +269,7 @@ async function releaseRunLock() {
 }
 
 function showPanel(status, draft) {
+  chrome.storage?.local?.set?.({ postpilotAutomationStatus: status || "Draft ready." }).catch(() => {});
   const existing = document.getElementById(PANEL_ID);
   if (existing) existing.remove();
 
@@ -557,7 +558,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
     if (message?.type === "POSTPILOT_AUTO_POST") {
-      sendResponse(await runFullAutomation({ manual: true }));
+      runFullAutomation({ manual: true }).catch((error) => {
+        showPanel(error?.message || String(error), null);
+      });
+      sendResponse({ ok: true, message: "Full auto flow started." });
       return;
     }
     if (message?.type === "POSTPILOT_FILL_COMMENT") {
@@ -575,13 +579,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 (async () => {
   try {
     const draft = await getDraft();
-    if (!draft.autoPublish) {
-      showPanel("Draft diterima. Tekan Auto Full Flow bila ready.", draft);
-      return;
-    }
-    showPanel("Draft diterima. Full auto flow akan bermula.", draft);
-    await sleep(500);
-    await runFullAutomation();
+    showPanel(draft.autoPublish
+      ? "Draft diterima. Auto flow standby, tunggu arahan dari Post Pilot extension."
+      : "Draft diterima. Tekan Auto Full Flow bila ready.", draft);
   } catch (error) {
     if (!String(error?.message || error).includes("Tiada draft") && !String(error?.message || error).includes("sudah pernah start")) {
       showPanel(error?.message || String(error), null);

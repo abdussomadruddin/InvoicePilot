@@ -36,6 +36,11 @@ async function loadDraft() {
   try {
     const response = await sendMessage({ type: "GET_CURRENT_DRAFT" });
     currentDraft = response.draft;
+    if (response.lastError) {
+      setStatus(response.lastError, true);
+    } else if (response.automationStatus) {
+      setStatus(response.automationStatus);
+    }
     if (!currentDraft) {
       meta.textContent = "Belum ada draft. Hantar dari tab Post Pilot di webapp.";
       postText.value = "";
