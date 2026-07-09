@@ -4,7 +4,6 @@ const STARTED_AUTOMATION_KEY = "postpilotStartedAutomationId";
 const COMPLETED_AUTOMATION_KEY = "postpilotCompletedAutomationId";
 const LOCK_TTL_MS = 7 * 60_000;
 const STEP_RETRY_MS = 5 * 60_000;
-const SHORT_STEP_RETRY_MS = 90_000;
 const STEP_RETRY_INTERVAL_MS = 5_000;
 
 let inPageRun = false;
@@ -328,12 +327,28 @@ function postTextProbe(text) {
     || String(text || "").trim().slice(0, 50);
 }
 
+function postTextProbes(text) {
+  const lines = String(text || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 8)
+    .filter((line) => !/^klik\s+sini\s*:/i.test(line) && !/^https?:\/\//i.test(line));
+  const probes = lines.slice(0, 3);
+  const fallback = postTextProbe(text);
+  if (fallback && !probes.includes(fallback)) probes.push(fallback);
+  return probes.map(normalized).filter(Boolean);
+}
+
 function findNewestPostByCaption(postText) {
-  const probe = normalized(postTextProbe(postText));
-  if (!probe) return null;
+  const probes = postTextProbes(postText);
+  if (!probes.length) return null;
   const articles = [...document.querySelectorAll('[role="article"], div[data-pagelet*="FeedUnit"], div[data-ft]')]
     .filter(visible);
-  return articles.find((article) => normalized(textOf(article)).includes(probe)) || null;
+  return articles.find((article) => {
+    const haystack = normalized(textOf(article));
+    const hits = probes.filter((probe) => haystack.includes(probe)).length;
+    return hits >= 1;
+  }) || null;
 }
 
 function findCommentButtonForPost(postNode) {
@@ -462,18 +477,24 @@ function progress(steps, current) {
   return [...steps, current].join("\n");
 }
 
-async function waitStep(check, { timeout = SHORT_STEP_RETRY_MS, interval = STEP_RETRY_INTERVAL_MS, label = "Step", draft = null } = {}) {
+async function waitStep(check, { timeout = STEP_RETRY_MS, interval = STEP_RETRY_INTERVAL_MS, label = "Step", draft = null } = {}) {
   const started = now();
   let attempt = 0;
+  let lastError = "";
   while (now() - started <= timeout) {
     attempt += 1;
-    const result = await check();
-    if (result) return result;
+    try {
+      const result = await check(attempt);
+      if (result) return result;
+      lastError = "";
+    } catch (error) {
+      lastError = error?.message || String(error);
+    }
     const remainingSeconds = Math.max(0, Math.ceil((timeout - (now() - started)) / 1000));
-    showPanel(`${label} belum ready. Cuba lagi dalam 5s...\nAttempt ${attempt}. Baki ${remainingSeconds}s.`, draft);
+    showPanel(`${label} belum ready. Cuba lagi dalam 5s...\nAttempt ${attempt}. Baki ${remainingSeconds}s.${lastError ? `\nLast error: ${lastError}` : ""}`, draft);
     await sleep(interval);
   }
-  throw new Error(`${label} belum siap.`);
+  throw new Error(`${label} belum siap selepas 5 minit.${lastError ? ` Last error: ${lastError}` : ""}`);
 }
 
 async function clickPhotoVideo(draft) {
@@ -481,7 +502,7 @@ async function clickPhotoVideo(draft) {
   if (inputBeforeClick) return inputBeforeClick;
 
   let photoButton = await waitStep(() => findPhotoVideoButton(document), {
-    timeout: 18_000,
+    timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
     label: "1/8 Button Photo/video",
     draft,
@@ -495,7 +516,7 @@ async function clickPhotoVideo(draft) {
       "create post",
       "buat siaran",
     ]), {
-      timeout: 18_000,
+      timeout: STEP_RETRY_MS,
       interval: STEP_RETRY_INTERVAL_MS,
       label: "1/8 Composer Facebook",
       draft,
@@ -504,7 +525,7 @@ async function clickPhotoVideo(draft) {
     await sleep(700);
 
     photoButton = await waitStep(() => findPhotoVideoButton(activeComposerScope()) || findFileInput(activeComposerScope()), {
-      timeout: 18_000,
+      timeout: STEP_RETRY_MS,
       interval: STEP_RETRY_INTERVAL_MS,
       label: "1/8 Button Photo/video dalam composer",
       draft,
@@ -517,15 +538,15 @@ async function clickPhotoVideo(draft) {
   }
 
   return waitStep(() => findFileInput(activeComposerScope()) || findFileInput(document), {
-    timeout: 18_000,
+    timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
     label: "1/8 Input gambar selepas Photo/video",
     draft,
   });
 }
 
-async function ensureComposerOpen() {
-  const textbox = await waitUntil(() => {
+async function ensureComposerOpen(draft) {
+  const textbox = await waitStep(() => {
     const scope = activeComposerScope();
     const found = findTextboxIn(scope, "post");
     if (found) return found;
@@ -533,62 +554,63 @@ async function ensureComposerOpen() {
     if (prompt) prompt.click();
     return null;
   }, {
-    timeout: 12_000,
-    interval: 220,
-    label: "Composer Facebook",
+    timeout: STEP_RETRY_MS,
+    interval: STEP_RETRY_INTERVAL_MS,
+    label: "3/8 Composer Facebook",
+    draft,
   });
   return { scope: activeComposerScope(), textbox };
+}
+
+async function fillOnceWithRetry(targetProvider, text, fillLabel, stepLabel, draft) {
+  return waitStep(async () => {
+    const target = typeof targetProvider === "function" ? await targetProvider() : targetProvider;
+    if (!target) return null;
+    await fillOnce(target, text, fillLabel);
+    return target;
+  }, {
+    timeout: STEP_RETRY_MS,
+    interval: STEP_RETRY_INTERVAL_MS,
+    label: stepLabel,
+    draft,
+  });
 }
 
 async function attachHookImageFromDraft(draft) {
   if (!draft.image?.dataUrl) throw new Error("Gambar hook tiada dalam draft. Auto-post dibatalkan.");
   const file = dataUrlToFile(draft.image.dataUrl, draft.image.name, draft.image.type);
   const baselineMediaCount = visibleMediaCount(activeComposerScope());
-  const started = now();
-  let attempt = 0;
-  let lastError = "";
+  let lastInput = null;
+  let uploadedAt = 0;
 
-  while (now() - started <= STEP_RETRY_MS) {
-    attempt += 1;
-    const remainingSeconds = Math.max(0, Math.ceil((STEP_RETRY_MS - (now() - started)) / 1000));
-    try {
-      const scope = activeComposerScope();
-      if (composerHasAttachment(scope, baselineMediaCount)) return;
-      showPanel(`2/8 Attach gambar hook...\nAttempt ${attempt}. Baki ${remainingSeconds}s.`, draft);
-
-      let input = findFileInput(scope) || findFileInput(document);
-      if (!input) {
-        showPanel(`2/8 Input gambar belum ready.\nPatah balik ke step 1: tekan Photo/video semula.`, draft);
-        await clickPhotoVideo(draft);
-        input = await waitUntil(() => findFileInput(activeComposerScope()) || findFileInput(document), {
-          timeout: 8_000,
-          interval: 200,
-          label: "Input gambar hook",
-        });
-      }
-
-      const uploadedAt = now();
-      dispatchFileToFacebook(input, file);
-
-      const readyStatus = await waitUntil(() => attachmentReadyStatus(activeComposerScope(), baselineMediaCount, input, uploadedAt), {
-        timeout: 24_000,
-        interval: 300,
-        label: "Upload gambar hook Facebook",
-      });
+  await waitStep(() => {
+    const scope = activeComposerScope();
+    const readyStatus = attachmentReadyStatus(scope, baselineMediaCount, lastInput, uploadedAt);
+    if (readyStatus) {
       if (readyStatus === "file-input") {
         showPanel("2/8 Gambar hook sudah dihantar ke Facebook.\nPreview visual tidak dapat dibaca, teruskan tunggu button Next/Post ready.", draft);
-        await sleep(1_000);
       }
-      return;
-    } catch (error) {
-      lastError = error?.message || String(error);
-      showPanel(`2/8 Gambar hook belum ready.\nAttempt ${attempt} gagal: ${lastError}\nPatah balik ke step 1, kemudian cuba lagi sampai 5 minit...`, draft);
-      await clickPhotoVideo(draft).catch(() => {});
-      await sleep(STEP_RETRY_INTERVAL_MS);
+      return true;
     }
-  }
 
-  throw new Error(`Preview gambar hook masih belum siap selepas 5 minit. Last error: ${lastError || "unknown"}`);
+    const input = findFileInput(scope) || findFileInput(document);
+    if (!input) {
+      const photoButton = findPhotoVideoButton(scope) || findPhotoVideoButton(document);
+      if (photoButton) photoButton.click();
+      return null;
+    }
+
+    if (lastInput === input && input.files?.length) return null;
+    dispatchFileToFacebook(input, file);
+    lastInput = input;
+    uploadedAt = now();
+    return null;
+  }, {
+    timeout: STEP_RETRY_MS,
+    interval: STEP_RETRY_INTERVAL_MS,
+    label: "2/8 Attach gambar hook",
+    draft,
+  });
 }
 
 async function removeLinkPreviewIfPresent() {
@@ -622,7 +644,7 @@ async function clickNextStep(draft) {
     if (postButton) return { button: postButton, type: "post" };
     return null;
   }, {
-    timeout: SHORT_STEP_RETRY_MS,
+    timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
     label: "4/8 Button Next",
     draft,
@@ -647,40 +669,63 @@ async function clickPostStep(draft) {
   postButton.click();
 }
 
-async function waitForPostPublished(postText) {
-  await waitUntil(() => !activeDialog(), {
-    timeout: 15_000,
-    interval: 300,
-    label: "Composer tutup selepas post",
+async function waitForPostPublished(draft) {
+  await waitStep(() => !activeDialog(), {
+    timeout: STEP_RETRY_MS,
+    interval: STEP_RETRY_INTERVAL_MS,
+    label: "5/8 Composer tutup selepas Post",
+    draft,
   }).catch(() => {});
-  return waitUntil(() => findNewestPostByCaption(postText), {
-    timeout: 25_000,
-    interval: 600,
-    label: "Post baru dalam feed",
+
+  return waitStep(() => {
+    const matchedPost = findNewestPostByCaption(draft.postText);
+    if (matchedPost) return matchedPost;
+    if (activeDialog()) return null;
+    window.scrollTo({ top: 0, behavior: "instant" });
+    return findNewestPostByCaption(draft.postText);
+  }, {
+    timeout: STEP_RETRY_MS,
+    interval: STEP_RETRY_INTERVAL_MS,
+    label: "5/8 Post baru dalam feed",
+    draft,
   });
 }
 
-async function openCommentBoxForPost(postNode) {
-  const commentButton = findCommentButtonForPost(postNode);
-  if (!commentButton) throw new Error("Button komen tidak dijumpai pada post baru.");
-  commentButton.click();
-  return waitUntil(() => findTextboxIn(postNode, "comment") || findTextboxIn(document, "comment"), {
-    timeout: 8_000,
-    interval: 200,
-    label: "Ruang komen",
+async function openCommentBoxForPost(postNode, draft) {
+  return waitStep(async () => {
+    const freshPost = draft?.postText ? findNewestPostByCaption(draft.postText) || postNode : postNode;
+    if (!freshPost) return null;
+    const existingBox = findTextboxIn(freshPost, "comment") || findTextboxIn(document, "comment");
+    if (existingBox) return existingBox;
+    const commentButton = findCommentButtonForPost(freshPost);
+    if (!commentButton) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      return null;
+    }
+    commentButton.click();
+    await sleep(700);
+    return findTextboxIn(freshPost, "comment") || findTextboxIn(document, "comment");
+  }, {
+    timeout: STEP_RETRY_MS,
+    interval: STEP_RETRY_INTERVAL_MS,
+    label: "6/8 Ruang komen",
+    draft,
   });
 }
 
-async function fillCommentOnce(commentBox, ctaText) {
-  await fillOnce(commentBox, ctaText, "CTA komen");
+async function fillCommentOnce(commentBox, ctaText, draft) {
+  await fillOnceWithRetry(() => (visible(commentBox) ? commentBox : findTextboxIn(document, "comment")), ctaText, "CTA komen", "7/8 Isi CTA komen", draft);
 }
 
-async function submitCommentButtonOnce(commentBox) {
-  const scope = commentSubmitScope(commentBox);
-  const submit = await waitUntil(() => findSubmitCommentButton(scope) || findSubmitCommentButton(document), {
-    timeout: 6_000,
-    interval: 200,
-    label: "Button post komen",
+async function submitCommentButtonOnce(commentBox, draft) {
+  const submit = await waitStep(() => {
+    const scope = commentSubmitScope(commentBox);
+    return findSubmitCommentButton(scope) || findSubmitCommentButton(document);
+  }, {
+    timeout: STEP_RETRY_MS,
+    interval: STEP_RETRY_INTERVAL_MS,
+    label: "8/8 Button post komen",
+    draft,
   });
   submit.click();
   await sleep(600);
@@ -693,10 +738,11 @@ async function runFullAutomation({ manual = false } = {}) {
   const steps = [];
   try {
     showPanel(progress(steps, "1/8 Facebook tab baru sudah dibuka. Cari Photo/video..."), draft);
-    await waitUntil(() => document.readyState === "complete" || document.readyState === "interactive", {
-      timeout: 8_000,
-      interval: 200,
-      label: "Facebook page",
+    await waitStep(() => document.readyState === "complete" || document.readyState === "interactive", {
+      timeout: STEP_RETRY_MS,
+      interval: STEP_RETRY_INTERVAL_MS,
+      label: "1/8 Facebook page",
+      draft,
     });
     await clickPhotoVideo(draft);
     steps.push("1/8 Facebook ready dan Photo/video ditekan.");
@@ -706,8 +752,8 @@ async function runFullAutomation({ manual = false } = {}) {
     steps.push("2/8 Gambar hook sudah dihantar ke composer.");
 
     showPanel(progress(steps, "3/8 Isi personal post sekali sahaja..."), draft);
-    const { textbox } = await ensureComposerOpen();
-    await fillOnce(textbox, draft.postText, "Personal post");
+    await ensureComposerOpen(draft);
+    await fillOnceWithRetry(() => findTextboxIn(activeComposerScope(), "post"), draft.postText, "Personal post", "3/8 Isi personal post", draft);
     await removeLinkPreviewIfPresent();
     steps.push("3/8 Personal post clean, tiada duplicate.");
 
@@ -722,19 +768,19 @@ async function runFullAutomation({ manual = false } = {}) {
     steps.push("5/8 Post ditekan.");
 
     showPanel(progress(steps, "5/8 Tunggu post baru muncul..."), draft);
-    const postNode = await waitForPostPublished(draft.postText);
+    const postNode = await waitForPostPublished(draft);
     steps.push("5/8 Post live dijumpai.");
 
     showPanel(progress(steps, "6/8 Tekan bahagian komen..."), draft);
-    const commentBox = await openCommentBoxForPost(postNode);
+    const commentBox = await openCommentBoxForPost(postNode, draft);
     steps.push("6/8 Ruang komen ready.");
 
     showPanel(progress(steps, "7/8 Isi CTA komen sekali sahaja..."), draft);
-    await fillCommentOnce(commentBox, draft.commentCta);
+    await fillCommentOnce(commentBox, draft.commentCta, draft);
     steps.push("7/8 CTA komen clean, tiada duplicate.");
 
     showPanel(progress(steps, "8/8 Post komen..."), draft);
-    await submitCommentButtonOnce(commentBox);
+    await submitCommentButtonOnce(commentBox, draft);
     steps.push("8/8 CTA komen dipost.");
 
     await chrome.storage.local.set({ [COMPLETED_AUTOMATION_KEY]: automationId, autoPublishedDraftId: draft.id || automationId });
@@ -752,8 +798,8 @@ async function fillPostOnly() {
   try {
     await clickPhotoVideo(draft);
     await attachHookImageFromDraft(draft);
-    const { textbox } = await ensureComposerOpen();
-    await fillOnce(textbox, draft.postText, "Personal post");
+    await ensureComposerOpen(draft);
+    await fillOnceWithRetry(() => findTextboxIn(activeComposerScope(), "post"), draft.postText, "Personal post", "3/8 Isi personal post", draft);
     await removeLinkPreviewIfPresent();
     showPanel("Post personal sudah diisi sekali sahaja. Semak composer.", draft);
     return { ok: true };
@@ -767,8 +813,8 @@ async function fillCommentOnly() {
   await acquireRunLock("fill-comment", draft.automationId || draft.id || "", true);
   try {
     const postNode = findNewestPostByCaption(draft.postText) || document;
-    const commentBox = await openCommentBoxForPost(postNode);
-    await fillOnce(commentBox, draft.commentCta, "CTA komen");
+    const commentBox = await openCommentBoxForPost(postNode, draft);
+    await fillCommentOnce(commentBox, draft.commentCta, draft);
     showPanel("CTA komen sudah diisi sekali sahaja. Semak sebelum post komen.", draft);
     return { ok: true };
   } finally {

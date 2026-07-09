@@ -1011,7 +1011,7 @@ function pageHtml() {
         <div class="hero">
           <div>
             <h1>Post Pilot</h1>
-            <p>Jana post Facebook personal pendek, gambar hook, dan CTA komen. Chrome extension bantu isi composer; anda klik Post sendiri.</p>
+            <p>Jana post Facebook personal pendek, gambar hook, dan CTA komen. Chrome extension terus control Chrome untuk post.</p>
           </div>
         </div>
 
@@ -1044,7 +1044,7 @@ function pageHtml() {
               </div>
             </div>
           </div>
-          <button id="threadsPreviewButton" type="submit">Preview Post Pilot</button>
+          <button id="threadsPreviewButton" type="submit">Terus Post Facebook</button>
         </form>
 
         <section id="threadsPreviewPanel" class="preview">
@@ -1058,7 +1058,7 @@ function pageHtml() {
           <textarea id="threadsCommentPreview"></textarea>
 
           <div class="actions">
-            <button class="approve" id="sendThreadsExtensionButton" type="button">Control Chrome: Post Facebook Personal</button>
+            <button class="approve" id="sendThreadsExtensionButton" type="button">Terus Post Facebook</button>
             <button class="regenerate" id="regenerateThreadsButton" type="button">Jana Semula Post</button>
             <button class="secondary" id="copyThreadsCtaButton" type="button">Copy CTA</button>
           </div>
@@ -2197,7 +2197,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       threadsResult.textContent = "Gambar hook sudah disimpan dalam Supabase untuk Post Pilot.";
     }
 
-    function showThreadsPreview(json) {
+    function showThreadsPreview(json, { reveal = true, message = "" } = {}) {
       currentThreadsPreview = json.preview;
       seenThreadsVariations = [Number(currentThreadsPreview.variation || 0)];
       threadsPostPreview.value = currentThreadsPreview.post_text || "";
@@ -2207,13 +2207,15 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         \`Concept: \${Number(currentThreadsPreview.variation || 0) + 1}/120\`,
         \`Style: \${currentThreadsPreview.style || "-"}\`
       ].join(" | ");
-      threadsPreviewPanel.className = "preview show";
-      threadsResult.className = "result ok";
-      threadsResult.textContent = [
-        "Preview Post Pilot siap. Post utama dan CTA komen sudah disediakan.",
-        savedThreadsImage && !threadsHookImage.files[0] ? "Gambar hook last key in tersedia untuk extension." : "",
-        preparedThreadsImageNotice || ""
-      ].filter(Boolean).join("\\n\\n");
+      threadsPreviewPanel.className = reveal ? "preview show" : "preview";
+      if (message || reveal) {
+        threadsResult.className = "result ok";
+        threadsResult.textContent = [
+          message || "Preview Post Pilot siap. Post utama dan CTA komen sudah disediakan.",
+          savedThreadsImage && !threadsHookImage.files[0] ? "Gambar hook last key in tersedia untuk extension." : "",
+          preparedThreadsImageNotice || ""
+        ].filter(Boolean).join("\\n\\n");
+      }
     }
 
     async function buildThreadsExtensionDraft() {
@@ -2264,6 +2266,19 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           imageNotice
         }
       };
+    }
+
+    async function sendThreadsDraftToExtension() {
+      const message = await buildThreadsExtensionDraft();
+      if (!message.draft.postText) throw new Error("Post utama kosong.");
+      if (!message.draft.commentCta) throw new Error("Komen CTA kosong.");
+      window.postMessage(message, window.location.origin);
+      threadsResult.className = "result ok";
+      threadsResult.textContent = [
+        "Draft dihantar ke Post Pilot extension. Facebook akan dibuka dan auto post akan dimulakan.",
+        message.draft.imageNotice || preparedThreadsImageNotice || ""
+      ].filter(Boolean).join("\\n");
+      return message;
     }
 
     function showPreview(json) {
@@ -2474,7 +2489,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       threadsResult.textContent = "";
       threadsPreviewPanel.className = "preview";
       threadsPreviewButton.disabled = true;
-      threadsPreviewButton.textContent = "Generating preview...";
+      threadsPreviewButton.textContent = "Preparing post...";
 
       try {
         const hookFile = threadsHookImage.files[0];
@@ -2494,12 +2509,14 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           return;
         }
         if (!response.ok || !json.ok) throw new Error(json.error || "Post Pilot preview failed.");
-        showThreadsPreview(json);
+        showThreadsPreview(json, { reveal: false });
+        threadsPreviewButton.textContent = "Sending to Chrome...";
+        await sendThreadsDraftToExtension();
       } catch (error) {
         showThreadsError(error);
       } finally {
         threadsPreviewButton.disabled = false;
-        threadsPreviewButton.textContent = "Preview Post Pilot";
+        threadsPreviewButton.textContent = "Terus Post Facebook";
       }
     });
 
@@ -2573,21 +2590,12 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       threadsResult.textContent = "";
 
       try {
-        const message = await buildThreadsExtensionDraft();
-        if (!message.draft.postText) throw new Error("Post utama kosong.");
-        if (!message.draft.commentCta) throw new Error("Komen CTA kosong.");
-        window.postMessage(message, window.location.origin);
-        threadsResult.className = "result ok";
-        threadsResult.textContent = [
-          "Draft dihantar ke Post Pilot extension.",
-          "Kalau extension sudah install, Facebook akan dibuka, composer akan diisi, dan butang Post akan dicuba secara automatik.",
-          message.draft.imageNotice || preparedThreadsImageNotice || ""
-        ].filter(Boolean).join("\\n");
+        await sendThreadsDraftToExtension();
       } catch (error) {
         showThreadsError(error);
       } finally {
         sendThreadsExtensionButton.disabled = false;
-        sendThreadsExtensionButton.textContent = "Control Chrome: Post Facebook Personal";
+        sendThreadsExtensionButton.textContent = "Terus Post Facebook";
       }
     });
 
