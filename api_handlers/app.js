@@ -931,6 +931,7 @@ function pageHtml() {
       <button class="tab-button" type="button" data-tab-target="postpilot">Page Pilot</button>
       <button class="tab-button" type="button" data-tab-target="personalpostpilot">Post Pilot</button>
       <button class="tab-button" type="button" data-tab-target="reportpilot">Report Pilot</button>
+      <button class="tab-button" type="button" data-tab-target="clientpilot">Client Pilot</button>
       <button class="tab-button" type="button" data-tab-target="invoicepilot">Invoice Pilot</button>
     </nav>
 
@@ -1173,22 +1174,15 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       </section>
     </section>
 
-    <section id="tab-invoicepilot" class="tab-panel" data-tab-panel="invoicepilot">
+    <section id="tab-clientpilot" class="tab-panel" data-tab-panel="clientpilot">
       <section class="card">
         <div class="section-heading">
           <div>
-            <h1>Invoice Pilot</h1>
-            <p class="note">Urus pelanggan, settings, bank, dan invoice PDF di sini.</p>
+            <h1>Client Pilot</h1>
+            <p class="note">Urus senarai pelanggan, folder Drive, status service, dan contact client.</p>
           </div>
         </div>
-        <div class="subtabs" aria-label="Invoice Pilot tabs">
-          <button class="subtab-button active" type="button" data-subtab-group="invoice-pilot" data-subtab-target="client-panel">Pelanggan</button>
-          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="settings-panel">Tetapan</button>
-          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="bank-panel">Akaun Bank</button>
-          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="document-panel">Dokumen</button>
-        </div>
 
-        <div id="client-panel" class="subtab-panel active" data-subtab-panel="invoice-pilot">
         <div class="subtabs" aria-label="Client tabs">
           <button class="subtab-button active" type="button" data-subtab-group="client" data-subtab-target="client-list-panel">Senarai Pelanggan</button>
           <button class="subtab-button" type="button" data-subtab-group="client" data-subtab-target="client-add-panel">Tambah Pelanggan</button>
@@ -1246,6 +1240,21 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
             </div>
           </form>
         </div>
+      </section>
+    </section>
+
+    <section id="tab-invoicepilot" class="tab-panel" data-tab-panel="invoicepilot">
+      <section class="card">
+        <div class="section-heading">
+          <div>
+            <h1>Invoice Pilot</h1>
+            <p class="note">Urus settings, bank, invoice PDF, dan receipt PDF di sini.</p>
+          </div>
+        </div>
+        <div class="subtabs" aria-label="Invoice Pilot tabs">
+          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="settings-panel">Tetapan</button>
+          <button class="subtab-button" type="button" data-subtab-group="invoice-pilot" data-subtab-target="bank-panel">Akaun Bank</button>
+          <button class="subtab-button active" type="button" data-subtab-group="invoice-pilot" data-subtab-target="document-panel">Dokumen</button>
         </div>
 
         <div id="settings-panel" class="subtab-panel" data-subtab-panel="invoice-pilot">
@@ -1334,7 +1343,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           <div id="bankResult" class="result"></div>
         </div>
 
-        <div id="document-panel" class="subtab-panel" data-subtab-panel="invoice-pilot">
+        <div id="document-panel" class="subtab-panel active" data-subtab-panel="invoice-pilot">
         <div class="subtabs" aria-label="Document tabs">
           <button class="subtab-button active" type="button" data-subtab-group="document" data-subtab-target="invoice-panel">Invoice</button>
           <button class="subtab-button" type="button" data-subtab-group="document" data-subtab-target="receipt-panel">Receipt</button>
@@ -1645,10 +1654,17 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
       });
 
+      const subtabDefaults = {
+        "invoice-pilot": "document-panel",
+        client: "client-list-panel",
+        document: "invoice-panel"
+      };
       ["invoice-pilot", "client", "document"].forEach((group) => {
-        const first = document.querySelector(\`.subtab-button[data-subtab-group="\${group}"]\`);
-        const saved = localStorage.getItem(\`active-subtab-\${group}\`) || first?.dataset.subtabTarget;
-        if (saved) activateSubtab(group, saved);
+        const fallback = subtabDefaults[group] || document.querySelector(\`.subtab-button[data-subtab-group="\${group}"]\`)?.dataset.subtabTarget;
+        const saved = localStorage.getItem(\`active-subtab-\${group}\`);
+        const savedPanel = saved ? document.getElementById(saved) : null;
+        const target = savedPanel?.dataset.subtabPanel === group ? saved : fallback;
+        if (target) activateSubtab(group, target);
       });
       document.querySelectorAll(".subtab-button").forEach((button) => {
         button.addEventListener("click", () => activateSubtab(button.dataset.subtabGroup, button.dataset.subtabTarget));
@@ -3559,7 +3575,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         receiptList.innerHTML = "";
         uploadReceiptsButton.disabled = true;
         receiptResult.className = "result err";
-        receiptResult.textContent = "Belum ada client. Tambah pelanggan dahulu di tab Client.";
+        receiptResult.textContent = "Belum ada client. Tambah pelanggan dahulu di Client Pilot.";
         return;
       }
 
@@ -3626,7 +3642,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         invoiceList.innerHTML = "";
         uploadInvoicesButton.disabled = true;
         invoiceResult.className = "result err";
-        invoiceResult.textContent = "Belum ada client. Tambah pelanggan dahulu di tab Client.";
+        invoiceResult.textContent = "Belum ada client. Tambah pelanggan dahulu di Client Pilot.";
         return;
       }
 
