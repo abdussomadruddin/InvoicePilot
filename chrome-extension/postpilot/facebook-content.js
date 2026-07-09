@@ -339,20 +339,86 @@ function postTextProbes(text) {
   return probes.map(normalized).filter(Boolean);
 }
 
-function findNewestPostByCaption(postText) {
+function meaningfulWords(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length >= 3)
+    .filter((word) => !["klik", "sini", "https", "http", "www", "com"].includes(word));
+}
+
+function feedArticles() {
+  return [...document.querySelectorAll('[role="article"], div[data-pagelet*="FeedUnit"], div[data-ft]')]
+    .filter((article) => visible(article) && !article.closest(`#${PANEL_ID}`))
+    .filter((article) => {
+      const text = textOf(article).toLowerCase();
+      return !text.includes("sponsored")
+        && !text.includes("try suno today")
+        && !text.includes("create story")
+        && !text.includes("your story")
+        && !text.includes("friend requests");
+    });
+}
+
+function captionWordHits(articleText, postText) {
+  const targetWords = meaningfulWords(postText).slice(0, 12);
+  if (!targetWords.length) return 0;
+  const articleWords = new Set(meaningfulWords(articleText));
+  return targetWords.filter((word) => articleWords.has(word)).length;
+}
+
+function scoreFeedPost(article, postText) {
+  const articleText = textOf(article);
   const probes = postTextProbes(postText);
-  if (!probes.length) return null;
-  const articles = [...document.querySelectorAll('[role="article"], div[data-pagelet*="FeedUnit"], div[data-ft]')]
-    .filter(visible);
-  return articles.find((article) => {
-    const haystack = normalized(textOf(article));
-    const hits = probes.filter((probe) => haystack.includes(probe)).length;
-    return hits >= 1;
-  }) || null;
+  const haystack = normalized(articleText);
+  let score = 0;
+  if (probes.some((probe) => haystack.includes(probe))) score += 90;
+  const wordHits = captionWordHits(articleText, postText);
+  if (wordHits >= 4) score += 60;
+  else if (wordHits >= 2) score += 25;
+  if (/just now|baru sahaja|baru sebentar|1m|2m/i.test(articleText)) score += 25;
+  if (findCommentButtonForPost(article)) score += 15;
+  if (visibleMediaCount(article) > 0) score += 10;
+  return score;
+}
+
+function findNewestPostByCaption(postText, { allowFallback = false } = {}) {
+  const scored = feedArticles()
+    .map((article, index) => ({ article, index, score: scoreFeedPost(article, postText) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+  const matched = scored.find((entry) => entry.score >= 60);
+  if (matched) return matched.article;
+  if (!allowFallback) return null;
+  const likelyNewest = scored.find((entry) => entry.score >= 25);
+  return likelyNewest?.article || feedArticles()[0] || null;
 }
 
 function findCommentButtonForPost(postNode) {
-  return findClickableIn(postNode, ["^comment$", "^komen$", "^reply$", "^balas$"]);
+  return findClickableIn(postNode, [
+    "^comment$",
+    "comment$",
+    "leave a comment",
+    "write a comment",
+    "^komen$",
+    "komen$",
+    "tulis komen",
+    "^reply$",
+    "^balas$",
+  ]);
+}
+
+function scrollPostTowardActions(postNode, attempt = 1) {
+  if (!postNode) return;
+  postNode.scrollIntoView({ block: "center", inline: "nearest" });
+  const rect = postNode.getBoundingClientRect();
+  const neededToBottom = rect.bottom - window.innerHeight + 140;
+  const progressiveStep = 180 + Math.min(720, attempt * 120);
+  const top = neededToBottom > 0 ? Math.min(neededToBottom, progressiveStep) : progressiveStep;
+  window.scrollBy({ top: Math.max(120, top), left: 0, behavior: "instant" });
 }
 
 function findSubmitCommentButton(scope) {
@@ -688,11 +754,11 @@ async function waitForPostPublished(draft) {
   }).catch(() => {});
 
   return waitStep(() => {
-    const matchedPost = findNewestPostByCaption(draft.postText);
+    const matchedPost = findNewestPostByCaption(draft.postText, { allowFallback: true });
     if (matchedPost) return matchedPost;
     if (activeDialog()) return null;
     window.scrollTo({ top: 0, behavior: "instant" });
-    return findNewestPostByCaption(draft.postText);
+    return findNewestPostByCaption(draft.postText, { allowFallback: true });
   }, {
     timeout: STEP_RETRY_MS,
     interval: STEP_RETRY_INTERVAL_MS,
@@ -702,16 +768,20 @@ async function waitForPostPublished(draft) {
 }
 
 async function openCommentBoxForPost(postNode, draft) {
-  return waitStep(async () => {
-    const freshPost = draft?.postText ? findNewestPostByCaption(draft.postText) || postNode : postNode;
+  return waitStep(async (attempt) => {
+    const freshPost = draft?.postText
+      ? findNewestPostByCaption(draft.postText, { allowFallback: true }) || postNode
+      : postNode;
     if (!freshPost) return null;
     const existingBox = findTextboxIn(freshPost, "comment") || findTextboxIn(document, "comment");
     if (existingBox) return existingBox;
     const commentButton = findCommentButtonForPost(freshPost);
     if (!commentButton) {
-      window.scrollTo({ top: 0, behavior: "instant" });
+      scrollPostTowardActions(freshPost, attempt);
       return null;
     }
+    commentButton.scrollIntoView({ block: "center", inline: "nearest" });
+    await sleep(250);
     commentButton.click();
     await sleep(700);
     return findTextboxIn(freshPost, "comment") || findTextboxIn(document, "comment");
