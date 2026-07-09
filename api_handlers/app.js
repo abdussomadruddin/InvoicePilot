@@ -538,6 +538,22 @@ function pageHtml() {
 
     .note { font-size: 14px; }
 
+    .hook-image-preview {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hook-image-preview img {
+      width: 86px;
+      height: 86px;
+      object-fit: cover;
+      border-radius: 14px;
+      border: 3px solid #e4edff;
+      background: #ffffff;
+    }
+
     .result {
       margin-top: 18px;
       border-radius: 20px;
@@ -1022,6 +1038,10 @@ function pageHtml() {
             <div>
               <label for="threadsHookImage">Gambar hook</label>
               <input id="threadsHookImage" name="hook_image" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+              <div class="hook-image-preview">
+                <img id="threadsHookImagePreview" alt="Preview gambar hook terakhir" hidden>
+                <p class="note" id="threadsHookImageStatus">Belum ada gambar hook tersimpan.</p>
+              </div>
             </div>
           </div>
           <button id="threadsPreviewButton" type="submit">Preview Post Pilot</button>
@@ -1377,6 +1397,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     const regenerateThreadsButton = document.getElementById("regenerateThreadsButton");
     const copyThreadsCtaButton = document.getElementById("copyThreadsCtaButton");
     const threadsHookImage = document.getElementById("threadsHookImage");
+    const threadsHookImagePreview = document.getElementById("threadsHookImagePreview");
+    const threadsHookImageStatus = document.getElementById("threadsHookImageStatus");
     const threadsResult = document.getElementById("threadsResult");
     const invoicePeriod = document.getElementById("invoicePeriod");
     const generateInvoicesButton = document.getElementById("generateInvoicesButton");
@@ -1439,6 +1461,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     let preparedThreadsImageNotice = "";
     let savedThreadsImage = null;
     let postPilotSaveTimer = null;
+    let currentThreadsImagePreviewUrl = "";
     let currentInvoices = [];
     let currentReceipts = [];
     let currentClients = [];
@@ -1456,12 +1479,21 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       result.textContent = "";
     });
 
+    if (threadsHookImagePreview) {
+      threadsHookImagePreview.addEventListener("error", () => {
+        threadsHookImagePreview.hidden = true;
+      });
+    }
+
     threadsHookImage.addEventListener("change", () => {
       preparedThreadsImageFile = null;
       preparedThreadsImageNotice = "";
       threadsResult.className = "result";
       threadsResult.textContent = "";
       const file = threadsHookImage.files[0];
+      if (currentThreadsImagePreviewUrl) URL.revokeObjectURL(currentThreadsImagePreviewUrl);
+      currentThreadsImagePreviewUrl = file ? URL.createObjectURL(file) : "";
+      updatePostPilotHookImageStatus();
       if (file) {
         savePostPilotImageInput(file).catch(showThreadsError);
       }
@@ -1901,6 +1933,47 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       };
     }
 
+    function updatePostPilotHookImageStatus() {
+      if (!threadsHookImageStatus) return;
+      const selected = threadsHookImage.files?.[0];
+      const previewSrc = selected
+        ? currentThreadsImagePreviewUrl
+        : savedThreadsImage?.dataUrl || savedThreadsImage?.url || "";
+      if (threadsHookImagePreview) {
+        if (previewSrc) {
+          threadsHookImagePreview.src = previewSrc;
+          threadsHookImagePreview.hidden = false;
+        } else {
+          threadsHookImagePreview.removeAttribute("src");
+          threadsHookImagePreview.hidden = true;
+        }
+      }
+      if (selected) {
+        threadsHookImageStatus.textContent = \`Dipilih sekarang: \${selected.name}\`;
+        return;
+      }
+      if (savedThreadsImage?.name) {
+        const source = savedThreadsImage.url ? "Supabase" : "browser";
+        threadsHookImageStatus.textContent = \`Gambar terakhir tersimpan: \${savedThreadsImage.name} (\${source}). Akan digunakan semula selepas refresh.\`;
+        return;
+      }
+      threadsHookImageStatus.textContent = "Belum ada gambar hook tersimpan.";
+    }
+
+    function setPostPilotSavedImage(image) {
+      savedThreadsImage = image && (image.dataUrl || image.url) ? image : null;
+      try {
+        if (savedThreadsImage) {
+          localStorage.setItem(POSTPILOT_IMAGE_STORAGE_KEY, JSON.stringify(savedThreadsImage));
+        } else {
+          localStorage.removeItem(POSTPILOT_IMAGE_STORAGE_KEY);
+        }
+      } catch {
+        // If localStorage quota is full, keep the image in memory for the current send.
+      }
+      updatePostPilotHookImageStatus();
+    }
+
     function restorePostPilotInputs() {
       try {
         const saved = JSON.parse(localStorage.getItem(POSTPILOT_INPUT_STORAGE_KEY) || "{}");
@@ -1919,11 +1992,12 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
       try {
         const image = JSON.parse(localStorage.getItem(POSTPILOT_IMAGE_STORAGE_KEY) || "null");
-        savedThreadsImage = image?.dataUrl ? image : null;
+        savedThreadsImage = image?.dataUrl || image?.url ? image : null;
       } catch {
         localStorage.removeItem(POSTPILOT_IMAGE_STORAGE_KEY);
         savedThreadsImage = null;
       }
+      updatePostPilotHookImageStatus();
     }
 
     function applyPostPilotDraft(draft) {
@@ -1944,12 +2018,16 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       });
       savePostPilotInputs();
       if (draft.hasHookImage) {
-        savedThreadsImage = {
+        const localDataUrl = savedThreadsImage?.savedAt === draft.hookImageUpdatedAt
+          ? savedThreadsImage.dataUrl || ""
+          : "";
+        setPostPilotSavedImage({
           name: draft.hookImageName || "post-hook.jpg",
           type: draft.hookImageMime || "image/jpeg",
           url: \`/api/personal-post-hook-image?t=\${encodeURIComponent(draft.hookImageUpdatedAt || Date.now())}\`,
-          savedAt: draft.hookImageUpdatedAt || ""
-        };
+          dataUrl: localDataUrl,
+          savedAt: draft.hookImageUpdatedAt || "",
+        });
       }
     }
 
@@ -2047,26 +2125,46 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     async function savePostPilotImageInput(file) {
       const storedFile = await compressImageForPostPilotStorage(file);
+      const localImage = {
+        name: storedFile.name || file.name || "post-hook.jpg",
+        type: storedFile.type || file.type || "image/jpeg",
+        dataUrl: await readFileAsDataUrl(storedFile),
+        savedAt: new Date().toISOString()
+      };
+      setPostPilotSavedImage(localImage);
+
       const payload = new FormData();
       payload.append("hookImage", storedFile);
-      const response = await fetch("/api/personal-post-hook-image", {
-        method: "POST",
-        body: payload
-      });
-      const json = await readApiJson(response);
+      let response;
+      let json;
+      try {
+        response = await fetch("/api/personal-post-hook-image", {
+          method: "POST",
+          body: payload
+        });
+        json = await readApiJson(response);
+      } catch (error) {
+        threadsResult.className = "result ok";
+        threadsResult.textContent = \`Gambar hook sudah disimpan dalam browser untuk Post Pilot. Supabase belum ready: \${error.message || String(error)}\`;
+        return;
+      }
       if (response.status === 401) {
         window.location.href = "/login";
         return;
       }
-      if (!response.ok || !json.ok) throw new Error(json.error || "Upload gambar hook failed.");
+      if (!response.ok || !json.ok) {
+        threadsResult.className = "result ok";
+        threadsResult.textContent = \`Gambar hook sudah disimpan dalam browser untuk Post Pilot. Supabase belum ready: \${json.error || "Upload gambar hook failed."}\`;
+        return;
+      }
       const image = {
         name: json.draft?.hookImageName || storedFile.name || "post-hook.jpg",
         type: json.draft?.hookImageMime || storedFile.type || "image/jpeg",
         url: \`/api/personal-post-hook-image?t=\${encodeURIComponent(json.draft?.hookImageUpdatedAt || Date.now())}\`,
+        dataUrl: localImage.dataUrl,
         savedAt: json.draft?.hookImageUpdatedAt || new Date().toISOString()
       };
-      localStorage.setItem(POSTPILOT_IMAGE_STORAGE_KEY, JSON.stringify(image));
-      savedThreadsImage = image;
+      setPostPilotSavedImage(image);
       threadsResult.className = "result ok";
       threadsResult.textContent = "Gambar hook sudah disimpan dalam Supabase untuk Post Pilot.";
     }
@@ -2105,9 +2203,13 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       } else if (savedThreadsImage?.dataUrl) {
         imageDataUrl = savedThreadsImage.dataUrl;
       } else if (savedThreadsImage?.url) {
-        const response = await fetch(savedThreadsImage.url);
-        if (!response.ok) throw new Error("Gagal load gambar hook dari Supabase.");
-        imageDataUrl = await blobToDataUrl(await response.blob());
+        try {
+          const response = await fetch(savedThreadsImage.url);
+          if (!response.ok) throw new Error("Gagal load gambar hook dari Supabase.");
+          imageDataUrl = await blobToDataUrl(await response.blob());
+        } catch (error) {
+          imageNotice = \`Gambar hook terakhir tidak dapat dibaca dari Supabase. Upload gambar secara manual di Facebook. Detail: \${error.message || String(error)}\`;
+        }
       }
 
       return {
