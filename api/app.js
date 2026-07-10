@@ -28,6 +28,8 @@ const routes = {
   "settings/logo": require("../api_handlers/settings/logo"),
   "personal-post-draft": require("../api_handlers/personal-post-draft"),
   "personal-post-hook-image": require("../api_handlers/personal-post-hook-image"),
+  "personal-post-hook-images": require("../api_handlers/personal-post-hook-images"),
+  "personal-post-batch": require("../api_handlers/personal-post-batch"),
   "personal-post-preview": require("../api_handlers/personal-post-preview"),
   "personal-post-regenerate": require("../api_handlers/personal-post-regenerate"),
 };

@@ -559,6 +559,18 @@ function notifyFacebookDone(automationId) {
   }
 }
 
+function notifyBatchFailed(automationId, error) {
+  try {
+    chrome.runtime.sendMessage({
+      type: "POSTPILOT_BATCH_FAILED",
+      automationId,
+      error: error?.message || String(error),
+    }, () => { void chrome.runtime.lastError; });
+  } catch {
+    // Best effort status update only.
+  }
+}
+
 function progress(steps, current) {
   return [...steps, current].join("\n");
 }
@@ -866,6 +878,9 @@ async function runFullAutomation({ manual = false } = {}) {
     steps.push("Full flow selesai. Komen CTA tidak dipost secara automatik.");
     showPanel(steps.join("\n"), draft);
     return { ok: true, message: steps.join("\n") };
+  } catch (error) {
+    notifyBatchFailed(automationId, error);
+    throw error;
   } finally {
     await releaseRunLock();
   }

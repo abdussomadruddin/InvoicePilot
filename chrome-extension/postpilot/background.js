@@ -6,6 +6,10 @@ const THREADS_LAUNCH_KEY = "postpilotThreadsLaunchAutomationId";
 const THREADS_STARTED_KEY = "postpilotThreadsStartedAutomationId";
 const THREADS_COMPLETED_KEY = "postpilotThreadsCompletedAutomationId";
 const THREADS_RUN_LOCK_KEY = "postpilotThreadsRunLock";
+const POSTPILOT_BATCH_KEY = "postpilotCrossPlatformBatch";
+const POSTPILOT_BATCH_ALARM = "postpilotCrossPlatformBatchNext";
+const POSTPILOT_BATCH_FACEBOOK_TAB_KEY = "postpilotCrossBatchFacebookTabId";
+const POSTPILOT_BATCH_THREADS_TAB_KEY = "postpilotCrossBatchThreadsTabId";
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -14,6 +18,97 @@ function delay(ms) {
 async function getActiveTab() {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   return tabs[0] || null;
+}
+
+async function getReusableTab(storageKey, url, pattern) {
+  const state = await chrome.storage.local.get(storageKey);
+  const id = Number(state[storageKey]);
+  if (id) {
+    try {
+      const tab = await chrome.tabs.get(id);
+      if (tab?.id && pattern.test(tab.url || "")) {
+        await chrome.tabs.update(tab.id, { active: true });
+        return tab;
+      }
+    } catch {
+      // Closed tabs are recreated below.
+    }
+  }
+  const tab = await chrome.tabs.create({ url, active: true });
+  if (!tab?.id) throw new Error(`Gagal buka tab ${url}.`);
+  await chrome.storage.local.set({ [storageKey]: tab.id });
+  return tab;
+}
+
+async function getPostPilotBatch() {
+  const state = await chrome.storage.local.get(POSTPILOT_BATCH_KEY);
+  return state[POSTPILOT_BATCH_KEY] || null;
+}
+
+async function savePostPilotBatch(batch, status) {
+  await chrome.storage.local.set({
+    [POSTPILOT_BATCH_KEY]: batch,
+    postpilotAutomationStatus: status || `Post Pilot batch ${batch.index + 1}/${batch.posts.length}: ${batch.phase}`,
+    postpilotLastError: "",
+  });
+}
+
+function currentBatchDraft(batch) {
+  const post = batch?.posts?.[batch.index];
+  if (!post) throw new Error("Batch post tidak dijumpai.");
+  return {
+    ...post,
+    id: `${batch.automationId}-${batch.index + 1}`,
+    automationId: `${batch.automationId}-${batch.index + 1}`,
+    createdAt: new Date().toISOString(),
+    autoPublish: true,
+  };
+}
+
+async function startBatchFacebook() {
+  const batch = await getPostPilotBatch();
+  if (!batch || batch.phase === "completed" || batch.phase === "paused") return;
+  const draft = currentBatchDraft(batch);
+  batch.phase = "facebook";
+  await savePostPilotBatch(batch, `Post Pilot ${batch.index + 1}/${batch.posts.length}: posting ke Facebook...`);
+  await chrome.storage.local.set({
+    currentDraft: draft,
+    postpilotStartedAutomationId: "",
+    postpilotCompletedAutomationId: "",
+    postpilotRunLock: null,
+  });
+  const tab = await getReusableTab(POSTPILOT_BATCH_FACEBOOK_TAB_KEY, FACEBOOK_HOME_URL, FACEBOOK_URL_PATTERN);
+  await sendToFacebookTabWithRetry(tab.id, "POSTPILOT_AUTO_POST");
+}
+
+async function startBatchThreads() {
+  const batch = await getPostPilotBatch();
+  if (!batch || batch.phase === "completed" || batch.phase === "paused") return;
+  const draft = currentBatchDraft(batch);
+  batch.phase = "threads";
+  await savePostPilotBatch(batch, `Post Pilot ${batch.index + 1}/${batch.posts.length}: posting ke Threads...`);
+  await chrome.storage.local.set({
+    currentDraft: draft,
+    [THREADS_LAUNCH_KEY]: "",
+    [THREADS_STARTED_KEY]: "",
+    [THREADS_COMPLETED_KEY]: "",
+    [THREADS_RUN_LOCK_KEY]: null,
+  });
+  const tab = await getReusableTab(POSTPILOT_BATCH_THREADS_TAB_KEY, THREADS_HOME_URL, THREADS_URL_PATTERN);
+  await sendToThreadsTabWithRetry(tab.id, "POSTPILOT_THREADS_AUTO_POST");
+}
+
+async function scheduleNextBatchPost(batch) {
+  if (batch.index + 1 >= batch.posts.length) {
+    batch.phase = "completed";
+    await savePostPilotBatch(batch, `Post Pilot batch selesai: ${batch.posts.length}/${batch.posts.length} posted.`);
+    return;
+  }
+  batch.phase = "waiting";
+  const delayMs = Math.max(30_000, Number(batch.batchDelayMs) || 30_000);
+  await savePostPilotBatch(batch, `Post Pilot ${batch.index + 1}/${batch.posts.length} selesai. Post seterusnya dalam 30 saat.`);
+  await chrome.alarms.clear(POSTPILOT_BATCH_ALARM);
+  chrome.alarms.create(POSTPILOT_BATCH_ALARM, { when: Date.now() + delayMs });
 }
 
 async function sendToActiveFacebookTab(type) {
@@ -105,6 +200,26 @@ async function openThreadsAndRunAutomation(automationId = "", command = "POSTPIL
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
+    if (message?.type === "SAVE_POSTPILOT_BATCH_AND_OPEN_FACEBOOK") {
+      const posts = Array.isArray(message.draft?.posts) ? message.draft.posts.slice(0, 5) : [];
+      if (!posts.length || posts.length > 5) throw new Error("Post Pilot batch perlu ada 1 hingga 5 post.");
+      if (posts.some((post) => !post?.postText || !post?.image?.dataUrl)) {
+        throw new Error("Setiap post batch mesti ada caption dan gambar hook.");
+      }
+      const batch = {
+        automationId: message.draft?.automationId || `postpilot-batch-${Date.now()}`,
+        posts,
+        index: 0,
+        phase: "facebook",
+        batchDelayMs: Math.max(30_000, Number(message.draft?.batchDelayMs) || 30_000),
+      };
+      await chrome.alarms.clear(POSTPILOT_BATCH_ALARM);
+      await savePostPilotBatch(batch, `Post Pilot batch 1/${posts.length}: mula Facebook...`);
+      await startBatchFacebook();
+      sendResponse({ ok: true, message: `Post Pilot batch ${posts.length} sedang bermula.` });
+      return;
+    }
+
     if (message?.type === "SAVE_DRAFT_AND_OPEN_FACEBOOK") {
       const draft = {
         ...message.draft,
@@ -179,12 +294,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message?.type === "POSTPILOT_FACEBOOK_DONE") {
+      const batch = await getPostPilotBatch();
+      const expectedId = batch ? `${batch.automationId}-${batch.index + 1}` : "";
+      if (batch && batch.phase === "facebook" && message.automationId === expectedId) {
+        await startBatchThreads();
+        sendResponse({ ok: true, message: "Facebook siap. Teruskan Threads untuk item semasa." });
+        return;
+      }
       const response = await openThreadsAndRunAutomation(message.automationId || "");
       sendResponse(response || { ok: true });
       return;
     }
 
     if (message?.type === "POSTPILOT_THREADS_DONE") {
+      const batch = await getPostPilotBatch();
+      const expectedId = batch ? `${batch.automationId}-${batch.index + 1}` : "";
+      if (batch && batch.phase === "threads" && message.automationId === expectedId) {
+        await scheduleNextBatchPost(batch);
+        sendResponse({ ok: true, message: "Threads siap. Batch dikemaskini." });
+        return;
+      }
       await chrome.storage.local.set({
         [THREADS_COMPLETED_KEY]: message.automationId || "",
         postpilotAutomationStatus: message.threadsTextBatch
@@ -193,6 +322,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             ? "Threads viral post selesai."
             : "Facebook + Threads flow selesai.",
       });
+      sendResponse({ ok: true });
+      return;
+    }
+
+    if (message?.type === "POSTPILOT_BATCH_FAILED") {
+      const batch = await getPostPilotBatch();
+      const expectedId = batch ? `${batch.automationId}-${batch.index + 1}` : "";
+      if (batch && message.automationId === expectedId) {
+        batch.phase = "paused";
+        await chrome.storage.local.set({
+          [POSTPILOT_BATCH_KEY]: batch,
+          postpilotLastError: message.error || "Batch item gagal.",
+          postpilotAutomationStatus: `Post Pilot ${batch.index + 1}/${batch.posts.length} gagal. Tekan retry di extension.`,
+        });
+      }
+      sendResponse({ ok: true });
+      return;
+    }
+
+    if (message?.type === "RESUME_POSTPILOT_BATCH") {
+      const batch = await getPostPilotBatch();
+      if (!batch || batch.phase !== "paused") throw new Error("Tiada Post Pilot batch yang sedang pause.");
+      batch.phase = message.target === "threads" ? "threads" : "facebook";
+      await savePostPilotBatch(batch, `Retry Post Pilot ${batch.index + 1}/${batch.posts.length}...`);
+      if (batch.phase === "threads") await startBatchThreads();
+      else await startBatchFacebook();
       sendResponse({ ok: true });
       return;
     }
@@ -238,4 +393,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   });
 
   return true;
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== POSTPILOT_BATCH_ALARM) return;
+  (async () => {
+    const batch = await getPostPilotBatch();
+    if (!batch || batch.phase !== "waiting") return;
+    batch.index += 1;
+    batch.phase = "facebook";
+    await savePostPilotBatch(batch, `Post Pilot ${batch.index + 1}/${batch.posts.length}: mula Facebook...`);
+    await startBatchFacebook();
+  })().catch(async (error) => {
+    const batch = await getPostPilotBatch();
+    if (batch) {
+      batch.phase = "paused";
+      await chrome.storage.local.set({
+        [POSTPILOT_BATCH_KEY]: batch,
+        postpilotLastError: error?.message || String(error),
+        postpilotAutomationStatus: "Post Pilot batch berhenti. Retry item semasa dari extension.",
+      });
+    }
+  });
 });

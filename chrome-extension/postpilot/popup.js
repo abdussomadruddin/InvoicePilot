@@ -5,6 +5,7 @@ const statusBox = document.getElementById("status");
 const openFacebookButton = document.getElementById("openFacebookButton");
 const fillPostButton = document.getElementById("fillPostButton");
 const autoPostButton = document.getElementById("autoPostButton");
+const retryBatchButton = document.getElementById("retryBatchButton");
 const copyCtaButton = document.getElementById("copyCtaButton");
 const fillCommentButton = document.getElementById("fillCommentButton");
 
@@ -81,6 +82,15 @@ autoPostButton.addEventListener("click", async () => {
   try {
     await sendMessage({ type: "AUTO_POST_ACTIVE" });
     setStatus("Full auto flow sedang dicuba di tab Facebook aktif.");
+  } catch (error) {
+    setStatus(error.message || String(error), true);
+  }
+});
+
+retryBatchButton.addEventListener("click", async () => {
+  try {
+    await sendMessage({ type: "RESUME_POSTPILOT_BATCH" });
+    setStatus("Retry batch item semasa dimulakan.");
   } catch (error) {
     setStatus(error.message || String(error), true);
   }

@@ -1,7 +1,7 @@
 window.addEventListener("message", (event) => {
   if (event.source !== window) return;
   const data = event.data;
-  const supportedTypes = ["POSTPILOT_SAVE_DRAFT", "POSTPILOT_THREADS_TEXT_ONLY_DRAFT", "POSTPILOT_THREADS_TEXT_BATCH_DRAFT"];
+  const supportedTypes = ["POSTPILOT_SAVE_DRAFT", "POSTPILOT_BATCH_DRAFT", "POSTPILOT_THREADS_TEXT_ONLY_DRAFT", "POSTPILOT_THREADS_TEXT_BATCH_DRAFT"];
   if (!data || data.source !== "postpilot-webapp" || !supportedTypes.includes(data.type)) return;
 
   const runtime = globalThis.chrome?.runtime;
@@ -26,7 +26,9 @@ window.addEventListener("message", (event) => {
   };
 
   try {
-    const messageType = data.type === "POSTPILOT_THREADS_TEXT_BATCH_DRAFT"
+    const messageType = data.type === "POSTPILOT_BATCH_DRAFT"
+      ? "SAVE_POSTPILOT_BATCH_AND_OPEN_FACEBOOK"
+      : data.type === "POSTPILOT_THREADS_TEXT_BATCH_DRAFT"
       ? "SAVE_THREADS_TEXT_BATCH_AND_OPEN_THREADS"
       : data.type === "POSTPILOT_THREADS_TEXT_ONLY_DRAFT"
         ? "SAVE_THREADS_TEXT_ONLY_AND_OPEN_THREADS"

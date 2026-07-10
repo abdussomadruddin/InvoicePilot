@@ -3,7 +3,7 @@
   "name": "Post Pilot Assist",
   "version": "0.1.0",
   "description": "Auto-post helper for Post Pilot Facebook personal and Threads drafts from BuddyPilot.",
-  "permissions": ["storage", "tabs", "clipboardWrite", "unlimitedStorage"],
+  "permissions": ["storage", "tabs", "alarms", "clipboardWrite", "unlimitedStorage"],
   "host_permissions": [
     "https://www.facebook.com/*",
     "https://facebook.com/*",

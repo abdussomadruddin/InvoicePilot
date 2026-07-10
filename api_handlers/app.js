@@ -627,6 +627,44 @@ function pageHtml() {
       background: #ffffff;
     }
 
+    .postpilot-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .postpilot-gallery-item {
+      position: relative;
+      aspect-ratio: 1;
+      overflow: hidden;
+      border: 2px solid #e4edff;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .postpilot-gallery-item img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .postpilot-gallery-item button {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      min-width: 28px;
+      min-height: 28px;
+      padding: 2px 7px;
+      margin: 0;
+      border-radius: 50%;
+      background: #fff;
+      color: #a61b1b;
+      box-shadow: none;
+      font-size: 16px;
+    }
+
     .result {
       margin-top: 18px;
       border-radius: 20px;
@@ -1190,6 +1228,7 @@ function pageHtml() {
               <div>
                 <label for="threadsPostMode">Mode post</label>
                 <select id="threadsPostMode" name="post_mode">
+                  <option value="auto" selected>Auto rotate random</option>
                   <option value="soft">Soft story</option>
                   <option value="hard">Hard sell</option>
                   <option value="proof">Proof</option>
@@ -1199,17 +1238,21 @@ function pageHtml() {
               </div>
               <div>
                 <label for="threadsHookImage">Gambar hook</label>
-                <input id="threadsHookImage" name="hook_image" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+                <input id="threadsHookImage" name="hook_image" type="file" multiple accept="image/jpeg,image/png,image/webp">
                 <div class="hook-image-preview">
                   <img id="threadsHookImagePreview" alt="Preview gambar hook terakhir" hidden>
-                  <p class="note" id="threadsHookImageStatus">Belum ada gambar hook tersimpan.</p>
+                  <p class="note" id="threadsHookImageStatus">Galeri gambar hook belum dimuatkan.</p>
                 </div>
+                <div id="threadsHookGallery" class="postpilot-gallery" aria-live="polite"></div>
               </div>
             </div>
-            <button id="threadsPreviewButton" type="submit">POST NOW</button>
+            <div class="actions">
+              <button id="threadsPreviewButton" type="submit">POST NOW</button>
+              <button id="threadsBatchPostButton" class="approve" type="button">POST 5 NOW</button>
+            </div>
           </form>
 
-          <section id="threadsPreviewPanel" class="preview">
+          <section id="threadsPreviewPanel" class="preview" hidden>
             <h2>Preview Post Pilot</h2>
             <p class="note" id="threadsPreviewMeta"></p>
 
@@ -1265,6 +1308,7 @@ function pageHtml() {
               <button id="generateViralOneButton" type="button">Generate 1 Post</button>
               <button id="generateViralTenButton" class="secondary" type="button">Generate 10 Posts</button>
               <button id="generateViralFiftyButton" class="secondary" type="button">Generate 50 Posts</button>
+              <button id="autoPostViralTenButton" class="approve" type="button">Auto Post 10 to Threads</button>
               <button id="autoPostViralFiftyButton" class="approve" type="button">Auto Post 50 to Threads</button>
               <button id="exportViralCsvButton" class="secondary" type="button">Export CSV</button>
             </div>
@@ -1634,6 +1678,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     const threadsHookImage = document.getElementById("threadsHookImage");
     const threadsHookImagePreview = document.getElementById("threadsHookImagePreview");
     const threadsHookImageStatus = document.getElementById("threadsHookImageStatus");
+    const threadsHookGallery = document.getElementById("threadsHookGallery");
+    const threadsBatchPostButton = document.getElementById("threadsBatchPostButton");
     const threadsResult = document.getElementById("threadsResult");
     const viralTemplates = ${threadsViralTemplatesJson};
     const viralTopic = document.getElementById("viralTopic");
@@ -1644,6 +1690,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     const generateViralOneButton = document.getElementById("generateViralOneButton");
     const generateViralTenButton = document.getElementById("generateViralTenButton");
     const generateViralFiftyButton = document.getElementById("generateViralFiftyButton");
+    const autoPostViralTenButton = document.getElementById("autoPostViralTenButton");
     const autoPostViralFiftyButton = document.getElementById("autoPostViralFiftyButton");
     const exportViralCsvButton = document.getElementById("exportViralCsvButton");
     const viralResult = document.getElementById("viralResult");
@@ -1716,6 +1763,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     let savedThreadsImage = null;
     let postPilotSaveTimer = null;
     let currentThreadsImagePreviewUrl = "";
+    let postPilotGalleryImages = [];
     let viralGeneratedPosts = [];
     let viralSavedPosts = [];
     const VIRAL_SAVED_STORAGE_KEY = "postpilot-threads-viral-saved-v1";
@@ -1749,12 +1797,13 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       preparedThreadsImageNotice = "";
       threadsResult.className = "result";
       threadsResult.textContent = "";
-      const file = threadsHookImage.files[0];
+      const files = [...(threadsHookImage.files || [])];
+      const file = files[0];
       if (currentThreadsImagePreviewUrl) URL.revokeObjectURL(currentThreadsImagePreviewUrl);
       currentThreadsImagePreviewUrl = file ? URL.createObjectURL(file) : "";
       updatePostPilotHookImageStatus();
-      if (file) {
-        savePostPilotImageInput(file).catch(showThreadsError);
+      if (files.length) {
+        uploadPostPilotGalleryFiles(files).catch(showThreadsError);
       }
     });
 
@@ -2375,6 +2424,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         node.addEventListener("change", schedulePostPilotSave);
       });
       loadPostPilotDraftFromSupabase();
+      loadPostPilotGallery().catch(showThreadsError);
     }
 
     function blobToDataUrl(blob) {
@@ -2486,6 +2536,141 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       setPostPilotSavedImage(image);
       threadsResult.className = "result ok";
       threadsResult.textContent = "Gambar hook sudah disimpan dalam Supabase untuk Post Pilot.";
+    }
+
+    function postPilotGalleryImageUrl(image) {
+      return \`/api/personal-post-hook-images?id=\${encodeURIComponent(image.id)}\`;
+    }
+
+    function renderPostPilotGallery() {
+      if (!threadsHookGallery || !threadsHookImageStatus) return;
+      threadsHookGallery.innerHTML = "";
+      postPilotGalleryImages.forEach((image) => {
+        const item = document.createElement("div");
+        item.className = "postpilot-gallery-item";
+        const preview = document.createElement("img");
+        preview.src = postPilotGalleryImageUrl(image);
+        preview.alt = image.name || "Gambar hook";
+        preview.loading = "lazy";
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "x";
+        remove.title = \`Delete \${image.name || "gambar"}\`;
+        remove.setAttribute("aria-label", remove.title);
+        remove.addEventListener("click", () => deletePostPilotGalleryImage(image));
+        item.append(preview, remove);
+        threadsHookGallery.appendChild(item);
+      });
+      threadsHookImageStatus.textContent = postPilotGalleryImages.length
+        ? \`\${postPilotGalleryImages.length}/20 gambar hook tersimpan. Rotation akan pilih gambar paling lama belum digunakan.\`
+        : "Belum ada gambar dalam galeri. Upload sekurang-kurangnya satu gambar untuk POST NOW.";
+      if (threadsHookImagePreview) threadsHookImagePreview.hidden = true;
+    }
+
+    async function loadPostPilotGallery() {
+      const response = await fetch("/api/personal-post-hook-images");
+      const json = await readApiJson(response);
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      if (!response.ok || !json.ok) throw new Error(json.error || "Gagal load galeri gambar hook.");
+      postPilotGalleryImages = Array.isArray(json.images) ? json.images : [];
+      renderPostPilotGallery();
+    }
+
+    async function uploadPostPilotGalleryFiles(files) {
+      const available = Math.max(0, 20 - postPilotGalleryImages.length);
+      if (!available) throw new Error("Galeri gambar hook sudah penuh (20). Delete satu gambar dahulu.");
+      const selected = files.slice(0, available);
+      const skipped = files.length - selected.length;
+      for (let index = 0; index < selected.length; index += 1) {
+        threadsHookImageStatus.textContent = \`Simpan gambar \${index + 1}/\${selected.length}...\`;
+        const storedFile = await compressImageForPostPilotStorage(selected[index]);
+        const payload = new FormData();
+        payload.append("hookImage", storedFile);
+        const response = await fetch("/api/personal-post-hook-images", { method: "POST", body: payload });
+        const json = await readApiJson(response);
+        if (!response.ok || !json.ok) throw new Error(json.error || \`Gagal simpan \${selected[index].name}.\`);
+        postPilotGalleryImages.push(json.image);
+        renderPostPilotGallery();
+      }
+      threadsHookImage.value = "";
+      threadsResult.className = "result ok";
+      threadsResult.textContent = [
+        \`\${selected.length} gambar hook disimpan dalam Supabase.\`,
+        skipped ? \`\${skipped} gambar tidak dimuat naik kerana galeri maksimum 20.\` : "",
+      ].filter(Boolean).join("\\n");
+    }
+
+    async function deletePostPilotGalleryImage(image) {
+      const response = await fetch(\`/api/personal-post-hook-images?id=\${encodeURIComponent(image.id)}\`, { method: "DELETE" });
+      const json = await readApiJson(response);
+      if (!response.ok || !json.ok) throw new Error(json.error || "Gagal delete gambar hook.");
+      postPilotGalleryImages = postPilotGalleryImages.filter((item) => item.id !== image.id);
+      renderPostPilotGallery();
+      threadsResult.className = "result ok";
+      threadsResult.textContent = "Gambar hook sudah dibuang daripada galeri.";
+    }
+
+    async function buildPostPilotBatchDraft(count) {
+      const response = await fetch("/api/personal-post-batch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...threadsPayloadFromForm(), count })
+      });
+      const json = await readApiJson(response);
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return null;
+      }
+      if (!response.ok || !json.ok) throw new Error(json.error || "Gagal jana batch Post Pilot.");
+      const posts = [];
+      for (const post of json.posts || []) {
+        if (!post.image?.dataUrl) throw new Error(\`Gambar hook untuk \${post.id} tidak lengkap.\`);
+        posts.push({
+          ...post,
+          image: {
+            name: post.image.name,
+            type: post.image.type,
+            dataUrl: post.image.dataUrl
+          }
+        });
+      }
+      if (posts.length !== count) throw new Error("Batch Post Pilot tidak lengkap.");
+      const automationId = \`postpilot-batch-\${Date.now()}\`;
+      return {
+        source: "postpilot-webapp",
+        type: "POSTPILOT_BATCH_DRAFT",
+        draft: { id: automationId, automationId, createdAt: new Date().toISOString(), autoPublish: true, batchDelayMs: 30000, posts }
+      };
+    }
+
+    async function startPostPilotBatch(count) {
+      const button = count === 5 ? threadsBatchPostButton : threadsPreviewButton;
+      const otherButton = count === 5 ? threadsPreviewButton : threadsBatchPostButton;
+      button.disabled = true;
+      otherButton.disabled = true;
+      button.textContent = count === 5 ? "Preparing 5 posts..." : "Preparing post...";
+      threadsResult.className = "result";
+      threadsResult.textContent = "";
+      try {
+        await savePostPilotInputsToSupabase();
+        const message = await buildPostPilotBatchDraft(count);
+        if (!message) return;
+        window.postMessage(message, window.location.origin);
+        threadsResult.className = "result ok";
+        threadsResult.textContent = count === 5
+          ? "5 post unik dihantar ke extension. Facebook dan Threads akan bergerak satu demi satu, dengan jarak 30 saat."
+          : "Post unik dihantar ke extension. Facebook akan post dahulu, kemudian Threads.";
+      } catch (error) {
+        showThreadsError(error);
+      } finally {
+        threadsPreviewButton.disabled = false;
+        threadsBatchPostButton.disabled = false;
+        threadsPreviewButton.textContent = "POST NOW";
+        threadsBatchPostButton.textContent = "POST 5 NOW";
+      }
     }
 
     function showThreadsPreview(json, { reveal = true, message = "" } = {}) {
@@ -3185,40 +3370,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     threadsForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      threadsResult.className = "result";
-      threadsResult.textContent = "";
-      threadsPreviewPanel.className = "preview";
-      threadsPreviewButton.disabled = true;
-      threadsPreviewButton.textContent = "Preparing post...";
-
-      try {
-        const hookFile = threadsHookImage.files[0];
-        if (hookFile) {
-          threadsPreviewButton.textContent = "Preparing image...";
-          await prepareThreadsImageFile(hookFile);
-        }
-
-        const response = await fetch("/api/personal-post-preview", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(threadsPayloadFromForm())
-        });
-        const json = await readApiJson(response);
-        if (response.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        if (!response.ok || !json.ok) throw new Error(json.error || "Post Pilot preview failed.");
-        showThreadsPreview(json, { reveal: false });
-        threadsPreviewButton.textContent = "Sending to Chrome...";
-        await sendThreadsDraftToExtension();
-      } catch (error) {
-        showThreadsError(error);
-      } finally {
-        threadsPreviewButton.disabled = false;
-        threadsPreviewButton.textContent = "POST NOW";
-      }
+      await startPostPilotBatch(1);
     });
+
+    threadsBatchPostButton.addEventListener("click", () => startPostPilotBatch(5));
 
     regenerateThreadsButton.addEventListener("click", async () => {
       if (!currentThreadsPreview) return;
@@ -3286,6 +3441,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     generateViralOneButton.addEventListener("click", () => generateViralPosts(1));
     generateViralTenButton.addEventListener("click", () => generateViralPosts(10));
     generateViralFiftyButton.addEventListener("click", () => generateRandomViralPosts(50));
+    autoPostViralTenButton.addEventListener("click", () => postViralBatchToThreads(10));
     autoPostViralFiftyButton.addEventListener("click", () => postViralBatchToThreads(50));
     exportViralCsvButton.addEventListener("click", () => exportViralCsv(viralGeneratedPosts, "threads-viral-posts.csv"));
     exportSavedViralButton.addEventListener("click", () => exportViralCsv(filteredSavedViralPosts(), "threads-viral-saved-posts.csv"));

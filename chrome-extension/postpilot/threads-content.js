@@ -477,6 +477,18 @@ function notifyThreadsDone(automationId, threadsTextOnly = false, threadsTextBat
   }
 }
 
+function notifyBatchFailed(automationId, error) {
+  try {
+    chrome.runtime.sendMessage({
+      type: "POSTPILOT_BATCH_FAILED",
+      automationId,
+      error: error?.message || String(error),
+    }, () => { void chrome.runtime.lastError; });
+  } catch {
+    // Best effort status update only.
+  }
+}
+
 async function runThreadsAutomation({ manual = false } = {}) {
   const draft = await getDraft();
   const automationId = draft.automationId || draft.id || `postpilot-threads-${Date.now()}`;
@@ -512,6 +524,9 @@ async function runThreadsAutomation({ manual = false } = {}) {
     steps.push("Facebook + Threads flow selesai.");
     showPanel(steps.join("\n"), draft);
     return { ok: true, message: steps.join("\n") };
+  } catch (error) {
+    notifyBatchFailed(automationId, error);
+    throw error;
   } finally {
     await releaseRunLock();
   }

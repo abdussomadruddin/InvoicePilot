@@ -155,6 +155,7 @@ create table if not exists public.postpilot_drafts (
   product_name text not null default 'K-Method',
   affiliate_link text not null default 'https://swiy.co/kmethod',
   post_mode text not null default 'soft',
+  recent_variations jsonb not null default '[]'::jsonb,
   hook_image_path text not null default '',
   hook_image_name text not null default '',
   hook_image_mime text not null default '',
@@ -173,6 +174,30 @@ alter table public.postpilot_drafts add column if not exists hook_image_name tex
 alter table public.postpilot_drafts add column if not exists hook_image_mime text not null default '';
 alter table public.postpilot_drafts add column if not exists hook_image_size integer not null default 0;
 alter table public.postpilot_drafts add column if not exists hook_image_updated_at timestamptz;
+alter table public.postpilot_drafts add column if not exists recent_variations jsonb not null default '[]'::jsonb;
+
+create table if not exists public.postpilot_hook_images (
+  id uuid primary key default gen_random_uuid(),
+  storage_path text not null unique,
+  image_name text not null default '',
+  image_mime text not null default 'image/jpeg',
+  image_size integer not null default 0,
+  use_count integer not null default 0,
+  last_used_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists postpilot_hook_images_rotation_idx
+on public.postpilot_hook_images (use_count asc, last_used_at asc nulls first, created_at asc);
+
+-- Keep the previous single hook image available after upgrading to the gallery.
+insert into public.postpilot_hook_images (storage_path, image_name, image_mime, image_size, created_at, updated_at)
+select hook_image_path, hook_image_name, hook_image_mime, hook_image_size,
+  coalesce(hook_image_updated_at, now()), coalesce(hook_image_updated_at, now())
+from public.postpilot_drafts
+where id = 'default' and hook_image_path <> ''
+on conflict (storage_path) do nothing;
 
 create table if not exists public.app_activity (
   id uuid primary key default gen_random_uuid(),
@@ -227,9 +252,17 @@ create trigger postpilot_drafts_touch_updated_at
 before update on public.postpilot_drafts
 for each row execute function public.touch_updated_at();
 
+drop trigger if exists postpilot_hook_images_touch_updated_at on public.postpilot_hook_images;
+create trigger postpilot_hook_images_touch_updated_at
+before update on public.postpilot_hook_images
+for each row execute function public.touch_updated_at();
+
 alter table public.invoice_clients enable row level security;
 alter table public.business_settings enable row level security;
 alter table public.invoice_uploads enable row level security;
 alter table public.bank_accounts enable row level security;
 alter table public.app_activity enable row level security;
 alter table public.postpilot_drafts enable row level security;
+alter table public.postpilot_hook_images enable row level security;
+
+grant select, insert, update, delete on public.postpilot_hook_images to service_role;
