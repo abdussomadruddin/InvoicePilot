@@ -1121,7 +1121,6 @@ function pageHtml() {
 
     <nav class="tabs" aria-label="Main tabs">
       <button class="tab-button active" type="button" data-tab-target="dashboard">Dashboard</button>
-      <button class="tab-button" type="button" data-tab-target="postpilot">Page Pilot</button>
       <button class="tab-button" type="button" data-tab-target="personalpostpilot">Post Pilot</button>
       <button class="tab-button" type="button" data-tab-target="clientpilot">Client Pilot</button>
       <button class="tab-button" type="button" data-tab-target="reportpilot">Report Pilot</button>
@@ -1138,8 +1137,8 @@ function pageHtml() {
           <button id="refreshActivityButton" class="secondary" type="button">Refresh</button>
         </div>
         <div class="quick-grid">
-          <button class="quick-card" type="button" data-go-tab="postpilot">Buat Post</button>
-          <button class="quick-card" type="button" data-go-tab="personalpostpilot">Buat Post Personal</button>
+          <button class="quick-card" type="button" data-go-tab="personalpostpilot" data-go-subtab="pagepilot-panel">Buat Post</button>
+          <button class="quick-card" type="button" data-go-tab="personalpostpilot" data-go-subtab="postpilot-auto-panel">Buat Post Personal</button>
           <button class="quick-card" type="button" data-go-tab="reportpilot">Buat Weekly Report</button>
           <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="invoice-panel">Buat Invois</button>
           <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="receipt-panel">Buat Resit</button>
@@ -1149,54 +1148,6 @@ function pageHtml() {
           <div class="empty-state">Belum ada aktiviti. Bila anda save client, settings, bank atau upload invoice, aktiviti akan muncul di sini.</div>
         </div>
         <div id="activityResult" class="result"></div>
-      </section>
-    </section>
-
-    <section id="tab-postpilot" class="tab-panel" data-tab-panel="postpilot">
-      <section class="card app-panel" data-panel="postpilot">
-        <div class="hero">
-          <div>
-            <h1>Page Pilot</h1>
-            <p>Upload creative, review ayat, kemudian post ke Facebook Page.</p>
-          </div>
-        </div>
-
-        <form id="postForm">
-          <label for="creative">Creative gambar/video</label>
-          <input id="creative" name="creative" type="file" accept="image/*,video/mp4,video/quicktime,video/webm" required>
-
-          <label for="salespage_link">Salespage link</label>
-          <input id="salespage_link" name="salespage_link" type="url" value="https://digitaldominate.com/" required>
-
-          <label for="caption_note">Konteks poster/video / angle creative (optional)</label>
-          <textarea id="caption_note" name="caption_note" placeholder="Contoh: Poster tunjuk founder penat packing order, angle: banyak kerja tapi salespage bantu automate workflow."></textarea>
-
-          <label for="custom_caption">Custom caption penuh (optional)</label>
-          <textarea id="custom_caption" name="custom_caption" placeholder="Kalau isi bahagian ini, sistem guna caption ini terus. Pastikan letak salespage link."></textarea>
-
-          <label for="first_comment">First comment CTA (optional)</label>
-          <textarea id="first_comment" name="first_comment" placeholder="Kosongkan untuk auto-generate first comment."></textarea>
-
-          <button type="submit">Preview Copywriting</button>
-        </form>
-
-        <section id="previewPanel" class="preview">
-          <h2>Preview Sebelum Posting</h2>
-          <p class="note" id="previewMeta"></p>
-
-          <label for="captionPreview">Caption yang akan dipost</label>
-          <textarea id="captionPreview"></textarea>
-
-          <label for="commentPreview">Komen CTA yang akan dijadikan first comment</label>
-          <textarea id="commentPreview"></textarea>
-
-          <div class="actions">
-            <button class="approve" id="approveButton" type="button">Approve & Post ke Facebook</button>
-            <button class="regenerate" id="regenerateButton" type="button">Jana Semula Copywriting</button>
-          </div>
-        </section>
-
-        <div id="result" class="result"></div>
       </section>
     </section>
 
@@ -1211,7 +1162,53 @@ function pageHtml() {
 
         <div class="subtabs">
           <button class="subtab-button active" type="button" data-subtab-group="post-pilot" data-subtab-target="postpilot-auto-panel">Auto Post</button>
+          <button class="subtab-button" type="button" data-subtab-group="post-pilot" data-subtab-target="pagepilot-panel">Page Pilot</button>
           <button class="subtab-button" type="button" data-subtab-group="post-pilot" data-subtab-target="threads-viral-panel">Threads Viral</button>
+        </div>
+
+        <div id="pagepilot-panel" class="subtab-panel" data-subtab-panel="post-pilot">
+          <div class="section-heading">
+            <div>
+              <h2>Page Pilot</h2>
+              <p class="note">Upload creative, review ayat, kemudian post ke Facebook Page.</p>
+            </div>
+          </div>
+          <form id="postForm">
+            <label for="creative">Creative gambar/video</label>
+            <input id="creative" name="creative" type="file" accept="image/*,video/mp4,video/quicktime,video/webm" required>
+
+            <label for="salespage_link">Salespage link</label>
+            <input id="salespage_link" name="salespage_link" type="url" value="https://digitaldominate.com/" required>
+
+            <label for="caption_note">Konteks poster/video / angle creative (optional)</label>
+            <textarea id="caption_note" name="caption_note" placeholder="Contoh: Poster tunjuk founder penat packing order, angle: banyak kerja tapi salespage bantu automate workflow."></textarea>
+
+            <label for="custom_caption">Custom caption penuh (optional)</label>
+            <textarea id="custom_caption" name="custom_caption" placeholder="Kalau isi bahagian ini, sistem guna caption ini terus. Pastikan letak salespage link."></textarea>
+
+            <label for="first_comment">First comment CTA (optional)</label>
+            <textarea id="first_comment" name="first_comment" placeholder="Kosongkan untuk auto-generate first comment."></textarea>
+
+            <button type="submit">Preview Copywriting</button>
+          </form>
+
+          <section id="previewPanel" class="preview">
+            <h2>Preview Sebelum Posting</h2>
+            <p class="note" id="previewMeta"></p>
+
+            <label for="captionPreview">Caption yang akan dipost</label>
+            <textarea id="captionPreview"></textarea>
+
+            <label for="commentPreview">Komen CTA yang akan dijadikan first comment</label>
+            <textarea id="commentPreview"></textarea>
+
+            <div class="actions">
+              <button class="approve" id="approveButton" type="button">Approve & Post ke Facebook</button>
+              <button class="regenerate" id="regenerateButton" type="button">Jana Semula Copywriting</button>
+            </div>
+          </section>
+
+          <div id="result" class="result"></div>
         </div>
 
         <div id="postpilot-auto-panel" class="subtab-panel active" data-subtab-panel="post-pilot">
@@ -1952,7 +1949,12 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     function setupTabs() {
-      const savedMainTab = localStorage.getItem("active-main-tab") || "dashboard";
+      let savedMainTab = localStorage.getItem("active-main-tab") || "dashboard";
+      if (savedMainTab === "postpilot") {
+        savedMainTab = "personalpostpilot";
+        localStorage.setItem("active-main-tab", savedMainTab);
+        localStorage.setItem("active-subtab-post-pilot", "pagepilot-panel");
+      }
       const mainTab = document.querySelector(\`.tab-button[data-tab-target="\${savedMainTab}"]\`) ? savedMainTab : "dashboard";
       activateTab(mainTab);
       document.querySelectorAll(".tab-button").forEach((button) => {
@@ -4799,7 +4801,9 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     document.querySelectorAll("[data-go-tab]").forEach((button) => {
       button.addEventListener("click", () => {
         activateTab(button.dataset.goTab);
-        if (button.dataset.goSubtab) activateSubtab("invoice-pilot", button.dataset.goSubtab);
+        if (!button.dataset.goSubtab) return;
+        const group = button.dataset.goTab === "personalpostpilot" ? "post-pilot" : "invoice-pilot";
+        activateSubtab(group, button.dataset.goSubtab);
       });
     });
     clientForm.addEventListener("submit", saveClient);
