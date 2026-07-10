@@ -2939,18 +2939,42 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       setMessage(viralResult, "ok", count + " Threads viral post generated.");
     }
 
+    function shuffledViralValues(values, count) {
+      const source = [...new Set((values || []).filter(Boolean))];
+      const output = [];
+      while (output.length < count && source.length) {
+        const round = [...source];
+        for (let index = round.length - 1; index > 0; index -= 1) {
+          const target = Math.floor(Math.random() * (index + 1));
+          [round[index], round[target]] = [round[target], round[index]];
+        }
+        output.push(...round);
+      }
+      return output.slice(0, count);
+    }
+
     function randomViralOverride() {
       return {
         audience: pickRandom(viralTemplates.audienceTypes || []),
         category: pickRandom(viralTemplates.categories || []),
         tone: pickRandom(viralTemplates.toneOptions || []),
+        topic: pickRandom(viralTemplates.topicOptions || viralTemplates.categories || []),
       };
     }
 
     function generateRandomViralPosts(count) {
       const posts = [];
+      const audiences = shuffledViralValues(viralTemplates.audienceTypes, count);
+      const categories = shuffledViralValues(viralTemplates.categories, count);
+      const tones = shuffledViralValues(viralTemplates.toneOptions, count);
+      const topics = shuffledViralValues(viralTemplates.topicOptions || viralTemplates.categories, count);
       for (let index = 0; index < count; index += 1) {
-        posts.push(makeViralPost(posts, randomViralOverride()));
+        posts.push(makeViralPost(posts, {
+          audience: audiences[index],
+          category: categories[index],
+          tone: tones[index],
+          topic: topics[index],
+        }));
       }
       viralGeneratedPosts = posts;
       renderViralPosts();
@@ -3442,7 +3466,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     });
 
     generateViralOneButton.addEventListener("click", () => generateViralPosts(1));
-    generateViralTenButton.addEventListener("click", () => generateViralPosts(10));
+    generateViralTenButton.addEventListener("click", () => generateRandomViralPosts(10));
     generateViralFiftyButton.addEventListener("click", () => generateRandomViralPosts(50));
     autoPostViralTenButton.addEventListener("click", () => postViralBatchToThreads(10));
     autoPostViralFiftyButton.addEventListener("click", () => postViralBatchToThreads(50));
