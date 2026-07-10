@@ -2846,25 +2846,23 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       const emotion = parts.emotion;
       const middle = parts.middle;
       const context = parts.context;
-      const cta = parts.cta;
 
-      if (structure === "Hot Take") return [hook + ".", angle + ".", middle + ".", cta].join("\\n\\n");
-      if (structure === "Relatable Pain") return [pain + ".", emotion + ".", middle + ".", cta].join("\\n\\n");
-      if (structure === "Contrarian") return ["ramai fikir " + topic + " kena complicated.", "aku tak rasa macam tu.", angle + ".", cta].join("\\n\\n");
-      if (structure === "List Style") return ["3 benda aku belajar pasal " + topic + ":", "1. " + angle, "2. " + middle, "3. " + context, cta].join("\\n");
-      if (structure === "Story Style") return [opening + ".", "lepas tu aku perasan: " + middle + ".", cta].join("\\n\\n");
-      if (structure === "Comparison") return ["cara lama: overthink sampai tak post.", "cara baru: " + angle + ".", middle + ".", cta].join("\\n\\n");
-      if (structure === "Warning") return ["mistake ramai orang buat: " + pain + ".", "kesannya, " + emotion + ".", "better move: " + angle + ".", cta].join("\\n\\n");
-      if (structure === "Recommendation") return ["kalau kau tengah explore " + topic + ", cuba " + angle + ".", middle + ".", cta].join("\\n\\n");
-      if (structure === "Local Malaysian Angle") return [context + ".", opening + ".", middle + ".", cta].join("\\n\\n");
-      return [context + ".", "dalam business, " + middle + ".", angle + ".", cta].join("\\n\\n");
+      if (structure === "Hot Take") return [hook + ".", angle + ".", middle + "."].join("\\n\\n");
+      if (structure === "Relatable Pain") return [pain + ".", emotion + ".", middle + "."].join("\\n\\n");
+      if (structure === "Contrarian") return ["ramai ingat " + topic + " kena complicated.", "aku rasa tak semestinya.", angle + "."].join("\\n\\n");
+      if (structure === "List Style") return ["3 benda yang aku belajar pasal " + topic + ":", "1. " + angle, "2. " + middle, "3. " + context].join("\\n");
+      if (structure === "Story Style") return [opening + ".", "lepas tu baru aku nampak " + middle + "."].join("\\n\\n");
+      if (structure === "Comparison") return ["cara lama: overthink sampai tak post.", "cara yang lebih senang: " + angle + ".", middle + "."].join("\\n\\n");
+      if (structure === "Warning") return ["silap yang ramai buat: " + pain + ".", "last-last " + emotion + ".", "buat yang simple dulu: " + angle + "."].join("\\n\\n");
+      if (structure === "Recommendation") return ["kalau tengah fikir pasal " + topic + ", mula dengan " + angle + ".", middle + "."].join("\\n\\n");
+      if (structure === "Local Malaysian Angle") return [context + ".", opening + ".", middle + "."].join("\\n\\n");
+      return [context + ".", "dalam bisnes, " + middle + ".", angle + "."].join("\\n\\n");
     }
 
     function validateViralPost(text, existingPosts) {
       const safe = cleanViralText(text);
       if (!safe) return { ok: false, reason: "empty" };
       if (safe.length > 500) return { ok: false, reason: "over_500" };
-      if (!/[?？]$/.test(safe)) return { ok: false, reason: "no_question" };
       if (!viralHashtags.checked && /(^|\\s)#\\w+/i.test(safe)) return { ok: false, reason: "hashtag_disabled" };
       if (containsAnyPhrase(safe, VIRAL_BANNED_WORDS)) return { ok: false, reason: "banned_word" };
       if (containsAnyPhrase(safe, VIRAL_PROMO_PHRASES)) return { ok: false, reason: "too_promotional" };
@@ -2885,7 +2883,6 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           audience,
           category,
           context: viralContextFor(category),
-          cta: pickRandom(viralTemplates.ctaQuestions),
           emotion: pickRandom(viralTemplates.emotionalTriggers),
           hook: pickRandom(viralTemplates.hooks),
           middle: pickRandom(viralTemplates.middleSentencePatterns),
@@ -2914,8 +2911,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
       const fallbackText = cleanViralText([
         "aku rasa " + topic + " tak perlu complicated.",
-        "mula dengan satu step yang jelas dulu.",
-        "kau akan mula kecil dulu atau tunggu ready?"
+        "mula dengan satu benda yang paling senang nampak dulu."
       ].join("\\n\\n") + maybeHashtags(category, topic));
       return {
         id: "viral-" + Date.now() + "-" + Math.random().toString(16).slice(2),
