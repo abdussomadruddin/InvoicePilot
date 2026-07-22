@@ -4119,6 +4119,20 @@ function pageHtml() {
     .onboarding-step-heading h3 { margin: 0 0 3px; }
     .onboarding-step-heading p { margin: 0; font-size: 13px; }
 
+    .onboarding-template-action {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 0 0 20px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--cream);
+    }
+    .onboarding-template-action p { margin: 0; font-size: 13px; }
+    .onboarding-template-action button { width: auto; flex: 0 0 auto; margin: 0; }
+
     .onboarding-state-card,
     .onboarding-checklist {
       padding: 16px;
@@ -4149,6 +4163,8 @@ function pageHtml() {
       .onboarding-progress span { width: 28px; height: 28px; }
       .onboarding-telegram-actions { display: grid; grid-template-columns: 1fr; }
       .onboarding-telegram-actions button { width: 100%; }
+      .onboarding-template-action { align-items: stretch; flex-direction: column; }
+      .onboarding-template-action button { width: 100%; }
     }
   </style>
 </head>
@@ -4714,6 +4730,10 @@ Review retargeting when the warm audience is ready</textarea>
             </ol>
             <section class="onboarding-step active" data-onboarding-step="details">
               <div class="onboarding-step-heading"><span>1</span><div><h3>Client dan billing</h3><p>Simpan maklumat asas dahulu. Progress boleh disambung selepas refresh.</p></div></div>
+              <div class="onboarding-template-action">
+                <p>Hantar template ini kepada client untuk kumpulkan semua maklumat onboarding.</p>
+                <button id="copyClientOnboardingTemplateButton" class="secondary" type="button">Copy Template WhatsApp</button>
+              </div>
               <div class="client-grid">
               <div>
                 <label for="clientBrand">Brand client</label>
@@ -5044,6 +5064,7 @@ Review retargeting when the warm audience is ready</textarea>
     const cancelClientEditButton = document.getElementById("cancelClientEditButton");
     const clientOnboardingProgress = document.getElementById("clientOnboardingProgress");
     const clientOnboardingBackButton = document.getElementById("clientOnboardingBackButton");
+    const copyClientOnboardingTemplateButton = document.getElementById("copyClientOnboardingTemplateButton");
     const discardClientOnboardingButton = document.getElementById("discardClientOnboardingButton");
     const refreshOnboardingTelegramButton = document.getElementById("refreshOnboardingTelegramButton");
     const clientOnboardingDriveState = document.getElementById("clientOnboardingDriveState");
@@ -8214,6 +8235,66 @@ Review retargeting when the warm audience is ready</textarea>
 
     const CLIENT_ONBOARDING_STEPS = ["details", "ads", "drive", "telegram", "review"];
 
+    function clientOnboardingWhatsAppTemplate() {
+      return [
+        "Hi, boleh bantu isi details di bawah untuk saya setup akaun dan reporting ya.",
+        "",
+        "MAKLUMAT CLIENT",
+        "Nama brand:",
+        "Nama PIC / owner:",
+        "Emel:",
+        "No telefon:",
+        "",
+        "MAKLUMAT BILLING",
+        "Nama syarikat:",
+        "No pendaftaran / SSM:",
+        "Alamat billing penuh:",
+        "Harga servis bulanan yang dipersetujui: RM",
+        "",
+        "AKAUN ADS",
+        "Platform (Meta Ads / TikTok Ads):",
+        "Nama akaun Ads:",
+        "Account ID / Advertiser ID:",
+        "Result utama (Purchase / Lead / WhatsApp Message):",
+        "",
+        "Pastikan akses akaun Ads sudah diberikan supaya reporting boleh disambungkan.",
+        "Folder Google Drive untuk report, invoice dan resit akan saya sediakan.",
+        "",
+        "TELEGRAM DAILY REPORT (OPTIONAL)",
+        "Nak sambung daily report Telegram? Ya / Tidak",
+        "Nama penerima 1:",
+        "Nama penerima 2 (jika ada):",
+        "",
+        "Boleh reply terus dan isi selepas setiap ruangan. Terima kasih."
+      ].join("\n");
+    }
+
+    async function copyClientOnboardingTemplate() {
+      const text = clientOnboardingWhatsAppTemplate();
+      const finishButton = setButtonBusy(copyClientOnboardingTemplateButton, "Copying...");
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const textarea = document.createElement("textarea");
+          textarea.value = text;
+          textarea.setAttribute("readonly", "");
+          textarea.style.position = "fixed";
+          textarea.style.opacity = "0";
+          document.body.appendChild(textarea);
+          textarea.select();
+          const copied = document.execCommand("copy");
+          textarea.remove();
+          if (!copied) throw new Error("Clipboard tidak tersedia.");
+        }
+        finishButton("Copied");
+        setMessage(clientResult, "ok", "Template onboarding WhatsApp sudah dicopy.");
+      } catch (error) {
+        finishButton();
+        window.prompt("Copy template WhatsApp ini:", text);
+      }
+    }
+
     function fillClientForm(client) {
       clientForm.elements.clientCode.value = client.code || "";
       clientForm.elements.brandClient.value = client.brandClient || client.name || "";
@@ -9587,6 +9668,7 @@ Review retargeting when the warm audience is ready</textarea>
       saveLastWork(tab, activeSubtabFor(tab));
     });
     clientForm.addEventListener("submit", saveClient);
+    copyClientOnboardingTemplateButton.addEventListener("click", copyClientOnboardingTemplate);
     clientOnboardingBackButton.addEventListener("click", () => {
       const index = CLIENT_ONBOARDING_STEPS.indexOf(currentClientOnboardingStep);
       if (index > 0) showClientOnboardingStep(CLIENT_ONBOARDING_STEPS[index - 1]);
