@@ -27,7 +27,7 @@ module.exports = async function handler(req, res) {
     targetClientCode = clientCode;
     const { startDate, endDate } = validateCustomWeek(String(body.startDate || ""), String(body.endDate || ""));
     const { clients } = await getMergedClientsWithStatus();
-    const client = clients.find((item) => item.code === clientCode && item.serviceStatus !== "paused" && !item.deletedAt);
+    const client = clients.find((item) => item.code === clientCode && item.serviceStatus !== "paused" && item.onboardingStatus !== "in_progress" && !item.deletedAt);
     if (!client) throw new Error(`Client ${clientCode} tidak dijumpai atau tidak aktif.`);
     const config = normalizeAdsReportConfig({
       ...(client.metadata?.adsReportConfig || {}),

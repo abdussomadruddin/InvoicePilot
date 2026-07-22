@@ -41,6 +41,10 @@ create table if not exists public.invoice_clients (
   drive_folder_name text not null default '',
   weekly_report_folder_id text not null default '',
   invoice_receipt_folder_id text not null default '',
+  onboarding_status text not null default 'completed',
+  onboarding_step text not null default '',
+  onboarding_state jsonb not null default '{}'::jsonb,
+  onboarding_completed_at timestamptz,
   service_status text not null default 'active',
   service_stopped_at timestamptz,
   service_recovered_at timestamptz,
@@ -54,6 +58,10 @@ create table if not exists public.invoice_clients (
 );
 
 alter table public.invoice_clients add column if not exists service_status text not null default 'active';
+alter table public.invoice_clients add column if not exists onboarding_status text not null default 'completed';
+alter table public.invoice_clients add column if not exists onboarding_step text not null default '';
+alter table public.invoice_clients add column if not exists onboarding_state jsonb not null default '{}'::jsonb;
+alter table public.invoice_clients add column if not exists onboarding_completed_at timestamptz;
 alter table public.invoice_clients add column if not exists service_stopped_at timestamptz;
 alter table public.invoice_clients add column if not exists service_recovered_at timestamptz;
 alter table public.invoice_clients add column if not exists deleted_at timestamptz;
@@ -360,6 +368,7 @@ create table if not exists public.operations_incidents (
 );
 
 create index if not exists invoice_clients_brand_client_idx on public.invoice_clients (brand_client);
+create index if not exists invoice_clients_onboarding_status_idx on public.invoice_clients (onboarding_status);
 create index if not exists invoice_uploads_period_idx on public.invoice_uploads (period);
 create index if not exists invoice_uploads_client_code_idx on public.invoice_uploads (client_code);
 create unique index if not exists bank_accounts_one_default_idx on public.bank_accounts (is_default) where is_default = true and is_active = true and deleted_at is null;

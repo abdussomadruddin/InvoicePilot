@@ -4042,6 +4042,114 @@ function pageHtml() {
         transition-duration: 1ms !important;
       }
     }
+    .onboarding-progress {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 6px;
+      margin: 18px 0 24px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .onboarding-progress li {
+      position: relative;
+      display: grid;
+      justify-items: center;
+      gap: 5px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .onboarding-progress li::before {
+      content: "";
+      position: absolute;
+      top: 14px;
+      left: calc(-50% + 16px);
+      width: calc(100% - 32px);
+      height: 2px;
+      background: var(--line);
+    }
+
+    .onboarding-progress li:first-child::before { display: none; }
+
+    .onboarding-progress span {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .onboarding-progress li.active,
+    .onboarding-progress li.complete { color: var(--ink); }
+    .onboarding-progress li.active span { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .onboarding-progress li.complete span { border-color: #94c8b7; background: #e8f6f0; color: #246d56; }
+    .onboarding-progress li.complete::before,
+    .onboarding-progress li.active::before { background: #94c8b7; }
+
+    .onboarding-step { animation: onboarding-enter 180ms ease-out; }
+    .onboarding-step[hidden] { display: none !important; }
+    @keyframes onboarding-enter { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+
+    .onboarding-step-heading {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .onboarding-step-heading > span {
+      display: grid;
+      place-items: center;
+      flex: 0 0 32px;
+      width: 32px;
+      height: 32px;
+      border-radius: 7px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .onboarding-step-heading h3 { margin: 0 0 3px; }
+    .onboarding-step-heading p { margin: 0; font-size: 13px; }
+
+    .onboarding-state-card,
+    .onboarding-checklist {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fafafa;
+      color: var(--muted);
+    }
+    .onboarding-state-card.onboarding-error { border-color: #efb6aa; background: #fff1ee; color: #9d321f; }
+
+    .onboarding-telegram-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .onboarding-telegram-actions button { width: auto; margin: 0; }
+    .onboarding-checklist { display: grid; gap: 10px; }
+    .onboarding-check-item { display: flex; justify-content: space-between; gap: 16px; color: var(--ink); }
+    .onboarding-check-item span:last-child { font-weight: 750; }
+    .onboarding-check-item .ready { color: #24705a; }
+    .onboarding-check-item .pending { color: #a14d2f; }
+
+    @media (max-width: 600px) {
+      .onboarding-progress small { font-size: 10px; }
+      .onboarding-progress li::before { left: calc(-50% + 12px); width: calc(100% - 24px); }
+      .onboarding-progress span { width: 28px; height: 28px; }
+      .onboarding-telegram-actions { display: grid; grid-template-columns: 1fr; }
+      .onboarding-telegram-actions button { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -4155,6 +4263,11 @@ function pageHtml() {
               <button class="quick-card" type="button" data-action-key="receipt" data-go-tab="invoicepilot" data-go-subtab="receipt-panel">
                 <span class="quick-card-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#receipt"></use></svg></span>
                 <span class="quick-card-copy"><strong>Buat Resit</strong><small>Payment receipt</small></span>
+                <span class="quick-card-arrow" aria-hidden="true"><svg class="icon"><use href="/icons.svg#arrow-right"></use></svg></span>
+              </button>
+              <button class="quick-card" type="button" data-action-key="onboard-client" data-go-tab="clientpilot" data-go-subtab="client-add-panel">
+                <span class="quick-card-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#users"></use></svg></span>
+                <span class="quick-card-copy"><strong>Onboard Client</strong><small>Setup billing, Ads dan Drive</small></span>
                 <span class="quick-card-arrow" aria-hidden="true"><svg class="icon"><use href="/icons.svg#arrow-right"></use></svg></span>
               </button>
             </div>
@@ -4568,7 +4681,7 @@ Review retargeting when the warm audience is ready</textarea>
 
         <div class="subtabs" aria-label="Client tabs">
           <button class="subtab-button active" type="button" data-subtab-group="client" data-subtab-target="client-list-panel">Senarai Pelanggan</button>
-          <button class="subtab-button" type="button" data-subtab-group="client" data-subtab-target="client-add-panel">Tambah Pelanggan</button>
+          <button class="subtab-button" type="button" data-subtab-group="client" data-subtab-target="client-add-panel">Onboard Client</button>
         </div>
 
         <div id="client-list-panel" class="subtab-panel active" data-subtab-panel="client">
@@ -4577,6 +4690,7 @@ Review retargeting when the warm audience is ready</textarea>
             <div class="client-filter-chips" aria-label="Filter pelanggan">
               <button class="active" type="button" data-client-filter="all">Semua</button>
               <button type="button" data-client-filter="active">Active</button>
+              <button type="button" data-client-filter="setup">Setup</button>
               <button type="button" data-client-filter="paused">Stopped</button>
             </div>
           </div>
@@ -4589,10 +4703,18 @@ Review retargeting when the warm audience is ready</textarea>
 
         <div id="client-add-panel" class="subtab-panel" data-subtab-panel="client">
           <form id="clientForm" class="client-form">
-            <h2>Tambah Pelanggan</h2>
+            <h2>Onboard Client</h2>
             <input id="clientCode" name="clientCode" type="hidden">
-            <div class="client-grid">
-              <div class="full form-grid-heading"><h3>Maklumat pelanggan</h3></div>
+            <ol id="clientOnboardingProgress" class="onboarding-progress" aria-label="Progress onboarding">
+              <li class="active" data-onboarding-progress="details"><span>1</span><small>Client</small></li>
+              <li data-onboarding-progress="ads"><span>2</span><small>Ads</small></li>
+              <li data-onboarding-progress="drive"><span>3</span><small>Drive</small></li>
+              <li data-onboarding-progress="telegram"><span>4</span><small>Telegram</small></li>
+              <li data-onboarding-progress="review"><span>5</span><small>Review</small></li>
+            </ol>
+            <section class="onboarding-step active" data-onboarding-step="details">
+              <div class="onboarding-step-heading"><span>1</span><div><h3>Client dan billing</h3><p>Simpan maklumat asas dahulu. Progress boleh disambung selepas refresh.</p></div></div>
+              <div class="client-grid">
               <div>
                 <label for="clientBrand">Brand client</label>
                 <input id="clientBrand" name="brandClient" type="text" placeholder="Contoh: SAFRICH" required>
@@ -4625,7 +4747,11 @@ Review retargeting when the warm audience is ready</textarea>
                 <label for="clientAddress">Alamat</label>
                 <textarea id="clientAddress" name="billingAddress" placeholder="Alamat billing client"></textarea>
               </div>
-              <div class="full form-grid-heading"><h3>Ads report setup</h3></div>
+              </div>
+            </section>
+            <section class="onboarding-step" data-onboarding-step="ads" hidden>
+              <div class="onboarding-step-heading"><span>2</span><div><h3>Akaun Ads</h3><p>Pilih platform dan akaun yang akan digunakan untuk report client.</p></div></div>
+              <div class="client-grid">
               <div>
                 <label for="clientAdsPlatform">Ads platform</label>
                 <select id="clientAdsPlatform" name="platform">
@@ -4657,9 +4783,29 @@ Review retargeting when the warm audience is ready</textarea>
                 <label for="clientRetargetingKeywords">Retargeting keywords (pisahkan dengan koma)</label>
                 <input id="clientRetargetingKeywords" name="retargetingKeywords" type="text" value="retargeting, retarget, rtg, warm, remarketing">
               </div>
-            </div>
+              </div>
+            </section>
+            <section class="onboarding-step" data-onboarding-step="drive" hidden>
+              <div class="onboarding-step-heading"><span>3</span><div><h3>Google Drive</h3><p>BuddyPilot akan sediakan folder client, Weekly Report dan Invoice & Receipt.</p></div></div>
+              <div id="clientOnboardingDriveState" class="onboarding-state-card">Folder belum disediakan.</div>
+            </section>
+            <section class="onboarding-step" data-onboarding-step="telegram" hidden>
+              <div class="onboarding-step-heading"><span>4</span><div><h3>Telegram Daily Report</h3><p>Optional. Sambungkan penerima sekarang atau buat kemudian.</p></div></div>
+              <div class="onboarding-telegram-actions">
+                <button class="secondary onboarding-telegram-link" type="button" data-recipient-slot="1">Connect Penerima 1</button>
+                <button class="secondary onboarding-telegram-link" type="button" data-recipient-slot="2">Connect Penerima 2</button>
+                <button id="refreshOnboardingTelegramButton" class="secondary" type="button">Refresh Status</button>
+              </div>
+              <div id="clientOnboardingTelegramState" class="onboarding-state-card">Belum disambungkan. Langkah ini boleh dilangkau.</div>
+            </section>
+            <section class="onboarding-step" data-onboarding-step="review" hidden>
+              <div class="onboarding-step-heading"><span>5</span><div><h3>Review dan aktifkan</h3><p>Client hanya masuk invoice, report dan automation selepas checklist wajib siap.</p></div></div>
+              <div id="clientOnboardingChecklist" class="onboarding-checklist"></div>
+            </section>
             <div class="client-form-actions">
-              <button id="saveClientButton" type="submit">Save Client & Create Drive Folders</button>
+              <button id="clientOnboardingBackButton" class="secondary" type="button" hidden>Back</button>
+              <button id="saveClientButton" type="submit">Save & Continue</button>
+              <button id="discardClientOnboardingButton" class="danger" type="button" hidden>Discard Setup</button>
               <button id="cancelClientEditButton" class="secondary" type="button" hidden>Cancel Edit</button>
             </div>
           </form>
@@ -4896,6 +5042,13 @@ Review retargeting when the warm audience is ready</textarea>
     const clientForm = document.getElementById("clientForm");
     const saveClientButton = document.getElementById("saveClientButton");
     const cancelClientEditButton = document.getElementById("cancelClientEditButton");
+    const clientOnboardingProgress = document.getElementById("clientOnboardingProgress");
+    const clientOnboardingBackButton = document.getElementById("clientOnboardingBackButton");
+    const discardClientOnboardingButton = document.getElementById("discardClientOnboardingButton");
+    const refreshOnboardingTelegramButton = document.getElementById("refreshOnboardingTelegramButton");
+    const clientOnboardingDriveState = document.getElementById("clientOnboardingDriveState");
+    const clientOnboardingTelegramState = document.getElementById("clientOnboardingTelegramState");
+    const clientOnboardingChecklist = document.getElementById("clientOnboardingChecklist");
     const clientList = document.getElementById("clientList");
     const clientResult = document.getElementById("clientResult");
     const refreshClientsButton = document.getElementById("refreshClientsButton");
@@ -5025,6 +5178,8 @@ Review retargeting when the warm audience is ready</textarea>
     let currentInvoices = [];
     let currentReceipts = [];
     let currentClients = [];
+    let currentClientOnboarding = null;
+    let currentClientOnboardingStep = "details";
     let currentAdflowAccounts = [];
     let currentTikTokAccounts = [];
     let currentBankAccounts = [];
@@ -5524,6 +5679,14 @@ Review retargeting when the warm audience is ready</textarea>
       if (!action) return;
       if (action.kind === "navigate") {
         navigateToWork(action);
+        if (action.clientCode) {
+          try {
+            if (!currentClients.length) await loadClients();
+            await continueClientOnboarding(action.clientCode);
+          } catch (error) {
+            showClientError(error);
+          }
+        }
         return;
       }
       if (action.kind === "href") {
@@ -5755,7 +5918,10 @@ Review retargeting when the warm audience is ready</textarea>
         if (target) activateSubtab(group, target);
       });
       document.querySelectorAll(".subtab-button").forEach((button) => {
-        button.addEventListener("click", () => activateSubtab(button.dataset.subtabGroup, button.dataset.subtabTarget));
+        button.addEventListener("click", () => {
+          if (button.dataset.subtabGroup === "client" && button.dataset.subtabTarget === "client-add-panel") resetClientFormMode();
+          activateSubtab(button.dataset.subtabGroup, button.dataset.subtabTarget);
+        });
       });
       document.querySelectorAll("[data-menu-subtab]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -7829,7 +7995,7 @@ Review retargeting when the warm audience is ready</textarea>
     function populateReportClientOptions() {
       if (!reportClient) return;
       const previous = reportClient.value || localStorage.getItem(LAST_REPORT_CLIENT_KEY) || "";
-      const activeClients = currentClients.filter((client) => client.serviceStatus !== "paused");
+      const activeClients = currentClients.filter((client) => client.serviceStatus !== "paused" && client.onboardingStatus !== "in_progress");
       reportClient.innerHTML = activeClients.length
         ? activeClients.map((client) => \`<option value="\${escapeHtml(client.code)}">\${escapeHtml(client.brandClient || client.name || client.code)}</option>\`).join("")
         : '<option value="">Belum ada client aktif</option>';
@@ -7956,12 +8122,11 @@ Review retargeting when the warm audience is ready</textarea>
 
     function renderClientList(clients, registryStatus) {
       clients = [...(clients || [])].sort((left, right) => {
-        const leftStopped = left.serviceStatus === "paused" ? 1 : 0;
-        const rightStopped = right.serviceStatus === "paused" ? 1 : 0;
-        return leftStopped - rightStopped;
+        const rank = (client) => client.serviceStatus === "paused" ? 2 : (client.onboardingStatus === "in_progress" ? 1 : 0);
+        return rank(left) - rank(right);
       });
       currentClients = clients;
-      setTextIfPresent(dashboardClientCount, String(clients.length));
+      setTextIfPresent(dashboardClientCount, String(clients.filter((client) => client.serviceStatus !== "paused" && client.onboardingStatus !== "in_progress").length));
       setTextIfPresent(dashboardRegistryStatus, registryStatus?.ok
         ? (registryStatus.source === "supabase" ? "DB OK" : "Drive OK")
         : "Setup");
@@ -7976,11 +8141,11 @@ Review retargeting when the warm audience is ready</textarea>
       populateReportClientOptions();
 
       const rows = clients.map((client) => \`
-        <div class="client-row" data-client-code="\${escapeHtml(client.code)}" data-client-status="\${client.serviceStatus === "paused" ? "paused" : "active"}" data-client-search="\${escapeHtml([client.brandClient, client.code, client.contactName, client.name, client.companyName, client.email, client.phone].filter(Boolean).join(" ").toLowerCase())}">
+        <div class="client-row" data-client-code="\${escapeHtml(client.code)}" data-client-status="\${client.serviceStatus === "paused" ? "paused" : (client.onboardingStatus === "in_progress" ? "setup" : "active")}" data-client-search="\${escapeHtml([client.brandClient, client.code, client.contactName, client.name, client.companyName, client.email, client.phone].filter(Boolean).join(" ").toLowerCase())}">
           <div class="client-card-brand" data-label="Brand">
             <span class="invoice-client">\${escapeHtml(client.brandClient || client.name)}</span>
             <span class="invoice-muted">\${escapeHtml(client.code)}</span>
-            \${client.serviceStatus === "paused" ? '<span class="qr-pill">Stopped</span>' : '<span class="default-pill">Active</span>'}
+            \${client.serviceStatus === "paused" ? '<span class="qr-pill">Stopped</span>' : (client.onboardingStatus === "in_progress" ? '<span class="qr-pill">Setup</span>' : '<span class="default-pill">Active</span>')}
           </div>
           <div class="client-card-identity" data-label="Nama / Syarikat">
             \${escapeHtml(client.contactName || "-")}
@@ -8006,6 +8171,7 @@ Review retargeting when the warm audience is ready</textarea>
             <details class="action-menu">
               <summary>Actions</summary>
               <div class="action-menu-list">
+                \${client.onboardingStatus === "in_progress" ? '<button class="continue-onboarding-button" type="button" data-client-code="' + escapeHtml(client.code) + '">Continue Setup</button>' : ''}
                 <button class="secondary copy-drive-link-button" type="button" data-client-code="\${escapeHtml(client.code)}">Copy Drive Link</button>
                 <button class="secondary whatsapp-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-whatsapp-type="invoice">WhatsApp Invoice</button>
                 <button class="secondary whatsapp-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-whatsapp-type="receipt">WhatsApp Receipt</button>
@@ -8046,27 +8212,9 @@ Review retargeting when the warm audience is ready</textarea>
       }
     }
 
-    function resetClientFormMode() {
-      clientForm.dataset.mode = "create";
-      clientForm.reset();
-      clientForm.elements.clientCode.value = "";
-      clientForm.querySelector("h2").textContent = "Tambah Pelanggan";
-      clientAdsPlatform.value = "meta";
-      populateAdsAccountOptions("", "meta");
-      clientAdsAccountName.value = "";
-      clientAdsCurrency.value = "";
-      saveClientButton.textContent = "Save Client & Create Drive Folders";
-      cancelClientEditButton.hidden = true;
-    }
+    const CLIENT_ONBOARDING_STEPS = ["details", "ads", "drive", "telegram", "review"];
 
-    function editClient(clientCode) {
-      const client = currentClients.find((item) => item.code === clientCode);
-      if (!client) {
-        showClientError(new Error("Client tidak dijumpai dalam senarai semasa."));
-        return;
-      }
-
-      clientForm.dataset.mode = "edit";
+    function fillClientForm(client) {
       clientForm.elements.clientCode.value = client.code || "";
       clientForm.elements.brandClient.value = client.brandClient || client.name || "";
       clientForm.elements.contactName.value = client.contactName || "";
@@ -8084,8 +8232,107 @@ Review retargeting when the warm audience is ready</textarea>
       clientForm.elements.resultMetric.value = adsConfig.resultMetric || "conversions";
       clientForm.elements.prospectingKeywords.value = (adsConfig.prospectingKeywords || []).join(", ");
       clientForm.elements.retargetingKeywords.value = (adsConfig.retargetingKeywords || []).join(", ");
+    }
+
+    function renderClientOnboardingSummary() {
+      const checks = currentClientOnboarding?.checks || {};
+      const stepStates = currentClientOnboarding?.state?.steps || {};
+      const currentClient = currentClients.find((item) => item.code === clientForm.elements.clientCode.value);
+      const recipients = currentClient?.telegramReportConfig?.recipients || [];
+      const connected = recipients.filter((item) => item.connected).length;
+      clientOnboardingDriveState.textContent = checks.drive
+        ? "Folder client, Weekly Report dan Invoice & Receipt sudah siap."
+        : (stepStates.drive?.error || "Folder belum disediakan. Tekan button di bawah untuk create dan verify semua folder.");
+      clientOnboardingDriveState.classList.toggle("onboarding-error", Boolean(stepStates.drive?.error && !checks.drive));
+      clientOnboardingTelegramState.textContent = connected
+        ? connected + " penerima Telegram connected."
+        : "Belum disambungkan. Langkah ini optional dan boleh dibuat kemudian.";
+      const items = [
+        ["Client dan billing", checks.details],
+        ["Akaun Ads", checks.ads],
+        ["Google Drive", checks.drive],
+        ["Telegram (optional)", connected > 0],
+      ];
+      clientOnboardingChecklist.innerHTML = items.map(([label, ready], index) => (
+        '<div class="onboarding-check-item"><span>' + escapeHtml(label) + '</span><span class="' + (ready || index === 3 ? "ready" : "pending") + '">' + (ready ? "Ready" : (index === 3 ? "Optional" : "Pending")) + '</span></div>'
+      )).join("");
+    }
+
+    function showClientOnboardingStep(step) {
+      const safeStep = CLIENT_ONBOARDING_STEPS.includes(step) ? step : "details";
+      currentClientOnboardingStep = safeStep;
+      clientForm.dataset.mode = "onboarding";
+      clientForm.querySelectorAll("[data-onboarding-step]").forEach((panel) => {
+        const active = panel.dataset.onboardingStep === safeStep;
+        panel.hidden = !active;
+        panel.classList.toggle("active", active);
+      });
+      const activeIndex = CLIENT_ONBOARDING_STEPS.indexOf(safeStep);
+      clientOnboardingProgress.hidden = false;
+      clientOnboardingProgress.querySelectorAll("[data-onboarding-progress]").forEach((item, index) => {
+        item.classList.toggle("active", index === activeIndex);
+        item.classList.toggle("complete", index < activeIndex);
+      });
+      clientOnboardingBackButton.hidden = activeIndex === 0;
+      discardClientOnboardingButton.hidden = !clientForm.elements.clientCode.value;
+      cancelClientEditButton.hidden = true;
+      const labels = {
+        details: "Save & Continue",
+        ads: "Save Ads & Continue",
+        drive: currentClientOnboarding?.checks?.drive ? "Verify & Continue" : "Create Drive Folders",
+        telegram: "Continue to Review",
+        review: "Activate Client",
+      };
+      saveClientButton.textContent = labels[safeStep];
+      renderClientOnboardingSummary();
+    }
+
+    async function continueClientOnboarding(clientCode) {
+      const client = currentClients.find((item) => item.code === clientCode);
+      if (!client) throw new Error("Client onboarding tidak dijumpai.");
+      const response = await fetch("/api/clients/onboarding?clientCode=" + encodeURIComponent(clientCode));
+      const json = await readApiJson(response);
+      if (!response.ok || !json.ok) throw new Error(json.error || "Load onboarding failed.");
+      currentClientOnboarding = json.onboarding;
+      fillClientForm(client);
+      clientForm.querySelector("h2").textContent = "Onboard " + (client.brandClient || client.name || client.code);
+      setMessage(clientResult, "", "");
+      activateSubtab("client", "client-add-panel");
+      showClientOnboardingStep(json.onboarding.step || "details");
+    }
+
+    function resetClientFormMode() {
+      clientForm.dataset.mode = "create";
+      clientForm.reset();
+      clientForm.elements.clientCode.value = "";
+      clientForm.querySelector("h2").textContent = "Onboard Client";
+      clientAdsPlatform.value = "meta";
+      populateAdsAccountOptions("", "meta");
+      clientAdsAccountName.value = "";
+      clientAdsCurrency.value = "";
+      currentClientOnboarding = null;
+      currentClientOnboardingStep = "details";
+      showClientOnboardingStep("details");
+      cancelClientEditButton.hidden = true;
+    }
+
+    function editClient(clientCode) {
+      const client = currentClients.find((item) => item.code === clientCode);
+      if (!client) {
+        showClientError(new Error("Client tidak dijumpai dalam senarai semasa."));
+        return;
+      }
+
+      clientForm.dataset.mode = "edit";
+      fillClientForm(client);
       clientForm.querySelector("h2").textContent = \`Edit Pelanggan: \${client.brandClient || client.name || client.code}\`;
       saveClientButton.textContent = "Update Client";
+      clientOnboardingProgress.hidden = true;
+      clientForm.querySelectorAll("[data-onboarding-step]").forEach((panel) => {
+        panel.hidden = !["details", "ads"].includes(panel.dataset.onboardingStep);
+      });
+      clientOnboardingBackButton.hidden = true;
+      discardClientOnboardingButton.hidden = true;
       cancelClientEditButton.hidden = false;
       setMessage(clientResult, "", "");
       activateSubtab("client", "client-add-panel");
@@ -9055,8 +9302,47 @@ Review retargeting when the warm audience is ready</textarea>
       try {
         const isEditMode = clientForm.dataset.mode === "edit";
         const payload = Object.fromEntries(new FormData(clientForm).entries());
-        const response = await fetch("/api/clients", {
-          method: isEditMode ? "PUT" : "POST",
+        if (isEditMode) {
+          const response = await fetch("/api/clients", {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const json = await readApiJson(response);
+          if (response.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
+          if (!response.ok || !json.ok) throw new Error(json.error || "Save client failed.");
+          const savedMessage = [
+            \`Client updated: \${json.client?.brandClient || "-"}\`,
+            "Detail pelanggan sudah disimpan dalam database."
+          ].join("\\n");
+          resetClientFormMode();
+          await loadClients();
+          await loadActivity();
+          if (currentInvoices.length) await generateInvoices();
+          setMessage(clientResult, "ok", savedMessage + "\\nSenarai pelanggan sudah dikemas kini.");
+          activateSubtab("client", "client-list-panel");
+          return;
+        }
+
+        const step = currentClientOnboardingStep;
+        const existingCode = String(payload.clientCode || "").trim();
+        let method = "PATCH";
+        let action = step;
+        if (step === "details" && !existingCode) {
+          method = "POST";
+          action = "start";
+        }
+        if (step === "telegram") {
+          const client = currentClients.find((item) => item.code === existingCode);
+          const connected = (client?.telegramReportConfig?.recipients || []).some((item) => item.connected);
+          payload.status = connected ? "complete" : "skipped";
+        }
+        payload.action = action;
+        const response = await fetch("/api/clients/onboarding", {
+          method,
           headers: { "content-type": "application/json" },
           body: JSON.stringify(payload)
         });
@@ -9065,29 +9351,52 @@ Review retargeting when the warm audience is ready</textarea>
           window.location.href = "/login";
           return;
         }
-        if (!response.ok || !json.ok) throw new Error(json.error || "Save client failed.");
-
-        const savedMessage = isEditMode
-          ? [
-            \`Client updated: \${json.client?.brandClient || "-"}\`,
-            "Detail pelanggan sudah disimpan dalam database."
-          ].join("\\n")
-          : [
-            \`Client saved: \${json.client?.brandClient || "-"}\`,
-            \`Folder: \${json.client?.driveFolderName || "-"}\`,
-            "Subfolder siap: Weekly Report, Invoice & Receipt"
-          ].join("\\n");
-        resetClientFormMode();
+        if (!response.ok || !json.ok) throw new Error(json.error || "Onboarding client gagal.");
+        currentClientOnboarding = json.onboarding;
+        clientForm.elements.clientCode.value = json.clientCode || existingCode;
         await loadClients();
         await loadActivity();
-        if (currentInvoices.length) await generateInvoices();
-        setMessage(clientResult, "ok", \`\${savedMessage}\\nSenarai pelanggan sudah dikemas kini.\`);
-        activateSubtab("client", "client-list-panel");
+        if (step === "review") {
+          const label = currentClients.find((item) => item.code === json.clientCode)?.brandClient || json.clientCode;
+          resetClientFormMode();
+          setMessage(clientResult, "ok", \`Onboarding \${label} selesai. Client kini aktif untuk invoice, report dan automation.\`);
+          activateSubtab("client", "client-list-panel");
+          loadTodayDashboard({ silent: true, force: true });
+          return;
+        }
+        const nextStep = { details: "ads", ads: "drive", drive: "telegram", telegram: "review" }[step] || json.onboarding.step;
+        showClientOnboardingStep(nextStep);
+        setMessage(clientResult, "ok", "Progress onboarding disimpan.");
       } catch (error) {
         showClientError(error);
       } finally {
         saveClientButton.disabled = false;
-        saveClientButton.textContent = clientForm.dataset.mode === "edit" ? "Update Client" : "Save Client & Create Drive Folders";
+        if (clientForm.dataset.mode === "edit") saveClientButton.textContent = "Update Client";
+        else if (clientForm.dataset.mode === "onboarding") showClientOnboardingStep(currentClientOnboardingStep);
+      }
+    }
+
+    async function discardCurrentClientOnboarding() {
+      const clientCode = clientForm.elements.clientCode.value;
+      if (!clientCode || !window.confirm("Discard onboarding ini? Draft client dan folder yang sudah dibuat akan dibuang.")) return;
+      const finishButton = setButtonBusy(discardClientOnboardingButton, "Discarding...");
+      try {
+        const response = await fetch("/api/clients/onboarding", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ clientCode })
+        });
+        const json = await readApiJson(response);
+        if (!response.ok || !json.ok) throw new Error(json.error || "Discard onboarding gagal.");
+        finishButton("Discarded");
+        resetClientFormMode();
+        await loadClients();
+        await loadActivity();
+        setMessage(clientResult, "ok", "Draft onboarding sudah dibuang.");
+        activateSubtab("client", "client-list-panel");
+      } catch (error) {
+        finishButton();
+        showClientError(error);
       }
     }
 
@@ -9245,6 +9554,7 @@ Review retargeting when the warm audience is ready</textarea>
     document.querySelectorAll("[data-go-tab]").forEach((button) => {
       button.addEventListener("click", () => {
         recordQuickAction(button.dataset.actionKey);
+        if (button.dataset.actionKey === "onboard-client") resetClientFormMode();
         navigateToWork({ tab: button.dataset.goTab, subtab: button.dataset.goSubtab || "" });
       });
     });
@@ -9277,12 +9587,41 @@ Review retargeting when the warm audience is ready</textarea>
       saveLastWork(tab, activeSubtabFor(tab));
     });
     clientForm.addEventListener("submit", saveClient);
+    clientOnboardingBackButton.addEventListener("click", () => {
+      const index = CLIENT_ONBOARDING_STEPS.indexOf(currentClientOnboardingStep);
+      if (index > 0) showClientOnboardingStep(CLIENT_ONBOARDING_STEPS[index - 1]);
+    });
+    discardClientOnboardingButton.addEventListener("click", discardCurrentClientOnboarding);
+    clientForm.querySelectorAll(".onboarding-telegram-link").forEach((button) => {
+      button.addEventListener("click", () => {
+        const clientCode = clientForm.elements.clientCode.value;
+        if (!clientCode) return showClientError(new Error("Simpan client dahulu sebelum connect Telegram."));
+        generateTelegramLink(clientCode, Number(button.dataset.recipientSlot || 1), button);
+      });
+    });
+    refreshOnboardingTelegramButton.addEventListener("click", async () => {
+      const finishButton = setButtonBusy(refreshOnboardingTelegramButton, "Refreshing...");
+      try {
+        await loadClients();
+        renderClientOnboardingSummary();
+        finishButton("Refreshed");
+      } catch (error) {
+        finishButton();
+        showClientError(error);
+      }
+    });
     cancelClientEditButton.addEventListener("click", () => {
       resetClientFormMode();
       setMessage(clientResult, "", "");
       activateSubtab("client", "client-list-panel");
     });
     clientList.addEventListener("click", (event) => {
+      const continueOnboardingButton = event.target.closest(".continue-onboarding-button");
+      if (continueOnboardingButton) {
+        closeActionMenu(continueOnboardingButton);
+        continueClientOnboarding(continueOnboardingButton.dataset.clientCode).catch(showClientError);
+        return;
+      }
       const copyDriveButton = event.target.closest(".copy-drive-link-button");
       if (copyDriveButton) {
         copyClientDriveLink(copyDriveButton.dataset.clientCode, copyDriveButton);
