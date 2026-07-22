@@ -4749,7 +4749,7 @@ Review retargeting when the warm audience is ready</textarea>
               </div>
               <div>
                 <label for="clientPhone">No telefon</label>
-                <input id="clientPhone" name="phone" type="tel" placeholder="+60...">
+                <input id="clientPhone" name="phone" type="tel" placeholder="+60..." required>
               </div>
               <div>
                 <label for="clientCompanyName">Nama syarikat</label>
@@ -8279,6 +8279,55 @@ Review retargeting when the warm audience is ready</textarea>
       }
     }
 
+    async function openClientOnboardingWelcome(clientCode, targetWindow) {
+      const driveResponse = await fetch("/api/clients/share-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientCode })
+      });
+      const driveJson = await readApiJson(driveResponse);
+      if (!driveResponse.ok || !driveJson.ok) throw new Error(driveJson.error || "Master Files Drive link gagal disediakan.");
+
+      const telegramResponse = await fetch("/api/telegram/connect-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientCode, recipientSlot: 1 })
+      });
+      const telegramJson = await readApiJson(telegramResponse);
+      if (!telegramResponse.ok || !telegramJson.ok) throw new Error(telegramJson.error || "Telegram Daily Report link gagal disediakan.");
+
+      const client = currentClients.find((item) => item.code === clientCode);
+      const clientName = client?.contactName || client?.brandClient || driveJson.clientName || "client";
+      const brandName = client?.brandClient || driveJson.clientName || clientCode;
+      const message = [
+        "Hi " + clientName + ", onboarding " + brandName + " dah siap.",
+        "",
+        "Master Files Drive",
+        driveJson.driveFolderUrl,
+        "",
+        "Telegram Daily Reporting",
+        "Klik link di bawah dan tekan Start untuk connect penerima 1.",
+        telegramJson.connectUrl,
+        "",
+        "Link Telegram sah selama 24 jam."
+      ].join("\\n");
+
+      const whatsappResponse = await fetch("/api/clients/whatsapp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientCode, type: "custom", customMessage: message })
+      });
+      const whatsappJson = await readApiJson(whatsappResponse);
+      if (!whatsappResponse.ok || !whatsappJson.ok) throw new Error(whatsappJson.error || "WhatsApp onboarding gagal disediakan.");
+
+      if (targetWindow && !targetWindow.closed) targetWindow.location.href = whatsappJson.whatsappUrl;
+      else {
+        const opened = window.open(whatsappJson.whatsappUrl, "_blank");
+        if (!opened) window.location.href = whatsappJson.whatsappUrl;
+      }
+      return whatsappJson;
+    }
+
     function fillClientForm(client) {
       clientForm.elements.clientCode.value = client.code || "";
       clientForm.elements.brandClient.value = client.brandClient || client.name || "";
@@ -9360,6 +9409,10 @@ Review retargeting when the warm audience is ready</textarea>
 
     async function saveClient(event) {
       event.preventDefault();
+      const isActivation = clientForm.dataset.mode !== "edit" && currentClientOnboardingStep === "review";
+      const onboardingWhatsappWindow = isActivation ? window.open("", "_blank") : null;
+      let onboardingWhatsappOpened = false;
+      if (onboardingWhatsappWindow) onboardingWhatsappWindow.document.title = "Preparing WhatsApp...";
       setMessage(clientResult, "", "");
       saveClientButton.disabled = true;
       saveClientButton.textContent = "Saving...";
@@ -9423,8 +9476,16 @@ Review retargeting when the warm audience is ready</textarea>
         await loadActivity();
         if (step === "review") {
           const label = currentClients.find((item) => item.code === json.clientCode)?.brandClient || json.clientCode;
+          let whatsappNote = "WhatsApp onboarding dibuka untuk client.";
+          try {
+            await openClientOnboardingWelcome(json.clientCode, onboardingWhatsappWindow);
+            onboardingWhatsappOpened = true;
+          } catch (welcomeError) {
+            if (onboardingWhatsappWindow && !onboardingWhatsappWindow.closed) onboardingWhatsappWindow.close();
+            whatsappNote = "Client sudah aktif, tetapi WhatsApp gagal dibuka: " + (welcomeError.message || String(welcomeError));
+          }
           resetClientFormMode();
-          setMessage(clientResult, "ok", \`Onboarding \${label} selesai. Client kini aktif untuk invoice, report dan automation.\`);
+          setMessage(clientResult, "ok", \`Onboarding \${label} selesai. Client kini aktif untuk invoice, report dan automation.\\n\${whatsappNote}\`);
           activateSubtab("client", "client-list-panel");
           loadTodayDashboard({ silent: true, force: true });
           return;
@@ -9435,8 +9496,10 @@ Review retargeting when the warm audience is ready</textarea>
         showClientOnboardingStep(nextStep);
         setMessage(clientResult, "ok", "Progress onboarding disimpan.");
       } catch (error) {
+        if (onboardingWhatsappWindow && !onboardingWhatsappWindow.closed) onboardingWhatsappWindow.close();
         showClientError(error);
       } finally {
+        if (onboardingWhatsappWindow && !onboardingWhatsappOpened && !onboardingWhatsappWindow.closed) onboardingWhatsappWindow.close();
         saveClientButton.disabled = false;
         if (clientForm.dataset.mode === "edit") saveClientButton.textContent = "Update Client";
         else if (clientForm.dataset.mode === "onboarding") showClientOnboardingStep(currentClientOnboardingStep);

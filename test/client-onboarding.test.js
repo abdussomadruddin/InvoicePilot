@@ -11,6 +11,7 @@ function readyClient(overrides = {}) {
     name: "ACME",
     contactName: "Ali",
     email: "ali@example.com",
+    phone: "+60123456789",
     companyName: "ACME Sdn Bhd",
     billingName: "ACME Sdn Bhd",
     monthlyRetainer: 1500,
@@ -40,6 +41,7 @@ test("onboarding requires billing, an ads account, and all Drive folders", () =>
     telegram: false,
   });
   assert.equal(onboardingChecks(readyClient({ monthlyRetainer: 0 })).details, false);
+  assert.equal(onboardingChecks(readyClient({ phone: "" })).details, false);
   assert.equal(onboardingChecks(readyClient({ weeklyReportFolderId: "" })).drive, false);
 });
 
