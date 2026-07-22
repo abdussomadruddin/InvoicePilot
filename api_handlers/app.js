@@ -8266,7 +8266,7 @@ Review retargeting when the warm audience is ready</textarea>
         "Nama penerima 2 (jika ada):",
         "",
         "Boleh reply terus dan isi selepas setiap ruangan. Terima kasih."
-      ].join("\n");
+      ].join("\\n");
     }
 
     async function copyClientOnboardingTemplate() {
