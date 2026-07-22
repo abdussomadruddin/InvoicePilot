@@ -5,6 +5,7 @@ const {
   readRequestBody,
 } = require("../lib/postpilot");
 const { recordActivity } = require("../lib/supabase-db");
+const { reportOperationalFailure, reportOperationalSuccess } = require("../lib/operations-events");
 
 module.exports = async function handler(req, res) {
   res.setHeader("content-type", "application/json; charset=utf-8");
@@ -15,6 +16,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  let publishing = false;
   try {
     requireAuth(req);
     const body = await readRequestBody(req);
@@ -27,6 +29,7 @@ module.exports = async function handler(req, res) {
     if (!caption) throw new Error("Caption wajib ada sebelum approve.");
     if (!firstComment) throw new Error("Comment CTA wajib ada sebelum approve.");
 
+    publishing = true;
     const result = await publishToFacebook({
       file: creative,
       caption,
@@ -40,6 +43,7 @@ module.exports = async function handler(req, res) {
       entityId: result.post_id || "",
       metadata: { postUrl: result.permalink_url || "" },
     });
+    await reportOperationalSuccess({ fingerprint: "facebook-page:publish", serviceName: "facebook_page", detail: "Facebook Page post berjaya diterbitkan." });
 
     res.statusCode = 200;
     res.end(JSON.stringify({
@@ -47,6 +51,16 @@ module.exports = async function handler(req, res) {
       ...result,
     }));
   } catch (error) {
+    if (publishing) {
+      await reportOperationalFailure({
+        fingerprint: "facebook-page:publish",
+        serviceName: "facebook_page",
+        entityType: "facebook_page",
+        title: "Facebook Page post gagal",
+        detail: error?.message || String(error),
+        action: { kind: "navigate", label: "Open Page Pilot", tab: "personalpostpilot", subtab: "pagepilot-panel" },
+      });
+    }
     res.statusCode = error.statusCode || 400;
     res.end(JSON.stringify({ ok: false, error: error?.message || String(error) }));
   }

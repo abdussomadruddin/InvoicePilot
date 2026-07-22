@@ -24,5 +24,15 @@
     "api/app.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/daily-ads-report",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/tiktok-authorization-alert",
+      "schedule": "5 22 * * *"
+    }
+  ]
 }

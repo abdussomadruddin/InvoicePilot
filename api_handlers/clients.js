@@ -7,8 +7,37 @@ const {
 } = require("../lib/invoices");
 const { recordActivity } = require("../lib/supabase-db");
 const { readJsonBody } = require("../lib/postpilot");
+const { normalizeAdsReportConfig } = require("../lib/adflow-ads");
 
 function publicClient(client) {
+  const telegram = client.metadata?.telegramReportConfig || {};
+  const legacyRecipient = {
+    slot: 1,
+    chatId: String(telegram.chatId || ""),
+    autoEnabled: Boolean(telegram.autoEnabled),
+    username: String(telegram.username || ""),
+    displayName: String(telegram.displayName || ""),
+    linkedAt: String(telegram.linkedAt || ""),
+    lastSentAt: String(telegram.lastSentAt || ""),
+    lastSentDate: String(telegram.lastSentDate || ""),
+    lastError: String(telegram.lastError || ""),
+  };
+  const storedRecipients = Array.isArray(telegram.recipients) ? telegram.recipients : [];
+  const recipients = [1, 2].map((slot) => {
+    const stored = storedRecipients.find((item) => Number(item?.slot) === slot) || {};
+    const source = slot === 1 ? { ...legacyRecipient, ...stored } : stored;
+    return {
+      slot,
+      connected: Boolean(source.chatId),
+      autoEnabled: Boolean(source.autoEnabled && source.chatId),
+      username: String(source.username || ""),
+      displayName: String(source.displayName || ""),
+      linkedAt: String(source.linkedAt || ""),
+      lastSentAt: String(source.lastSentAt || ""),
+      lastSentDate: String(source.lastSentDate || ""),
+      lastError: String(source.lastError || ""),
+    };
+  });
   return {
     brandClient: client.brandClient,
     code: client.code,
@@ -29,6 +58,13 @@ function publicClient(client) {
     serviceStoppedAt: client.serviceStoppedAt || "",
     serviceRecoveredAt: client.serviceRecoveredAt || "",
     source: client.source || "config",
+    adsReportConfig: normalizeAdsReportConfig(client.metadata?.adsReportConfig || {}),
+    telegramReportConfig: {
+      recipients,
+      connected: recipients.some((item) => item.connected),
+      connectedCount: recipients.filter((item) => item.connected).length,
+      autoEnabled: recipients.some((item) => item.autoEnabled),
+    },
   };
 }
 

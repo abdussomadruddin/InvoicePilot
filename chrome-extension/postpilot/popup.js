@@ -8,8 +8,16 @@ const autoPostButton = document.getElementById("autoPostButton");
 const retryBatchButton = document.getElementById("retryBatchButton");
 const copyCtaButton = document.getElementById("copyCtaButton");
 const fillCommentButton = document.getElementById("fillCommentButton");
+const extensionVersion = document.getElementById("extensionVersion");
+const remoteMeta = document.getElementById("remoteMeta");
+const pairCode = document.getElementById("pairCode");
+const pairButton = document.getElementById("pairButton");
+const checkRemoteButton = document.getElementById("checkRemoteButton");
+const unpairButton = document.getElementById("unpairButton");
 
 let currentDraft = null;
+
+extensionVersion.textContent = `v${chrome.runtime.getManifest().version}`;
 
 function setStatus(message, isError = false) {
   statusBox.hidden = false;
@@ -59,6 +67,68 @@ async function loadDraft() {
     setStatus(error.message || String(error), true);
   }
 }
+
+async function loadRemoteState() {
+  try {
+    const response = await sendMessage({ type: "GET_REMOTE_STATE" });
+    if (response.paired) {
+      remoteMeta.textContent = `${response.device?.name || "Mac Chrome"} paired${response.realtime ? " | realtime ready" : " | polling 30s"}. ${response.status || "Menunggu arahan phone."}`;
+      pairCode.hidden = true;
+      pairButton.hidden = true;
+      unpairButton.hidden = false;
+    } else {
+      remoteMeta.textContent = "Masukkan code 8 aksara dari panel Mac Automation dalam webapp.";
+      pairCode.hidden = false;
+      pairButton.hidden = false;
+      unpairButton.hidden = true;
+    }
+    if (response.error) setStatus(response.error, true);
+  } catch (error) {
+    setStatus(error.message || String(error), true);
+  }
+}
+
+pairButton.addEventListener("click", async () => {
+  pairButton.disabled = true;
+  pairButton.textContent = "Pairing...";
+  try {
+    const code = pairCode.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (code.length !== 8) throw new Error("Masukkan pairing code 8 aksara.");
+    pairCode.value = code;
+    remoteMeta.textContent = "Sedang sambungkan extension dengan BuddyPilot...";
+    await sendMessage({ type: "PAIR_REMOTE_EXTENSION", code, name: "Mac Chrome" });
+    setStatus("Mac berjaya dipasangkan. Arahan phone akan diterima automatik.");
+    await loadRemoteState();
+  } catch (error) {
+    const message = error.message || String(error);
+    remoteMeta.textContent = "Pairing belum berjaya. Semak code yang dipaparkan dalam webapp.";
+    setStatus(message, true);
+  } finally {
+    pairButton.disabled = false;
+    pairButton.textContent = "Pair Mac";
+  }
+});
+
+checkRemoteButton.addEventListener("click", async () => {
+  try {
+    await sendMessage({ type: "CHECK_REMOTE_NOW" });
+    setStatus("Remote queue sudah diperiksa.");
+    await loadRemoteState();
+  } catch (error) {
+    setStatus(error.message || String(error), true);
+  }
+});
+
+unpairButton.addEventListener("click", async () => {
+  try {
+    await sendMessage({ type: "UNPAIR_REMOTE_EXTENSION" });
+    pairCode.value = "";
+    setStatus("Pairing lokal dibuang.");
+    await loadRemoteState();
+  } catch (error) {
+    setStatus(error.message || String(error), true);
+  }
+});
 
 openFacebookButton.addEventListener("click", async () => {
   try {
@@ -114,4 +184,4 @@ fillCommentButton.addEventListener("click", async () => {
   }
 });
 
-loadDraft();
+Promise.all([loadDraft(), loadRemoteState()]);

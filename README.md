@@ -64,6 +64,13 @@ INVOICE_DRIVE_MASTER_FOLDER_ID=1DqzU5ZZ_81bpEXZiWqqecBF8gqmRiv-o
 
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+ADFLOW_MCP_TOKEN=your_adflow_mcp_token
+TELEGRAM_BOT_TOKEN=bot_token_from_botfather
+TELEGRAM_WEBHOOK_SECRET=random_webhook_secret
+TIKTOK_TOKEN_ENCRYPTION_KEY=random_secret_at_least_32_characters
+CRON_SECRET=random_cron_secret
+APP_BASE_URL=https://your-domain.vercel.app
 
 INVOICE_BUSINESS_NAME=Your Business Name
 INVOICE_BUSINESS_REG_NO=optional_registration_number
@@ -82,6 +89,10 @@ INVOICE_SERVICE_NOTE=Service note shown below the scope
 INVOICE_DEFAULT_MONTHLY_RETAINER=1500
 APP_TIMEZONE=Asia/Kuala_Lumpur
 ```
+
+`ADFLOW_MCP_TOKEN` powers the read-only Meta Ads data used by Report Pilot through AdFlow MCP. Report Pilot lets you choose any AdFlow-connected ad account and an exact completed seven-day reporting week; a client's default account, result metric, and campaign tags can be saved under Client Pilot > Ads Report Setup.
+
+`TIKTOK_TOKEN_ENCRYPTION_KEY` encrypts the official TikTok for Business MCP OAuth state before it is stored in Supabase. Generate a long random value, keep it server-only, then use Client Pilot > TikTok Ads > Connect TikTok Ads. TikTok authorization must be renewed every 30 days.
 
 ### Supabase Database
 
@@ -108,7 +119,19 @@ Required Supabase env:
 ```text
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
 ```
+
+`SUPABASE_PUBLISHABLE_KEY` is used only for the Post Pilot Realtime wake signal. Drafts, image paths, and device tokens are fetched through authenticated BuddyPilot endpoints and are never included in the broadcast payload.
+
+### Post Pilot Remote Trigger
+
+1. Load `chrome-extension/postpilot` as an unpacked extension in Chrome on the MacBook.
+2. Open Post Pilot on the phone and press `Pair Mac` under `Mac Automation`.
+3. Enter the eight-character code in the extension popup on the Mac.
+4. Keep Chrome open and stay logged in to Facebook and Threads.
+
+All Post Pilot posting buttons create a private Supabase job. The paired Mac receives a Realtime wake signal, with a 30-second polling fallback. Only one job can run at a time; queued jobs expire after 24 hours if the Mac remains offline.
 
 Optional setup env for local schema creation:
 
@@ -169,9 +192,9 @@ The original local automation and Telegram workflow is kept under `facebook-post
 
 ## App Icons
 
-The web, iOS, and Android app icons are generated from `public/logo.svg`:
+The web, iOS, and Android PWA icons use the BuddyPilot `B + paper plane` artwork:
 
 - `public/favicon.ico`
 - `public/icons/apple-touch-icon.png`
-- `public/icons/android-chrome-192x192.png`
-- `public/icons/android-chrome-512x512.png`
+- `public/icons/app-icon-16x16.png` through `public/icons/app-icon-1024x1024.png`
+- `public/icons/android-chrome-192x192.png` and `public/icons/android-chrome-512x512.png`

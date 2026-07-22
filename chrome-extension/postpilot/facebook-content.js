@@ -839,6 +839,17 @@ async function runFullAutomation({ manual = false } = {}) {
   await acquireRunLock("full-auto-flow", automationId, manual);
   const steps = [];
   try {
+    if (draft.remoteJobId) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      await sleep(500);
+      if (findNewestPostByCaption(draft.postText)) {
+        steps.push("Caption ini sudah live di Facebook. Skip supaya tidak duplicate.");
+        await chrome.storage.local.set({ [COMPLETED_AUTOMATION_KEY]: automationId, autoPublishedDraftId: draft.id || automationId });
+        notifyFacebookDone(automationId);
+        showPanel(steps.join("\n"), draft);
+        return { ok: true, message: steps.join("\n"), skipped: true };
+      }
+    }
     showPanel(progress(steps, "1/5 Facebook tab baru sudah dibuka. Cari Photo/video..."), draft);
     await waitStep(() => document.readyState === "complete" || document.readyState === "interactive", {
       timeout: STEP_RETRY_MS,

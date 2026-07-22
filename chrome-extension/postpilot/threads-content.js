@@ -154,6 +154,14 @@ function findTextboxIn(scope = activeComposerScope()) {
   }) || candidates[0] || null;
 }
 
+function findExistingThread(postText) {
+  const text = String(postText || "").trim();
+  if (!text) return null;
+  const candidates = [...document.querySelectorAll("article, [data-pressable-container='true'], div[role='article']")]
+    .filter((node) => visible(node) && !node.closest(`#${PANEL_ID}`));
+  return candidates.find((node) => countNeedle(textOf(node), text) === 1) || null;
+}
+
 function selectContents(target) {
   const range = document.createRange();
   range.selectNodeContents(target);
@@ -477,16 +485,43 @@ function notifyThreadsDone(automationId, threadsTextOnly = false, threadsTextBat
   }
 }
 
-function notifyBatchFailed(automationId, error) {
+function notifyBatchFailed(automationId, error, details = {}) {
   try {
     chrome.runtime.sendMessage({
       type: "POSTPILOT_BATCH_FAILED",
       automationId,
       error: error?.message || String(error),
+      ...details,
     }, () => { void chrome.runtime.lastError; });
   } catch {
     // Best effort status update only.
   }
+}
+
+function notifyThreadsBatchProgress(automationId, index, total) {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.runtime.sendMessage({
+        type: "POSTPILOT_THREADS_BATCH_PROGRESS",
+        automationId,
+        index,
+        total,
+        message: `${index}/${total} Threads post selesai.`,
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        if (!response?.ok) {
+          reject(new Error(response?.error || "Gagal update remote progress."));
+          return;
+        }
+        resolve(Boolean(response.cancelRequested));
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 async function runThreadsAutomation({ manual = false } = {}) {
@@ -495,6 +530,17 @@ async function runThreadsAutomation({ manual = false } = {}) {
   await acquireRunLock("threads-auto-flow", automationId, manual);
   const steps = [];
   try {
+    if (draft.remoteJobId) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      await sleep(500);
+      if (findExistingThread(draft.postText)) {
+        steps.push("Caption ini sudah live di Threads. Skip supaya tidak duplicate.");
+        await chrome.storage.local.set({ [COMPLETED_AUTOMATION_KEY]: automationId });
+        notifyThreadsDone(automationId, false);
+        showPanel(steps.join("\n"), draft);
+        return { ok: true, message: steps.join("\n"), skipped: true };
+      }
+    }
     showPanel(progress(steps, "Threads 1/6 Buka New thread..."), draft);
     await waitStep(() => document.readyState === "complete" || document.readyState === "interactive", {
       label: "Threads page",
@@ -538,6 +584,17 @@ async function runThreadsTextOnlyAutomation({ manual = false } = {}) {
   await acquireRunLock("threads-text-only-flow", automationId, manual);
   const steps = [];
   try {
+    if (draft.remoteJobId) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      await sleep(500);
+      if (findExistingThread(draft.postText)) {
+        steps.push("Caption ini sudah live di Threads. Skip supaya tidak duplicate.");
+        await chrome.storage.local.set({ [COMPLETED_AUTOMATION_KEY]: automationId });
+        notifyThreadsDone(automationId, true);
+        showPanel(steps.join("\n"), draft);
+        return { ok: true, message: steps.join("\n"), skipped: true };
+      }
+    }
     showPanel(progress(steps, "Threads text 1/4 Buka New thread..."), draft);
     await waitStep(() => document.readyState === "complete" || document.readyState === "interactive", {
       label: "Threads page",
@@ -587,6 +644,8 @@ async function runThreadsTextBatchAutomation({ manual = false } = {}) {
   if (!totalPosts || totalPosts > 50) throw new Error("Threads batch perlu ada 1 sampai 50 post.");
 
   const batchDelayMs = Math.max(0, Number(draft.batchDelayMs) || 30000);
+  const resumeIndex = Math.max(0, Math.min(posts.length - 1, Number(draft.resumeIndex) || 0));
+  let currentIndex = resumeIndex;
   await acquireRunLock("threads-text-batch-flow", automationId, manual);
   const steps = [];
   try {
@@ -596,12 +655,25 @@ async function runThreadsTextBatchAutomation({ manual = false } = {}) {
       draft,
     });
 
-    for (let index = 0; index < posts.length; index += 1) {
+    for (let index = resumeIndex; index < posts.length; index += 1) {
+      currentIndex = index;
       const postNumber = index + 1;
       const postDraft = {
         ...draft,
         postText: posts[index].postText,
       };
+
+      if (draft.remoteJobId) {
+        window.scrollTo({ top: 0, behavior: "instant" });
+        await sleep(500);
+        if (findExistingThread(postDraft.postText)) {
+          steps.push(`${postNumber}/${totalPosts} sudah live. Skip duplicate.`);
+          const cancelled = await notifyThreadsBatchProgress(automationId, postNumber, totalPosts);
+          if (cancelled) return { ok: true, cancelled: true };
+          if (postNumber < totalPosts && batchDelayMs > 0) await waitBeforeNextBatchPost(batchDelayMs, postNumber, totalPosts, draft);
+          continue;
+        }
+      }
 
       showPanel(`Threads batch ${postNumber}/${totalPosts} Buka New thread...`, postDraft);
       await openNewThread(postDraft);
@@ -617,6 +689,10 @@ async function runThreadsTextBatchAutomation({ manual = false } = {}) {
 
       steps.push(`${postNumber}/${totalPosts} posted.`);
       showPanel(steps.join("\n"), draft);
+      if (draft.remoteJobId && await notifyThreadsBatchProgress(automationId, postNumber, totalPosts)) {
+        showPanel(`${postNumber}/${totalPosts} posted. Automation dibatalkan dari phone.`, draft);
+        return { ok: true, cancelled: true };
+      }
       if (postNumber < totalPosts && batchDelayMs > 0) {
         await waitBeforeNextBatchPost(batchDelayMs, postNumber, totalPosts, draft);
       }
@@ -629,6 +705,7 @@ async function runThreadsTextBatchAutomation({ manual = false } = {}) {
     return { ok: true, message: steps.join("\n") };
   } catch (error) {
     showPanel(`Threads batch gagal: ${error?.message || error}`, draft);
+    notifyBatchFailed(automationId, error, { index: currentIndex, total: totalPosts, resumePhase: "threads" });
     throw error;
   } finally {
     await releaseRunLock();

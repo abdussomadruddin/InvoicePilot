@@ -1,19 +1,26 @@
 const { requireAuth } = require("../lib/auth");
 const threadsViralTemplates = require("../lib/threads-viral-templates");
+const { buildThreadsGeneralText } = require("../lib/threads-general-copy");
 
 function pageHtml() {
   const threadsViralTemplatesJson = JSON.stringify(threadsViralTemplates).replace(/</g, "\\u003c");
+  const threadsGeneralCopySource = buildThreadsGeneralText.toString().replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="ms">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>BuddyPilot</title>
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="icon" href="/logo.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
-  <meta name="theme-color" content="#ff2442">
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any">
+  <link rel="icon" href="/icons/app-icon-32x32.png?v=3" type="image/png" sizes="32x32">
+  <link rel="icon" href="/icons/app-icon-192x192.png?v=3" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=3" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest?v=3">
+  <meta name="application-name" content="BuddyPilot">
+  <meta name="apple-mobile-web-app-title" content="BuddyPilot">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#ffffff">
   <style>
     :root {
       color-scheme: light;
@@ -39,6 +46,10 @@ function pageHtml() {
 
     * {
       box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
     }
 
     body {
@@ -106,18 +117,6 @@ function pageHtml() {
       display: none;
     }
 
-    .topbar-menu summary::after {
-      content: "⌄";
-      display: inline-block;
-      margin-left: 8px;
-      font-size: 14px;
-      line-height: 1;
-    }
-
-    .topbar-menu[open] summary::after {
-      transform: rotate(180deg);
-    }
-
     .topbar-menu-list {
       position: absolute;
       top: calc(100% + 10px);
@@ -171,6 +170,22 @@ function pageHtml() {
       margin: 18px 0;
     }
 
+    .topbar-tabs {
+      flex: 1 1 auto;
+      flex-wrap: nowrap;
+      min-width: 0;
+      margin: 0;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .topbar-tabs .tab-button {
+      flex: 0 0 auto;
+      padding: 10px 14px;
+      white-space: nowrap;
+    }
+
     .tab-button,
     .subtab-button {
       margin-top: 0;
@@ -214,28 +229,172 @@ function pageHtml() {
       margin: 0;
     }
 
-    .quick-grid {
+    .dashboard-workspace {
+      padding: 8px 2px 22px;
+    }
+
+    .dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 26px;
+    }
+
+    .dashboard-header h1 {
+      margin: 0;
+      font-size: clamp(32px, 4vw, 48px);
+      letter-spacing: 0;
+    }
+
+    .dashboard-header p {
+      margin: 7px 0 0;
+    }
+
+    .dashboard-refresh {
+      flex: 0 0 auto;
+      min-height: 44px;
+      padding: 11px 18px;
+      border: 1px solid #dbe5f1;
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--ink);
+      box-shadow: 0 3px 10px rgba(20, 33, 61, 0.08);
+    }
+
+    .dashboard-metrics {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
-      margin-top: 16px;
+      margin-bottom: 28px;
+    }
+
+    .dashboard-metric {
+      position: relative;
+      min-width: 0;
+      padding: 18px;
+      overflow: hidden;
+      border: 1px solid #e3eaf3;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 5px 16px rgba(20, 33, 61, 0.06);
+    }
+
+    .dashboard-metric::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 4px;
+      background: var(--metric-color, var(--blue));
+    }
+
+    .dashboard-metric[data-tone="green"] { --metric-color: var(--green); }
+    .dashboard-metric[data-tone="yellow"] { --metric-color: #e5a900; }
+    .dashboard-metric[data-tone="purple"] { --metric-color: var(--purple); }
+
+    .dashboard-metric-label,
+    .dashboard-metric-detail {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .dashboard-metric-value {
+      display: block;
+      margin: 9px 0 5px;
+      overflow-wrap: anywhere;
+      font-size: clamp(22px, 3vw, 30px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+    }
+
+    .dashboard-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 34px;
+      margin-bottom: 14px;
+    }
+
+    .dashboard-section-header h2 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .dashboard-section-kicker {
+      color: var(--muted);
+      font-size: 13px;
     }
 
     .quick-grid {
-      grid-template-columns: minmax(0, 1fr);
-      margin: 18px 0 22px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0;
     }
 
     .quick-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
       width: 100%;
-      min-height: 84px;
-      margin-top: 0;
-      border-radius: 22px;
-      background: var(--yellow);
+      min-height: 72px;
+      margin: 0;
+      padding: 15px 16px;
+      border: 1px solid #e3eaf3;
+      border-radius: 8px;
+      background: #ffffff;
       color: var(--ink);
-      border: 3px solid #ffffff;
-      font-size: 16px;
-      box-shadow: 0 9px 0 rgba(245, 158, 11, 0.24);
+      text-align: left;
+      box-shadow: 0 4px 12px rgba(20, 33, 61, 0.05);
+    }
+
+    .quick-card:hover,
+    .quick-card:focus-visible {
+      border-color: #b9d7f3;
+      background: #f8fbff;
+      outline: 0;
+      box-shadow: 0 7px 18px rgba(29, 155, 240, 0.10);
+    }
+
+    .quick-card-copy {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .quick-card-copy strong {
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .quick-card-copy small {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .quick-card-arrow {
+      display: grid;
+      place-items: center;
+      flex: 0 0 30px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--blue-soft);
+      color: #126aa3;
+      font-size: 17px;
+      line-height: 1;
     }
 
     .client-list {
@@ -249,7 +408,7 @@ function pageHtml() {
 
     .client-row {
       display: grid;
-      grid-template-columns: minmax(150px, 1.05fr) minmax(180px, 1.1fr) minmax(220px, 1.3fr) minmax(120px, 0.72fr) minmax(190px, 0.72fr);
+      grid-template-columns: minmax(140px, 1fr) minmax(165px, 1fr) minmax(190px, 1.15fr) minmax(105px, 0.65fr) minmax(180px, 1fr) minmax(175px, 0.72fr);
       gap: 16px;
       padding: 14px 16px;
       border-top: 2px solid #e8f0ff;
@@ -390,6 +549,42 @@ function pageHtml() {
       margin-top: 4px;
     }
 
+    .dashboard-activity .activity-feed {
+      margin: 0;
+      border: 1px solid #e3eaf3;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 5px 16px rgba(20, 33, 61, 0.06);
+    }
+
+    .dashboard-activity .activity-item {
+      position: relative;
+      padding: 15px 16px 15px 36px;
+      border-top: 1px solid #edf1f6;
+    }
+
+    .dashboard-activity .activity-item::before {
+      content: "";
+      position: absolute;
+      top: 20px;
+      left: 17px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 4px var(--green-soft);
+    }
+
+    .dashboard-activity .activity-item strong {
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .dashboard-activity .empty-state {
+      padding: 20px;
+      background: #ffffff;
+    }
+
     .empty-state {
       padding: 16px;
       color: var(--muted);
@@ -415,22 +610,26 @@ function pageHtml() {
     }
 
     .action-menu {
-      width: 190px;
+      width: fit-content;
       margin: 0 auto;
     }
 
     .action-menu summary {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 6px;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 44px;
+      padding: 8px 9px 8px 16px;
       border-radius: 999px;
-      background: var(--blue-soft);
-      color: var(--ink);
+      border: 1px solid #171717;
+      background: #171717;
+      color: #ffffff;
       font-weight: 800;
       cursor: pointer;
       user-select: none;
-      transition: transform 120ms ease, background-color 160ms ease, color 160ms ease;
+      box-shadow: 0 5px 14px rgba(17, 17, 17, .14);
+      transition: transform 160ms ease, background-color 180ms ease, box-shadow 180ms ease;
     }
 
     .action-menu summary::-webkit-details-marker {
@@ -438,18 +637,39 @@ function pageHtml() {
     }
 
     .action-menu summary::after {
-      content: "⌄";
-      font-size: 13px;
-      line-height: 1;
+      content: "";
+      width: 26px;
+      height: 26px;
+      flex: 0 0 26px;
+      border-radius: 50%;
+      background-color: #ffffff;
+      background-image:
+        linear-gradient(45deg, transparent 46%, #171717 47% 56%, transparent 57%),
+        linear-gradient(135deg, transparent 46%, #171717 47% 56%, transparent 57%);
+      background-position: 7px 10px, 13px 10px;
+      background-size: 8px 8px;
+      background-repeat: no-repeat;
+      transition: transform 320ms cubic-bezier(.34, 1.56, .64, 1), background-color 180ms ease;
+    }
+
+    .action-menu summary:hover {
+      background: #2b2b2b;
+      box-shadow: 0 7px 18px rgba(17, 17, 17, .2);
+      transform: translateY(-1px);
+    }
+
+    .action-menu summary:active {
+      transform: scale(.985);
     }
 
     .action-menu[open] summary {
-      background: var(--blue);
+      background: #2b2b2b;
       color: #ffffff;
     }
 
     .action-menu[open] summary::after {
       transform: rotate(180deg);
+      background-color: #ffffff;
     }
 
     .action-menu-list {
@@ -832,6 +1052,63 @@ function pageHtml() {
       gap: 12px;
     }
 
+    .client-grid > div {
+      min-width: 0;
+    }
+
+    .inline-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .inline-actions > select,
+    .inline-actions > input {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .inline-actions > button {
+      width: auto;
+      flex: 0 0 auto;
+      margin-top: 0;
+      white-space: nowrap;
+    }
+
+    .product-actions {
+      margin-top: 10px;
+    }
+
+    .product-actions > button {
+      flex: 1 1 0;
+    }
+
+    .client-grid input[type="date"] {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      padding-right: 12px;
+    }
+
+    .date-field {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .date-field input[type="date"] {
+      inline-size: 100%;
+      min-inline-size: 0;
+      max-inline-size: 100%;
+    }
+
+    @supports (width: -webkit-fill-available) {
+      .date-field input[type="date"] {
+        width: -webkit-fill-available;
+      }
+    }
+
     .client-grid label,
     .client-form label {
       margin-top: 0;
@@ -839,6 +1116,81 @@ function pageHtml() {
 
     .client-grid .full {
       grid-column: 1 / -1;
+    }
+
+    .form-section + .form-section {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+
+    .form-section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      margin-bottom: 17px;
+    }
+
+    .form-section-header > span {
+      display: grid;
+      place-items: center;
+      flex: 0 0 28px;
+      width: 28px;
+      height: 28px;
+      border: 1px solid #e3c8bd;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      color: #925139;
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .form-section-header h2 {
+      margin: 1px 0 2px;
+      font-size: 16px;
+    }
+
+    .form-section-header p {
+      margin: 0;
+      font-size: 13px;
+    }
+
+    .form-grid-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .form-grid-heading:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .form-grid-heading h3 {
+      margin: 0;
+    }
+
+    .report-breakdown {
+      margin-top: 14px;
+      overflow-x: auto;
+    }
+
+    .report-breakdown table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    .report-breakdown th,
+    .report-breakdown td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #e7edf5;
+      text-align: left;
+      white-space: nowrap;
     }
 
     .client-form textarea {
@@ -959,12 +1311,28 @@ function pageHtml() {
       .quick-grid {
         grid-template-columns: 1fr;
       }
+
+      .dashboard-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard-workspace .quick-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 840px) {
       .quick-grid,
       .client-grid {
         grid-template-columns: 1fr;
+      }
+
+      .dashboard-workspace .quick-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .client-row,
@@ -1021,25 +1389,42 @@ function pageHtml() {
       }
 
       .topbar {
-        align-items: stretch;
-        flex-direction: column;
+        align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
         border-radius: 22px;
       }
 
       .topbar-menu {
+        width: auto;
+      }
+
+      .topbar .topbar-tabs {
+        order: 3;
+        display: flex;
+        flex: 1 0 100%;
+        flex-wrap: nowrap;
         width: 100%;
+        padding-bottom: 7px;
+        overflow-x: auto;
+      }
+
+      .topbar .topbar-tabs .tab-button {
+        width: auto;
+        min-height: 44px;
       }
 
       .topbar-menu summary {
-        width: 100%;
+        width: auto;
         text-align: center;
       }
 
       .topbar-menu-list {
-        left: 0;
+        left: auto;
         right: 0;
-        min-width: 0;
+        min-width: 190px;
       }
+      .topbar:has(.topbar-menu[open]) { z-index: 170; }
 
       .topbar form,
       .topbar button {
@@ -1057,6 +1442,10 @@ function pageHtml() {
       button {
         width: 100%;
         min-height: 48px;
+      }
+
+      .dashboard-refresh {
+        width: auto;
       }
 
       .section-heading {
@@ -1087,6 +1476,24 @@ function pageHtml() {
         letter-spacing: 0;
       }
 
+      .dashboard-workspace {
+        padding-top: 2px;
+      }
+
+      .dashboard-header {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .dashboard-refresh {
+        width: 100%;
+      }
+
+      .dashboard-workspace .quick-grid {
+        grid-template-columns: 1fr;
+      }
+
       .brand {
         font-size: 16px;
       }
@@ -1098,57 +1505,2665 @@ function pageHtml() {
         padding-right: 14px;
       }
     }
+
+    /* BuddyPilot 2026 interface */
+    :root {
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f7f6f2;
+      color: #2b2926;
+      --ink: #2b2926;
+      --muted: #716d66;
+      --line: #dedbd4;
+      --panel: #ffffff;
+      --cream: #f7f6f2;
+      --red: #d97757;
+      --red-dark: #b95f43;
+      --blue: #557f91;
+      --blue-soft: #edf3f5;
+      --yellow: #c79843;
+      --yellow-soft: #f8f1df;
+      --green: #4f8068;
+      --green-soft: #edf5f0;
+      --purple: #75658c;
+      --purple-soft: #f2eff5;
+      --surface-muted: #f1f0ec;
+      --surface-hover: #f8f7f4;
+      --accent-soft: #f6eae5;
+      --danger: #b64f4f;
+      --danger-soft: #fbefef;
+      --shadow-sm: 0 1px 2px rgba(43, 41, 38, 0.05), 0 4px 14px rgba(43, 41, 38, 0.035);
+    }
+
+    html {
+      min-width: 320px;
+      background: var(--cream);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--cream);
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    ::selection {
+      background: #ead1c7;
+      color: var(--ink);
+    }
+
+    main {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto 48px;
+      padding-top: 14px;
+    }
+
+    .icon {
+      display: inline-block;
+      width: 17px;
+      height: 17px;
+      flex: 0 0 auto;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 10px;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      min-height: 62px;
+      margin-bottom: 34px;
+      padding: 9px 10px;
+      border: 1px solid rgba(209, 205, 197, 0.92);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 5px 24px rgba(43, 41, 38, 0.07);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      gap: 9px;
+      padding-right: 5px;
+      color: var(--ink);
+      font-size: 17px;
+      font-weight: 720;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .brand img {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      box-shadow: none;
+    }
+
+    .tabs,
+    .subtabs {
+      display: flex;
+      gap: 4px;
+      margin: 0;
+    }
+
+    .topbar-tabs {
+      flex: 1 1 auto;
+      flex-wrap: nowrap;
+      min-width: 0;
+      padding: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .topbar-tabs::-webkit-scrollbar,
+    .subtabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-button,
+    .subtab-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      flex: 0 0 auto;
+      min-height: 38px;
+      margin: 0;
+      padding: 8px 12px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: #65615b;
+      font-size: 14px;
+      font-weight: 650;
+      box-shadow: none;
+      white-space: nowrap;
+    }
+
+    .tab-button:hover,
+    .subtab-button:hover {
+      background: var(--surface-muted);
+      color: var(--ink);
+    }
+
+    .tab-button.active,
+    .subtab-button.active {
+      border-color: #ebd6cd;
+      background: var(--accent-soft);
+      color: #914f39;
+      box-shadow: none;
+    }
+
+    .topbar-menu {
+      flex: 0 0 auto;
+      margin-left: 0;
+    }
+
+    .topbar-menu summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 38px;
+      margin: 0;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 650;
+      box-shadow: none;
+    }
+
+    .topbar-menu summary::after {
+      margin-left: 1px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .topbar-menu-list {
+      top: calc(100% + 8px);
+      min-width: 210px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 14px 38px rgba(43, 41, 38, 0.14);
+    }
+
+    .topbar-menu-list button {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 38px;
+      margin: 0;
+      padding: 9px 10px;
+      border-radius: 5px;
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .topbar-menu-list button:hover,
+    .topbar-menu-list button:focus-visible {
+      background: var(--surface-muted);
+    }
+
+    .topbar-menu-list button.logout-option {
+      color: var(--danger);
+    }
+
+    .tab-panel > .card,
+    .tab-panel > .app-panel {
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .tab-panel {
+      max-width: 100%;
+    }
+
+    .hero,
+    .tab-panel > .card > .section-heading:first-child {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0 0 7px;
+      font-size: 34px;
+      line-height: 1.12;
+      font-weight: 700;
+    }
+
+    h2 {
+      margin: 0 0 7px;
+      font-size: 21px;
+      line-height: 1.25;
+      font-weight: 680;
+    }
+
+    h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      font-weight: 680;
+    }
+
+    p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .subtabs {
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 0 22px;
+      padding: 4px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-muted);
+      scrollbar-width: none;
+    }
+
+    .subtab-button {
+      min-height: 34px;
+      padding: 7px 11px;
+      font-size: 13px;
+    }
+
+    .subtab-button.active {
+      border-color: var(--line);
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(43, 41, 38, 0.07);
+    }
+
+    label {
+      margin: 0 0 7px;
+      color: #4f4b45;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid #d5d1ca;
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      box-shadow: 0 1px 1px rgba(43, 41, 38, 0.02);
+      outline: 0;
+    }
+
+    input,
+    select {
+      min-height: 42px;
+    }
+
+    textarea {
+      min-height: 104px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    input:hover,
+    select:hover,
+    textarea:hover {
+      border-color: #bdb8b0;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #b96549;
+      box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.14);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #9a968f;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      min-height: 0;
+      margin: 0;
+      accent-color: var(--red);
+    }
+
+    input[type="file"] {
+      padding: 5px;
+      color: var(--muted);
+    }
+
+    input[type="file"]::file-selector-button {
+      min-height: 32px;
+      margin-right: 10px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--surface-muted);
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .check-row {
+      min-height: 42px;
+      gap: 9px;
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    button,
+    .link-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 40px;
+      margin: 0;
+      padding: 9px 14px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: var(--red);
+      color: #fff;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 680;
+      line-height: 1.2;
+      text-decoration: none;
+      box-shadow: none;
+      cursor: pointer;
+      transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease;
+    }
+
+    button:hover,
+    .link-button:hover {
+      background: var(--red-dark);
+    }
+
+    button:not(:disabled):active {
+      transform: none;
+    }
+
+    button:focus-visible,
+    .link-button:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid rgba(217, 119, 87, 0.24);
+      outline-offset: 2px;
+    }
+
+    button.secondary,
+    .link-button {
+      border-color: var(--line);
+      background: #fff;
+      color: var(--ink);
+      box-shadow: none;
+    }
+
+    button.secondary:hover,
+    .link-button:hover {
+      border-color: #c8c3bb;
+      background: var(--surface-hover);
+    }
+
+    button.approve {
+      background: var(--green);
+      box-shadow: none;
+    }
+
+    button.approve:hover {
+      background: #3f6d58;
+    }
+
+    button.regenerate {
+      background: #557f91;
+      box-shadow: none;
+    }
+
+    button.regenerate:hover {
+      background: #456e80;
+    }
+
+    button.danger,
+    .action-menu-list button.danger {
+      border-color: #efd0d0;
+      background: var(--danger-soft);
+      color: var(--danger);
+      box-shadow: none;
+    }
+
+    button:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+
+    button.button-success {
+      animation: none;
+      background: var(--green) !important;
+      box-shadow: none;
+    }
+
+    .actions,
+    .client-form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .actions button,
+    .client-form-actions button {
+      width: auto;
+      margin: 0;
+    }
+
+    .client-form,
+    #postForm,
+    .saved-viral-panel {
+      margin-top: 0;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .client-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .client-grid > div {
+      min-width: 0;
+    }
+
+    .client-grid .full {
+      grid-column: 1 / -1;
+    }
+
+    .client-grid .full > h3,
+    .client-grid > .full h3 {
+      margin-top: 5px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .client-form textarea {
+      min-height: 94px;
+    }
+
+    #postForm {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 18px;
+    }
+
+    #postForm > label,
+    #postForm > input,
+    #postForm > textarea,
+    #postForm > button {
+      min-width: 0;
+    }
+
+    #postForm > label {
+      align-self: end;
+      margin-top: 8px;
+    }
+
+    #postForm > textarea,
+    #postForm > button,
+    #postForm > label[for="caption_note"],
+    #postForm > label[for="custom_caption"],
+    #postForm > label[for="first_comment"] {
+      grid-column: 1 / -1;
+    }
+
+    #postForm > button {
+      justify-self: start;
+      margin-top: 10px;
+    }
+
+    .preview {
+      margin-top: 22px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .preview.show {
+      display: block;
+    }
+
+    .preview-box {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface-muted);
+    }
+
+    .result {
+      margin-top: 14px;
+      padding: 12px 13px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .result.ok {
+      border: 1px solid #c7dfd1;
+      background: var(--green-soft);
+      color: #315d49;
+    }
+
+    .result.err {
+      border: 1px solid #ecc9c9;
+      background: var(--danger-soft);
+      color: #8f3f3f;
+    }
+
+    .hook-image-preview {
+      gap: 11px;
+      margin-top: 10px;
+    }
+
+    .hook-image-preview img {
+      width: 72px;
+      height: 72px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+    }
+
+    .postpilot-gallery {
+      grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .postpilot-gallery-item {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+    }
+
+    .postpilot-gallery-item button {
+      width: 28px;
+      min-width: 28px;
+      min-height: 28px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--danger);
+      box-shadow: 0 2px 7px rgba(43, 41, 38, 0.12);
+    }
+
+    .viral-post-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .viral-post-card {
+      min-width: 0;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: none;
+    }
+
+    .viral-post-card.favorite {
+      border-color: #d7b977;
+      background: #fffcf4;
+    }
+
+    .viral-post-text {
+      margin: 0 0 12px;
+      color: var(--ink);
+      font-weight: 500;
+      line-height: 1.58;
+    }
+
+    .viral-meta {
+      gap: 6px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .viral-meta span {
+      padding: 4px 7px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--surface-muted);
+    }
+
+    .saved-viral-panel {
+      margin-top: 22px;
+    }
+
+    .viral-toolbar {
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .tool-card {
+      margin-top: 18px;
+    }
+
+    .panel-header {
+      padding: 0;
+    }
+
+    .panel-toggle {
+      width: 34px;
+      height: 34px;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      box-shadow: none;
+    }
+
+    .client-list,
+    .bank-list,
+    .activity-feed,
+    .invoice-list {
+      margin-top: 16px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .client-row,
+    .bank-row,
+    .invoice-row {
+      border-top: 1px solid #ebe8e2;
+    }
+
+    .client-row {
+      gap: 14px;
+      padding: 13px 14px;
+    }
+
+    .client-row.header,
+    .invoice-row.header {
+      background: var(--surface-muted);
+      color: #55514b;
+      font-size: 12px;
+      font-weight: 680;
+      text-transform: none;
+    }
+
+    .bank-row {
+      padding: 13px 14px;
+    }
+
+    .default-pill,
+    .qr-pill {
+      margin-top: 6px;
+      padding: 3px 7px;
+      border: 1px solid #d0e2d6;
+      border-radius: 5px;
+      background: var(--green-soft);
+      color: #3c6753;
+      font-size: 11px;
+      font-weight: 680;
+    }
+
+    .qr-pill {
+      border-color: #ded6e7;
+      background: var(--purple-soft);
+      color: #665477;
+    }
+
+    .asset-preview {
+      gap: 12px;
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-muted);
+    }
+
+    .asset-preview img {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+
+    .action-menu summary {
+      min-height: 44px;
+      padding: 8px 9px 8px 16px;
+      border: 1px solid #171717;
+      border-radius: 999px;
+      background: #171717;
+      color: #ffffff;
+      box-shadow: 0 5px 14px rgba(17, 17, 17, .14);
+    }
+
+    .action-menu-list {
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 12px 30px rgba(43, 41, 38, 0.13);
+    }
+
+    .action-menu-list button {
+      min-height: 36px;
+      padding: 8px 10px;
+      border-radius: 5px;
+      font-size: 13px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 10px;
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .toolbar label {
+      margin-bottom: 7px;
+    }
+
+    .invoice-list {
+      overflow-x: auto;
+    }
+
+    .invoice-row {
+      padding: 11px 12px;
+    }
+
+    .money-input {
+      border-radius: 5px;
+      padding: 8px 9px;
+    }
+
+    .report-breakdown {
+      margin-top: 18px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .report-breakdown table {
+      background: #fff;
+    }
+
+    .report-breakdown th,
+    .report-breakdown td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #ebe8e2;
+    }
+
+    .empty-state {
+      padding: 20px;
+      background: #fff;
+      color: var(--muted);
+    }
+
+    .dashboard-workspace {
+      padding: 0;
+    }
+
+    .dashboard-header {
+      margin-bottom: 24px;
+    }
+
+    .dashboard-header h1 {
+      font-size: 34px;
+    }
+
+    .dashboard-refresh {
+      min-height: 40px;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      box-shadow: none;
+    }
+
+    .dashboard-refresh:hover {
+      background: var(--surface-hover);
+    }
+
+    .dashboard-metrics {
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .dashboard-metric {
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .dashboard-metric::before {
+      width: 3px;
+    }
+
+    .dashboard-metric-value {
+      margin: 8px 0 5px;
+      font-size: 27px;
+    }
+
+    .dashboard-layout {
+      gap: 24px;
+    }
+
+    .dashboard-section-header h2 {
+      font-size: 19px;
+    }
+
+    .quick-grid {
+      gap: 9px;
+    }
+
+    .quick-card {
+      min-height: 68px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .quick-card:hover,
+    .quick-card:focus-visible {
+      border-color: #d7bdb3;
+      background: #fffaf8;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .quick-card-icon,
+    .quick-card-arrow {
+      display: grid;
+      place-items: center;
+      flex: 0 0 32px;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      color: #9a543d;
+    }
+
+    .quick-card-arrow {
+      flex-basis: 28px;
+      width: 28px;
+      height: 28px;
+      background: var(--surface-muted);
+      color: var(--muted);
+    }
+
+    .quick-card-copy {
+      flex: 1 1 auto;
+    }
+
+    .dashboard-activity .activity-feed {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .dashboard-activity .activity-item {
+      border-top: 1px solid #ebe8e2;
+    }
+
+    .dashboard-activity .activity-item::before {
+      background: var(--red);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    @media (max-width: 1100px) {
+      main {
+        width: min(100% - 24px, 960px);
+      }
+
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard-workspace .quick-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 840px) {
+      main {
+        width: min(100% - 20px, 760px);
+        margin-bottom: 28px;
+        padding-top: 8px;
+      }
+
+      .topbar {
+        top: 6px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 26px;
+        padding: 8px;
+      }
+
+      .topbar .topbar-tabs {
+        order: 3;
+        display: flex;
+        flex: 1 0 100%;
+        flex-wrap: nowrap;
+        width: 100%;
+        padding-bottom: 2px;
+        overflow-x: auto;
+      }
+
+      .topbar .topbar-tabs .tab-button {
+        width: auto;
+        min-height: 36px;
+      }
+
+      .topbar-menu {
+        width: auto;
+        margin-left: auto;
+      }
+
+      .topbar-menu summary {
+        width: auto;
+      }
+
+      .tabs,
+      .subtabs {
+        display: flex;
+      }
+
+      .subtabs {
+        flex-wrap: nowrap;
+      }
+
+      .tab-button,
+      .subtab-button,
+      button {
+        width: auto;
+        min-height: 38px;
+      }
+
+      .client-grid,
+      #postForm {
+        grid-template-columns: 1fr;
+      }
+
+      #postForm > label,
+      #postForm > input,
+      #postForm > textarea,
+      #postForm > button {
+        grid-column: 1;
+      }
+
+      .client-form,
+      #postForm,
+      .saved-viral-panel,
+      .preview {
+        padding: 18px;
+      }
+
+      .section-heading {
+        align-items: flex-start;
+        flex-direction: row;
+      }
+
+      .client-list,
+      .invoice-list {
+        overflow-x: auto;
+      }
+
+      .client-row {
+        grid-template-columns: minmax(140px, 1fr) minmax(165px, 1fr) minmax(190px, 1.15fr) minmax(105px, .65fr) minmax(180px, 1fr) minmax(175px, .72fr);
+        min-width: 1050px;
+      }
+
+      .client-row.header {
+        display: grid;
+      }
+
+      .client-row:not(.header) > div::before {
+        display: none;
+      }
+
+      .invoice-row {
+        grid-template-columns: minmax(92px, .62fr) minmax(145px, 1.15fr) minmax(128px, 1fr) minmax(105px, .75fr) minmax(95px, .65fr) minmax(100px, .75fr) minmax(110px, auto);
+        min-width: 900px;
+      }
+
+      .invoice-row.header {
+        display: grid;
+      }
+
+      .receipt-list .invoice-row {
+        grid-template-columns: minmax(110px, .7fr) minmax(145px, 1.2fr) minmax(150px, 1fr) minmax(110px, .8fr) minmax(130px, auto);
+        min-width: 720px;
+      }
+
+      .toolbar {
+        display: flex;
+      }
+
+      .action-menu {
+        width: auto;
+      }
+
+      .action-menu summary,
+      .action-menu-list button {
+        width: auto;
+        text-align: left;
+      }
+
+      .actions button,
+      .client-form-actions button {
+        flex: 1 1 160px;
+        width: auto;
+      }
+    }
+
+    @media (max-width: 560px) {
+      main {
+        width: calc(100% - 16px);
+      }
+
+      .brand span {
+        font-size: 15px;
+      }
+
+      h1,
+      .dashboard-header h1 {
+        font-size: 29px;
+      }
+
+      .hero,
+      .tab-panel > .card > .section-heading:first-child,
+      .dashboard-header {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .dashboard-refresh {
+        width: 100%;
+      }
+
+      .dashboard-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .dashboard-metric {
+        padding: 14px;
+      }
+
+      .dashboard-metric-value {
+        font-size: 22px;
+      }
+
+      .dashboard-workspace .quick-grid,
+      .viral-post-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .client-form,
+      #postForm,
+      .saved-viral-panel,
+      .preview {
+        padding: 15px;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr;
+        padding: 14px;
+      }
+
+      .toolbar > *,
+      .toolbar button,
+      #postForm > button {
+        width: 100%;
+      }
+
+      .section-heading {
+        align-items: stretch;
+        flex-direction: column;
+      }
+    }
+
+    /* YouTube-inspired application shell */
+    :root {
+      font-family: Arial, Helvetica, ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: #f9f9f9;
+      color: #0f0f0f;
+      --ink: #0f0f0f;
+      --muted: #606060;
+      --line: #e5e5e5;
+      --panel: #ffffff;
+      --cream: #f9f9f9;
+      --red: #ff0033;
+      --red-dark: #d9002b;
+      --blue: #065fd4;
+      --blue-soft: #def1ff;
+      --yellow: #a76800;
+      --yellow-soft: #fff4d5;
+      --green: #16845b;
+      --green-soft: #e8f5ef;
+      --purple: #76529b;
+      --purple-soft: #f4eff9;
+      --surface-muted: #f2f2f2;
+      --surface-hover: #e5e5e5;
+      --accent-soft: #ffe5ea;
+      --danger: #c5221f;
+      --danger-soft: #fce8e6;
+      --shadow-sm: none;
+    }
+
+    html,
+    body {
+      background: var(--cream);
+      color: var(--ink);
+      overflow-x: hidden;
+    }
+
+    body {
+      font-size: 14px;
+    }
+
+    ::selection {
+      background: #ffd5dd;
+      color: var(--ink);
+    }
+
+    main {
+      width: 100%;
+      max-width: none;
+      margin: 0 0 56px;
+      padding: 0;
+    }
+
+    .topbar {
+      top: 0;
+      gap: 20px;
+      min-height: 64px;
+      margin: 0 0 28px;
+      padding: 10px max(20px, calc((100vw - 1400px) / 2));
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: none;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      gap: 10px;
+      padding-right: 8px;
+      font-size: 19px;
+      font-weight: 700;
+    }
+
+    .brand img {
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 8px;
+    }
+
+    .topbar-tabs {
+      gap: 2px;
+    }
+
+    .topbar-tabs .tab-button {
+      min-height: 42px;
+      padding: 8px 13px;
+      border: 0;
+      border-radius: 8px;
+      color: #3f3f3f;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .topbar-tabs .tab-button:hover {
+      background: #f2f2f2;
+      color: var(--ink);
+    }
+
+    .topbar-tabs .tab-button.active {
+      border: 0;
+      background: #f2f2f2;
+      color: var(--red);
+    }
+
+    .topbar-tabs .tab-button .icon {
+      width: 19px;
+      height: 19px;
+      stroke-width: 2;
+    }
+
+    .topbar-menu summary {
+      min-height: 40px;
+      padding: 8px 12px;
+      border-color: var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .topbar-menu summary:hover {
+      background: #f2f2f2;
+    }
+
+    .topbar-menu-list {
+      border-color: var(--line);
+      box-shadow: 0 8px 24px rgba(15, 15, 15, 0.12);
+    }
+
+    .tab-panel {
+      width: min(1400px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    h1,
+    .dashboard-header h1 {
+      font-size: clamp(28px, 3vw, 38px);
+      font-weight: 700;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    h3 {
+      font-weight: 700;
+    }
+
+    p,
+    .note {
+      color: var(--muted);
+    }
+
+    .subtabs {
+      gap: 3px;
+      margin-bottom: 24px;
+      padding: 4px;
+      border: 0;
+      border-radius: 8px;
+      background: #ededed;
+    }
+
+    .subtab-button {
+      min-height: 36px;
+      border: 0;
+      border-radius: 6px;
+      color: #3f3f3f;
+      font-weight: 600;
+    }
+
+    .subtab-button.active {
+      border: 0;
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 1px 2px rgba(15, 15, 15, 0.08);
+    }
+
+    label {
+      color: #3f3f3f;
+      font-weight: 600;
+    }
+
+    input,
+    select,
+    textarea {
+      border-color: #d3d3d3;
+      border-radius: 8px;
+      box-shadow: none;
+    }
+
+    input:hover,
+    select:hover,
+    textarea:hover {
+      border-color: #a9a9a9;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 1px var(--blue);
+    }
+
+    input[type="file"]::file-selector-button {
+      border: 0;
+      border-radius: 6px;
+      background: #f2f2f2;
+    }
+
+    button,
+    .link-button {
+      min-height: 40px;
+      border-radius: 8px;
+      background: var(--red);
+      font-weight: 700;
+    }
+
+    button:hover,
+    .link-button:hover {
+      background: var(--red-dark);
+    }
+
+    button:focus-visible,
+    .link-button:focus-visible,
+    summary:focus-visible {
+      outline-color: rgba(6, 95, 212, 0.32);
+    }
+
+    button.secondary,
+    .link-button {
+      border-color: transparent;
+      background: #f2f2f2;
+      color: var(--ink);
+    }
+
+    button.secondary:hover,
+    .link-button:hover {
+      border-color: transparent;
+      background: #e5e5e5;
+    }
+
+    button.regenerate {
+      background: var(--blue);
+    }
+
+    button.regenerate:hover {
+      background: #004ea8;
+    }
+
+    .client-form,
+    #postForm,
+    .saved-viral-panel,
+    .preview,
+    .toolbar,
+    .client-list,
+    .bank-list,
+    .activity-feed,
+    .invoice-list,
+    .report-breakdown,
+    .viral-post-card,
+    .dashboard-metric,
+    .quick-card,
+    .dashboard-activity .activity-feed {
+      border-color: var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: none;
+    }
+
+    .client-form,
+    #postForm,
+    .saved-viral-panel,
+    .preview {
+      padding: 20px;
+    }
+
+    .preview-box,
+    .client-row.header,
+    .invoice-row.header,
+    .viral-meta span {
+      background: #f7f7f7;
+    }
+
+    .dashboard-metrics {
+      gap: 10px;
+    }
+
+    .dashboard-metric {
+      padding: 16px;
+    }
+
+    .dashboard-metric::before {
+      background: var(--red);
+    }
+
+    .dashboard-metric-value {
+      color: var(--ink);
+    }
+
+    .quick-card {
+      min-height: 72px;
+    }
+
+    .quick-card:hover,
+    .quick-card:focus-visible {
+      border-color: #d3d3d3;
+      background: #f7f7f7;
+    }
+
+    .quick-card-icon {
+      background: #ffe5ea;
+      color: var(--red);
+    }
+
+    .quick-card-arrow {
+      background: #f2f2f2;
+      color: #606060;
+    }
+
+    .dashboard-activity .activity-item::before {
+      background: var(--red);
+      box-shadow: 0 0 0 3px #ffe5ea;
+    }
+
+    @media (max-width: 840px) {
+      main {
+        width: 100%;
+        max-width: none;
+        margin-bottom: 40px;
+        padding: 0;
+      }
+
+      .topbar {
+        top: 0;
+        flex-wrap: nowrap;
+        gap: 10px;
+        margin-bottom: 22px;
+        padding: 8px 12px;
+        border-radius: 0;
+      }
+
+      .topbar .topbar-tabs {
+        order: initial;
+        flex: 1 1 auto;
+        width: auto;
+        padding: 0;
+      }
+
+      .tab-panel {
+        width: calc(100% - 24px);
+      }
+    }
+
+    @media (max-width: 600px) {
+      html {
+        scroll-padding-top: calc(64px + env(safe-area-inset-top));
+      }
+
+      body {
+        padding-bottom: calc(70px + env(safe-area-inset-bottom));
+        font-size: 14px;
+      }
+
+      main {
+        margin-bottom: 0;
+      }
+
+      .topbar {
+        min-height: calc(58px + env(safe-area-inset-top));
+        padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+        background: #fff;
+        backdrop-filter: none;
+      }
+
+      .brand {
+        gap: 8px;
+        padding: 0;
+        font-size: 17px;
+      }
+
+      .brand img {
+        width: 34px;
+        height: 34px;
+      }
+
+      .topbar-menu {
+        margin-left: auto;
+      }
+
+      .topbar-menu summary {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+        min-height: 44px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        box-shadow: none;
+        line-height: 0;
+      }
+
+      .topbar-menu summary:hover,
+      .topbar-menu summary:focus-visible,
+      .topbar-menu summary:active,
+      .topbar-menu[open] summary {
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .topbar-menu summary .icon {
+        display: block;
+        width: 24px;
+        height: 24px;
+        margin: 0;
+      }
+
+      .topbar-menu summary span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+
+      .topbar-menu summary::after {
+        display: none;
+      }
+
+      .topbar-menu-list {
+        position: fixed;
+        top: calc(56px + env(safe-area-inset-top));
+        right: 10px;
+        left: auto;
+        width: min(260px, calc(100% - 20px));
+      }
+
+      .topbar .topbar-tabs {
+        position: fixed;
+        inset: auto 0 0;
+        z-index: 80;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0;
+        width: 100%;
+        min-width: 0;
+        height: calc(64px + env(safe-area-inset-bottom));
+        padding: 4px 2px env(safe-area-inset-bottom);
+        overflow: visible;
+        border-top: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 -1px 8px rgba(15, 15, 15, 0.06);
+        backdrop-filter: blur(14px);
+      }
+
+      .topbar .topbar-tabs .tab-button {
+        flex-direction: column;
+        gap: 2px;
+        width: 100%;
+        min-width: 0;
+        min-height: 56px;
+        padding: 5px 1px 4px;
+        border-radius: 0;
+        background: transparent;
+        color: #606060;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.05;
+      }
+
+      .topbar .topbar-tabs .tab-button:hover {
+        background: transparent;
+      }
+
+      .topbar .topbar-tabs .tab-button.active {
+        background: transparent;
+        color: var(--red);
+      }
+
+      .topbar .topbar-tabs .tab-button .icon {
+        width: 22px;
+        height: 22px;
+      }
+
+      .topbar .topbar-tabs .tab-button span {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tab-panel {
+        width: calc(100% - 24px);
+      }
+
+      h1,
+      .dashboard-header h1 {
+        font-size: 28px;
+      }
+
+      h2 {
+        font-size: 19px;
+      }
+
+      input,
+      select,
+      textarea {
+        min-height: 44px;
+        font-size: 16px;
+      }
+
+      button,
+      .link-button,
+      .tab-button,
+      .subtab-button {
+        min-height: 44px;
+      }
+
+      .subtabs {
+        width: 100%;
+        margin-bottom: 18px;
+      }
+
+      .subtab-button {
+        flex: 1 0 auto;
+      }
+
+      .postpilot-subtabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        overflow: visible;
+      }
+
+      .postpilot-subtabs .subtab-button {
+        width: 100%;
+        min-width: 0;
+        min-height: 54px;
+        padding: 6px 4px;
+        font-size: 11px;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+        white-space: normal;
+      }
+
+      .client-form,
+      #postForm,
+      .saved-viral-panel,
+      .preview,
+      .toolbar {
+        padding: 14px;
+      }
+
+      .toolbar {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+      }
+
+      .toolbar > div {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      #invoicePeriod,
+      #receiptPeriod {
+        display: block;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        inline-size: 100% !important;
+        min-inline-size: 0 !important;
+        max-inline-size: 100% !important;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      .dashboard-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .dashboard-workspace,
+      .dashboard-layout,
+      .dashboard-actions,
+      .dashboard-activity,
+      .quick-grid,
+      .dashboard-activity .activity-feed {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .dashboard-workspace,
+      .dashboard-layout,
+      .dashboard-actions,
+      .dashboard-activity {
+        overflow: hidden;
+      }
+
+      .dashboard-metric {
+        min-width: 0;
+        padding: 13px;
+      }
+
+      .dashboard-metric-label,
+      .dashboard-metric-note {
+        overflow-wrap: anywhere;
+      }
+
+      .dashboard-workspace .quick-grid,
+      .viral-post-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .quick-card {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        min-height: 64px;
+        overflow: hidden;
+      }
+
+      .quick-card-copy,
+      .quick-card-copy strong,
+      .quick-card-copy small,
+      .dashboard-activity .activity-item,
+      .dashboard-activity .activity-item strong,
+      .dashboard-activity .activity-item span {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .quick-card-copy strong,
+      .quick-card-copy small {
+        display: block;
+      }
+
+      .dashboard-activity .activity-feed {
+        overflow: hidden;
+      }
+
+      .actions,
+      .client-form-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .actions button,
+      .client-form-actions button,
+      #postForm > button {
+        width: 100%;
+      }
+
+      .postpilot-gallery {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .viral-toolbar {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .viral-toolbar > *,
+      .viral-toolbar button {
+        width: 100%;
+      }
+    }
+
+    /* Native-app motion */
+    @keyframes bp-view-in {
+      from {
+        opacity: 0;
+        transform: translate3d(0, 8px, 0);
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+    }
+
+    @keyframes bp-menu-in {
+      from {
+        opacity: 0;
+        transform: translate3d(0, -6px, 0) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+    }
+
+    @keyframes bp-tab-pop {
+      0% { transform: scale(0.88); }
+      65% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    body {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .tab-panel.active,
+    .subtab-panel.active {
+      animation: bp-view-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      transform-origin: top center;
+    }
+
+    .topbar-menu[open] .topbar-menu-list,
+    .action-menu[open] .action-menu-list {
+      animation: bp-menu-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      transform-origin: top right;
+    }
+
+    button,
+    .link-button,
+    summary,
+    input,
+    select,
+    textarea,
+    .quick-card,
+    .dashboard-metric,
+    .viral-post-card {
+      transition:
+        color 180ms ease,
+        background-color 180ms ease,
+        border-color 180ms ease,
+        box-shadow 180ms ease,
+        opacity 180ms ease,
+        transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    button,
+    .link-button,
+    summary,
+    .quick-card,
+    .tab-button,
+    .subtab-button {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    button:not(:disabled):active,
+    .link-button:active,
+    summary:active,
+    .quick-card:active {
+      transform: scale(0.975);
+      transition-duration: 80ms;
+    }
+
+    .tab-button.active .icon {
+      animation: bp-tab-pop 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .result.ok,
+    .result.err,
+    .preview.show {
+      animation: bp-view-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+
+    .remote-automation-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      margin: 18px 0;
+      padding: 14px 16px;
+      border: 1px solid var(--border, #e5e5e5);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .remote-automation-heading,
+    .remote-automation-status,
+    .remote-automation-job {
+      margin: 0;
+    }
+
+    .remote-automation-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+    }
+
+    .remote-automation-status,
+    .remote-automation-job {
+      margin-top: 5px;
+      color: #606060;
+      font-size: 13px;
+    }
+
+    .remote-status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #a3a3a3;
+      box-shadow: 0 0 0 3px #f1f1f1;
+    }
+
+    .remote-status-dot.online { background: #16a34a; box-shadow: 0 0 0 3px #dcfce7; }
+    .remote-status-dot.busy { background: #d97706; box-shadow: 0 0 0 3px #fef3c7; }
+    .remote-status-dot.offline { background: #737373; box-shadow: 0 0 0 3px #e5e5e5; }
+
+    .remote-automation-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .remote-pair-code {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 9px;
+      border: 1px dashed #a3a3a3;
+      border-radius: 6px;
+      font: 800 18px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: 2px;
+      color: #171717;
+      background: #fafafa;
+    }
+
+    .remote-automation-panel button {
+      min-height: 38px;
+      padding: 8px 12px;
+    }
+
+    .topbar-tabs,
+    .subtabs,
+    .client-list,
+    .invoice-list,
+    .report-breakdown {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-inline: contain;
+    }
+
+    @media (max-width: 600px) {
+      .remote-automation-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .remote-automation-actions {
+        justify-content: stretch;
+      }
+
+      .remote-automation-actions button {
+        flex: 1 1 auto;
+      }
+
+      .topbar .topbar-tabs {
+        transform: translateZ(0);
+        will-change: transform;
+      }
+
+      .topbar .topbar-tabs .tab-button.active .icon {
+        animation-duration: 300ms;
+      }
+
+      #client-list-panel .actions {
+        margin-bottom: 12px;
+      }
+
+      #client-list-panel .actions > button {
+        width: 100%;
+      }
+
+      .client-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 0;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .client-row.header {
+        display: none;
+      }
+
+      .client-row:not(.header) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px 14px;
+        min-width: 0;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .client-row:not(.header) > div::before {
+        display: none;
+      }
+
+      .client-card-brand {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: 10px;
+        align-items: start;
+      }
+
+      .client-card-brand .invoice-client {
+        font-size: 16px;
+        line-height: 1.25;
+      }
+
+      .client-card-brand > .invoice-muted {
+        grid-column: 1;
+        margin-top: 2px;
+        font-size: 12px;
+      }
+
+      .client-card-brand > .default-pill,
+      .client-card-brand > .qr-pill {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: center;
+        margin: 0;
+      }
+
+      .client-card-identity {
+        grid-column: 1 / -1;
+        padding-bottom: 9px;
+        border-bottom: 1px solid #efede8;
+        font-size: 14px;
+        font-weight: 650;
+      }
+
+      .client-card-identity .invoice-muted,
+      .client-card-contact .invoice-muted {
+        margin-top: 2px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .client-card-contact,
+      .client-card-price,
+      .client-card-telegram {
+        font-size: 13px;
+      }
+
+      .client-card-contact::before,
+      .client-card-price::before,
+      .client-card-telegram::before {
+        content: attr(data-label) !important;
+        display: block !important;
+        margin-bottom: 3px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 750;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+
+      .client-card-contact {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .client-card-price {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .client-card-telegram {
+        grid-column: 1 / -1;
+        padding-top: 9px;
+        border-top: 1px solid #efede8;
+      }
+
+      .client-card-telegram .invoice-muted {
+        margin-top: 3px;
+        font-size: 11px;
+      }
+
+      .client-actions {
+        grid-column: 1 / -1;
+        justify-content: stretch;
+      }
+
+      .client-actions .action-menu {
+        width: 100%;
+      }
+
+      .client-actions .action-menu summary {
+        width: fit-content;
+      }
+    }
+
+    .menu-tiktok-card {
+      display: grid;
+      gap: 12px;
+      margin: 8px;
+      padding: 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fafafa;
+      text-align: left;
+      scroll-margin-top: 18px;
+    }
+
+    .menu-tiktok-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 10px;
+      color: #111;
+    }
+
+    .menu-tiktok-heading > .icon {
+      flex: 0 0 20px;
+      width: 20px;
+      height: 20px;
+      margin-top: 1px;
+    }
+
+    .menu-tiktok-heading > div {
+      display: grid;
+      min-width: 0;
+      gap: 3px;
+      text-align: left;
+    }
+
+    .menu-tiktok-heading strong {
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .menu-tiktok-heading span {
+      color: #666;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    .menu-tiktok-warning {
+      padding: 9px 10px;
+      border: 1px solid #f5c2c0;
+      border-radius: 6px;
+      background: #fff1f0;
+      color: #a61b1b;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .menu-tiktok-warning[hidden] {
+      display: none;
+    }
+
+    .menu-tiktok-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .menu-tiktok-actions a,
+    .menu-tiktok-actions button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: auto;
+      min-height: 38px;
+      margin: 0;
+      padding: 9px 12px;
+      border: 1px solid #111;
+      border-radius: 7px;
+      background: #111;
+      color: #fff;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 1;
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .menu-tiktok-actions button {
+      border-color: #e5e7eb;
+      background: #fff;
+      color: #b42318;
+    }
+
+    .menu-tiktok-actions .push-notification-button {
+      border-color: #dbeafe;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .push-notification-note {
+      color: #666;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .topbar-menu.tiktok-expiring summary {
+      position: relative;
+    }
+
+    .topbar-menu.tiktok-expiring summary::before {
+      content: "";
+      position: absolute;
+      top: 9px;
+      right: 9px;
+      width: 8px;
+      height: 8px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      background: #dc2626;
+    }
+
+    @media (max-width: 620px) {
+      .menu-tiktok-card {
+        margin: 6px;
+        padding: 14px;
+      }
+
+      .menu-tiktok-actions a,
+      .menu-tiktok-actions button {
+        min-height: 40px;
+        padding-inline: 13px;
+      }
+    }
+
+    .mobile-context-title,
+    .nav-liquid-indicator { display: none; }
+
+    .today-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+    .today-header h1 { margin: 4px 0 5px; font-size: clamp(30px, 4vw, 46px); }
+    .today-header p, .today-eyebrow { margin: 0; color: var(--muted); }
+    .today-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .today-progress { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .today-progress > div { display: grid; gap: 3px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+    .today-progress strong { font-size: 24px; line-height: 1; }
+    .today-progress span { color: var(--muted); font-size: 11px; font-weight: 700; }
+
+    .today-next-action, .resume-work {
+      position: relative; display: grid; width: 100%; margin: 0 0 12px; padding: 18px 58px 18px 18px;
+      overflow: hidden; border: 0; border-radius: 18px; background: #171717; color: #fff; text-align: left;
+      box-shadow: 0 10px 24px rgba(17, 17, 17, .16);
+    }
+    .today-next-action[data-tone="danger"] { background: linear-gradient(135deg, #9f1239, #e50914); }
+    .today-next-action[data-tone="warning"] { background: linear-gradient(135deg, #7c2d12, #d97706); }
+    .today-next-action[data-tone="progress"] { background: linear-gradient(135deg, #164e63, #0284c7); }
+    .today-next-kicker, .resume-work small { margin-bottom: 5px; color: rgba(255,255,255,.72); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .today-next-action strong { font-size: 19px; }
+    .today-next-action small { margin-top: 5px; color: rgba(255,255,255,.78); line-height: 1.4; }
+    .today-next-arrow { position: absolute; right: 16px; top: 50%; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.16); transform: translateY(-50%); }
+    .resume-work { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border: 1px solid var(--line); background: #fff; color: var(--ink); box-shadow: none; }
+    .resume-work span { display: grid; gap: 2px; }
+    .resume-work small { margin: 0; color: var(--muted); }
+
+    .today-skeleton { display: grid; gap: 10px; margin-bottom: 20px; }
+    .today-skeleton span { height: 54px; border-radius: 14px; background: linear-gradient(100deg, #eee 30%, #f8f8f8 50%, #eee 70%); background-size: 220% 100%; animation: today-shimmer 1.2s linear infinite; }
+    .operations-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+    .operations-header h1 { margin: 4px 0 5px; font-size: clamp(30px, 4vw, 44px); }
+    .operations-header p { margin: 0; color: var(--muted); }
+    .operations-header-actions { display: flex; align-items: center; gap: 8px; }
+    .operations-header-actions button { width: auto; margin: 0; white-space: nowrap; }
+    .operations-check-all { min-height: 40px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 6px; background: #171717; color: #fff; box-shadow: none; }
+    .operations-overall { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; padding: 15px 16px; border: 1px solid #cfe7d8; border-radius: 8px; background: #f3faf5; }
+    .operations-overall[data-status="attention"] { border-color: #eadbb4; background: #fffaf0; }
+    .operations-overall[data-status="critical"] { border-color: #efc4c4; background: #fff5f5; }
+    .operations-overall-dot { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: #2f855a; box-shadow: 0 0 0 4px rgba(47,133,90,.12); }
+    .operations-overall[data-status="attention"] .operations-overall-dot { background: #b7791f; box-shadow: 0 0 0 4px rgba(183,121,31,.12); }
+    .operations-overall[data-status="critical"] .operations-overall-dot { background: #c53030; box-shadow: 0 0 0 4px rgba(197,48,48,.12); }
+    .operations-overall div { display: grid; gap: 2px; min-width: 0; }
+    .operations-overall strong { font-size: 16px; }
+    .operations-overall small { color: var(--muted); }
+    .operations-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 24px; }
+    .operations-summary > div { display: grid; gap: 3px; min-width: 0; padding: 13px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .operations-summary strong { font-size: 23px; line-height: 1; }
+    .operations-summary span { color: var(--muted); font-size: 11px; font-weight: 700; }
+    .operations-section { margin: 0 0 25px; }
+    .operations-count { display: inline-flex; min-width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 12px; background: var(--danger-soft); color: var(--danger); font-size: 12px; font-weight: 800; }
+    .operations-list { display: grid; gap: 8px; }
+    .operations-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 11px; align-items: center; padding: 13px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .operations-item-status { width: 9px; height: 9px; border-radius: 50%; background: #718096; }
+    .operations-item[data-status="critical"] .operations-item-status,
+    .operations-item[data-status="failed"] .operations-item-status { background: #c53030; }
+    .operations-item[data-status="warning"] .operations-item-status,
+    .operations-item[data-status="queued"] .operations-item-status { background: #b7791f; }
+    .operations-item[data-status="running"] .operations-item-status,
+    .operations-item[data-status="claimed"] .operations-item-status { background: #2b6cb0; }
+    .operations-item-copy { display: grid; gap: 3px; min-width: 0; }
+    .operations-item-copy strong, .operations-item-copy small { overflow-wrap: anywhere; }
+    .operations-item-copy small { color: var(--muted); }
+    .operations-item-action { width: auto; min-height: 36px; margin: 0; padding: 7px 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-muted); color: var(--ink); box-shadow: none; font-size: 12px; }
+    .operations-health-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .health-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .health-status-dot { width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: #718096; }
+    .health-card[data-status="healthy"] .health-status-dot { background: #2f855a; }
+    .health-card[data-status="warning"] .health-status-dot,
+    .health-card[data-status="stale"] .health-status-dot { background: #b7791f; }
+    .health-card[data-status="down"] .health-status-dot { background: #c53030; }
+    .health-card[data-status="setup"] .health-status-dot { background: #a0aec0; }
+    .health-card-copy { display: grid; gap: 3px; min-width: 0; }
+    .health-card-heading { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .health-card-heading strong { font-size: 14px; }
+    .health-badge { padding: 2px 6px; border-radius: 4px; background: var(--surface-muted); color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+    .health-card-copy small { color: var(--muted); overflow-wrap: anywhere; }
+    .health-card-meta { font-size: 10px; }
+    .health-card-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+    .health-card-actions .operations-item-action { min-height: 34px; }
+    .health-check-button { width: 34px; min-width: 34px; min-height: 34px; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--muted); box-shadow: none; }
+    .health-check-button .icon { width: 15px; height: 15px; }
+    .operations-recent { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .operations-recent-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 13px; border-top: 1px solid #ebe8e2; }
+    .operations-recent-row:first-child { border-top: 0; }
+    .operations-recent-row .operations-item-status[data-status="completed"],
+    .operations-recent-row .operations-item-status[data-status="sent"] { background: #2f855a; }
+    .operations-recent-row .operations-item-status[data-status="failed"],
+    .operations-recent-row .operations-item-status[data-status="expired"] { background: #c53030; }
+    .operations-recent-row .operations-item-status[data-status="running"],
+    .operations-recent-row .operations-item-status[data-status="claimed"] { background: #2b6cb0; }
+    .operations-recent-row small { color: var(--muted); }
+    .operations-recent-copy { display: grid; gap: 2px; min-width: 0; }
+    .operations-recent-copy strong, .operations-recent-copy small { overflow-wrap: anywhere; }
+    .operations-empty { padding: 17px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; }
+    .client-list-skeleton { display: grid; gap: 10px; padding: 10px; }
+    .client-list-skeleton span { height: 116px; border-radius: 14px; background: linear-gradient(100deg, #eee 30%, #f8f8f8 50%, #eee 70%); background-size: 220% 100%; animation: today-shimmer 1.2s linear infinite; }
+    @keyframes today-shimmer { to { background-position-x: -220%; } }
+
+    .client-mobile-tools { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .client-search { flex: 1; margin: 0; }
+    .client-search input { margin: 0; }
+    .client-filter-chips { display: flex; gap: 6px; }
+    .client-filter-chips button { min-height: 38px; margin: 0; padding: 8px 11px; border-radius: 999px; background: #f3f3f3; color: var(--muted); }
+    .client-filter-chips button.active { background: #171717; color: #fff; }
+
+    .workflow-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin: 0 0 12px; }
+    .workflow-steps span { padding: 8px 5px; border-radius: 999px; background: #f2f2f2; color: var(--muted); font-size: 10px; font-weight: 750; text-align: center; }
+    .workflow-steps span.active { background: #171717; color: #fff; }
+    .mobile-options { margin: 12px 0; border: 1px solid var(--line); border-radius: 12px; }
+    .mobile-options summary { padding: 12px 14px; color: var(--muted); font-weight: 750; cursor: pointer; }
+    .mobile-options-content { padding: 0 14px 14px; }
+
+    @media (min-width: 601px) {
+      .mobile-options { border: 0; }
+      .mobile-options summary { display: none; }
+      .mobile-options-content { display: block !important; padding: 0; }
+    }
+
+    .app-toast { position: fixed; right: 18px; bottom: 22px; z-index: 140; max-width: min(360px, calc(100% - 28px)); padding: 12px 16px; border-radius: 14px; background: rgba(23,23,23,.94); color: #fff; box-shadow: 0 14px 36px rgba(0,0,0,.24); backdrop-filter: blur(18px); animation: bp-view-in 220ms ease both; }
+
+    @media (max-width: 600px) {
+      body { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+      .brand-name { display: none; }
+      .mobile-context-title { display: block; font-size: 16px; font-weight: 800; }
+
+      .topbar .topbar-tabs {
+        --active-index: 0; inset: auto 10px calc(8px + env(safe-area-inset-bottom)); width: auto; height: 66px; padding: 5px;
+        overflow: hidden; border: 1px solid rgba(255,255,255,.72); border-radius: 27px; background: rgba(245,245,245,.72);
+        box-shadow: 0 12px 34px rgba(15,15,15,.18), inset 0 1px 0 rgba(255,255,255,.8);
+        -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+      }
+      .nav-liquid-indicator { position: absolute; z-index: 0; top: 5px; left: 5px; display: block; width: calc((100% - 10px) / 5); height: 54px; border: 1px solid rgba(255,255,255,.9); border-radius: 22px; background: rgba(255,255,255,.82); box-shadow: 0 4px 16px rgba(0,0,0,.10), inset 0 1px 0 #fff; transform: translate3d(calc((var(--active-index) * 100%) + var(--swipe-offset, 0px)),0,0); transition: transform 420ms cubic-bezier(.22,1.35,.36,1); }
+      .topbar .topbar-tabs .tab-button { position: relative; z-index: 1; min-height: 54px; border-radius: 22px; }
+      .topbar .topbar-tabs .tab-button.active { color: #111; }
+      .topbar .topbar-tabs .tab-button.active .icon { color: var(--red); }
+      .topbar .topbar-tabs { touch-action: pan-x; }
+      .tab-panel.active { touch-action: pan-y; will-change: transform, opacity; }
+      .tab-panel.active.tab-swipe-dragging { animation: none; transform: translate3d(var(--tab-swipe-x, 0px), 0, 0); opacity: var(--tab-swipe-opacity, 1); transition: none; }
+      .tab-panel.active.tab-swipe-returning { animation: none; transform: translate3d(0, 0, 0); opacity: 1; transition: transform 220ms cubic-bezier(.22,1,.36,1), opacity 180ms ease; }
+
+      .topbar-menu-list {
+        position: fixed; z-index: 160; top: 0; right: 0; bottom: 0; left: auto; width: min(340px, 86vw);
+        padding: calc(72px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));
+        overflow-y: auto; border: 1px solid rgba(255,255,255,.72); border-radius: 28px 0 0 28px;
+        background: rgba(248,248,248,.9); box-shadow: -18px 0 60px rgba(0,0,0,.22);
+        -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+        animation: bp-drawer-in 380ms cubic-bezier(.22,1,.36,1) both;
+      }
+      .topbar-menu-list > button, .topbar-menu-list form button { min-height: 52px; border-radius: 16px; font-size: 15px; }
+      body.menu-drawer-open .menu-backdrop { right: auto; width: max(14vw, calc(100vw - 340px)); }
+      body.menu-drawer-open .tab-panel.active { transform: translate3d(-24px,0,0) scale(.985); transform-origin: center left; filter: brightness(.72); pointer-events: none; }
+      .tab-panel { transition: transform 360ms cubic-bezier(.22,1,.36,1), filter 260ms ease; }
+      .action-menu[open] .action-menu-list {
+        position: static;
+        width: 100%;
+        max-width: 100%;
+        margin-top: 8px;
+        padding: 8px;
+        overflow: visible;
+        border-radius: 14px;
+        background: #f7f7f7;
+        box-shadow: inset 0 0 0 1px rgba(20,20,20,.06);
+        animation: bp-menu-in 200ms cubic-bezier(.2,.8,.2,1) both;
+        transform-origin: top center;
+      }
+      .action-menu-list button { min-height: 44px; text-align: left; }
+
+      .today-header { align-items: center; margin-bottom: 14px; }
+      .today-header h1 { font-size: 27px; }
+      .today-header p { font-size: 12px; }
+      .today-header .dashboard-refresh { width: 44px; min-width: 44px; height: 44px; padding: 0; }
+      .today-header .dashboard-refresh span { display: none; }
+      .today-progress > div { padding: 12px; }
+      .today-next-action { min-height: 118px; }
+      .operations-header { align-items: stretch; flex-direction: column; gap: 12px; }
+      .operations-header h1 { font-size: 27px; }
+      .operations-header-actions { display: grid; grid-template-columns: 44px minmax(0, 1fr); width: 100%; }
+      .operations-header .dashboard-refresh { width: 44px; min-width: 44px; height: 44px; padding: 0; }
+      .operations-header .dashboard-refresh span { display: none; }
+      .operations-check-all { width: 100% !important; }
+      .operations-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .operations-health-grid { grid-template-columns: 1fr; }
+      .operations-item { grid-template-columns: auto minmax(0, 1fr); }
+      .operations-item-action { grid-column: 2; justify-self: start; }
+      .operations-recent-row { grid-template-columns: auto minmax(0, 1fr); }
+      .operations-recent-row > time { grid-column: 2; }
+      .workflow-steps { position: sticky; z-index: 18; top: calc(58px + env(safe-area-inset-top)); padding: 7px 0; background: rgba(249,249,249,.92); backdrop-filter: blur(14px); }
+      .client-mobile-tools { position: sticky; z-index: 20; top: calc(58px + env(safe-area-inset-top)); display: grid; padding: 8px 0; background: rgba(249,249,249,.94); backdrop-filter: blur(14px); }
+      .client-filter-chips { overflow-x: auto; }
+      .client-filter-chips button { flex: 0 0 auto; }
+      .app-toast { right: 14px; bottom: calc(88px + env(safe-area-inset-bottom)); left: 14px; max-width: none; text-align: center; }
+      body[data-nav-direction="forward"] .tab-panel.active { animation-name: bp-slide-forward; }
+      body[data-nav-direction="back"] .tab-panel.active { animation-name: bp-slide-back; }
+      body.menu-drawer-open[data-nav-direction] .tab-panel.active { animation: none; transform: translate3d(-24px,0,0) scale(.985); filter: brightness(.72); }
+    }
+
+    @keyframes bp-slide-forward { from { opacity: 0; transform: translate3d(38px,0,0); } to { opacity: 1; transform: translate3d(0,0,0); } }
+    @keyframes bp-slide-back { from { opacity: 0; transform: translate3d(-38px,0,0); } to { opacity: 1; transform: translate3d(0,0,0); } }
+    @keyframes bp-drawer-in { from { opacity: 0; transform: translate3d(100%,0,0); } to { opacity: 1; transform: translate3d(0,0,0); } }
+
+    .menu-backdrop,
+    .menu-backdrop:hover,
+    .menu-backdrop:focus,
+    .menu-backdrop:active { position: fixed; z-index: 150; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: rgba(0,0,0,.28) !important; box-shadow: none; backdrop-filter: blur(2px); animation: bp-view-in 220ms ease both; transform: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
   </style>
 </head>
 <body>
   <main>
     <div class="topbar">
       <div class="brand">
-        <img src="/logo.svg" alt="" width="34" height="34">
-        <span>BuddyPilot</span>
+        <img src="/icons/app-icon-512x512.png?v=3" alt="" width="34" height="34">
+        <span class="brand-name">BuddyPilot</span>
+        <span id="mobileContextTitle" class="mobile-context-title">Hari Ini</span>
       </div>
+      <nav class="tabs topbar-tabs" aria-label="Main tabs">
+        <span class="nav-liquid-indicator" aria-hidden="true"></span>
+        <button class="tab-button active" type="button" data-tab-target="dashboard"><svg class="icon" aria-hidden="true"><use href="/icons.svg#layout-dashboard"></use></svg><span>Dashboard</span></button>
+        <button class="tab-button" type="button" data-tab-target="personalpostpilot"><svg class="icon" aria-hidden="true"><use href="/icons.svg#send"></use></svg><span>Post Pilot</span></button>
+        <button class="tab-button" type="button" data-tab-target="clientpilot"><svg class="icon" aria-hidden="true"><use href="/icons.svg#users"></use></svg><span>Client Pilot</span></button>
+        <button class="tab-button" type="button" data-tab-target="reportpilot"><svg class="icon" aria-hidden="true"><use href="/icons.svg#chart"></use></svg><span>Report Pilot</span></button>
+        <button class="tab-button" type="button" data-tab-target="invoicepilot"><svg class="icon" aria-hidden="true"><use href="/icons.svg#receipt"></use></svg><span>Invoice Pilot</span></button>
+      </nav>
       <details class="topbar-menu">
-        <summary>Menu</summary>
+        <summary><svg class="icon" aria-hidden="true"><use href="/icons.svg#menu"></use></svg><span>Menu</span></summary>
         <div class="topbar-menu-list">
-          <button type="button" data-menu-subtab="settings-panel">Tetapan</button>
-          <button type="button" data-menu-subtab="bank-panel">Akaun Bank</button>
+          <button type="button" data-menu-refresh><svg class="icon" aria-hidden="true"><use href="/icons.svg#refresh"></use></svg><span>Refresh</span></button>
+          <button type="button" data-menu-subtab="settings-panel"><svg class="icon" aria-hidden="true"><use href="/icons.svg#settings"></use></svg><span>Tetapan</span></button>
+          <button type="button" data-menu-subtab="bank-panel"><svg class="icon" aria-hidden="true"><use href="/icons.svg#landmark"></use></svg><span>Akaun Bank</span></button>
           <form method="post" action="/api/logout">
-            <button class="logout-option" type="submit">Logout</button>
+            <button class="logout-option" type="submit"><svg class="icon" aria-hidden="true"><use href="/icons.svg#log-out"></use></svg><span>Logout</span></button>
           </form>
         </div>
       </details>
     </div>
 
-    <nav class="tabs" aria-label="Main tabs">
-      <button class="tab-button active" type="button" data-tab-target="dashboard">Dashboard</button>
-      <button class="tab-button" type="button" data-tab-target="personalpostpilot">Post Pilot</button>
-      <button class="tab-button" type="button" data-tab-target="clientpilot">Client Pilot</button>
-      <button class="tab-button" type="button" data-tab-target="reportpilot">Report Pilot</button>
-      <button class="tab-button" type="button" data-tab-target="invoicepilot">Invoice Pilot</button>
-    </nav>
-
     <section id="tab-dashboard" class="tab-panel active" data-tab-panel="dashboard">
-      <section class="card">
-        <div class="section-heading">
+      <section class="dashboard-workspace">
+        <header class="operations-header">
           <div>
-            <h1>Dashboard</h1>
-            <p class="note">Semua status penting dalam satu tempat.</p>
+            <span id="todayDate" class="today-eyebrow">Operations Center</span>
+            <h1>System overview</h1>
+            <p id="todayImpact">Status operasi dan integration BuddyPilot.</p>
           </div>
-          <button id="refreshActivityButton" class="secondary" type="button">Refresh</button>
+          <div class="operations-header-actions">
+            <button id="refreshTodayButton" class="dashboard-refresh" type="button"><svg class="icon" aria-hidden="true"><use href="/icons.svg#refresh"></use></svg><span>Refresh</span></button>
+            <button id="checkAllHealthButton" class="button-secondary operations-check-all" type="button">Check all systems</button>
+          </div>
+        </header>
+        <section id="todaySkeleton" class="today-skeleton" aria-label="Memuatkan dashboard">
+          <span></span><span></span><span></span>
+        </section>
+        <section id="todayContent" hidden>
+          <section id="operationsOverall" class="operations-overall" data-status="operational">
+            <span class="operations-overall-dot" aria-hidden="true"></span>
+            <div>
+              <strong id="operationsOverallTitle">All systems operational</strong>
+              <small id="operationsOverallDetail">Last checked just now</small>
+            </div>
+          </section>
+          <div class="operations-summary" aria-label="Operations summary">
+            <div><strong id="todayRunning">0</strong><span>Running</span></div>
+            <div><strong id="operationsFailed">0</strong><span>Failed</span></div>
+            <div><strong id="todayAttention">0</strong><span>Attention</span></div>
+            <div><strong id="operationsHealthy">0</strong><span>Healthy</span></div>
+          </div>
+          <section id="operationsAttentionSection" class="operations-section" hidden>
+            <div class="dashboard-section-header"><h2>Needs attention</h2><span id="operationsAttentionCount" class="operations-count"></span></div>
+            <div id="operationsIncidents" class="operations-list"></div>
+          </section>
+          <section id="operationsActiveSection" class="operations-section" hidden>
+            <div class="dashboard-section-header"><h2>Active operations</h2><span class="dashboard-section-kicker">Current progress</span></div>
+            <div id="operationsActiveList" class="operations-list"></div>
+          </section>
+          <section class="operations-section">
+            <div class="dashboard-section-header"><h2>System health</h2><span class="dashboard-section-kicker">Passive monitor</span></div>
+            <div id="operationsHealth" class="operations-health-grid"></div>
+          </section>
+          <section class="operations-section">
+            <div class="dashboard-section-header"><h2>Recent operations</h2><span class="dashboard-section-kicker">Last 30 days</span></div>
+            <div id="operationsRecent" class="operations-recent"></div>
+          </section>
+          <button id="resumeWorkButton" class="resume-work" type="button" hidden>
+            <span><small>Sambung kerja</small><strong id="resumeWorkTitle">Kembali ke kerja terakhir</strong></span>
+            <svg class="icon" aria-hidden="true"><use href="/icons.svg#arrow-right"></use></svg>
+          </button>
+        </section>
+        <div class="dashboard-layout">
+          <section class="dashboard-actions" aria-labelledby="quickActionsHeading">
+            <div class="dashboard-section-header">
+              <h2 id="quickActionsHeading">Quick actions</h2>
+              <span class="dashboard-section-kicker">Mulakan kerja</span>
+            </div>
+            <div class="quick-grid">
+              <button class="quick-card" type="button" data-action-key="page-post" data-go-tab="personalpostpilot" data-go-subtab="pagepilot-panel">
+                <span class="quick-card-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#send"></use></svg></span>
+                <span class="quick-card-copy"><strong>Buat Post Page</strong><small>Facebook Page</small></span>
+                <span class="quick-card-arrow" aria-hidden="true"><svg class="icon"><use href="/icons.svg#arrow-right"></use></svg></span>
+              </button>
+              <button class="quick-card" type="button" data-action-key="personal-post" data-go-tab="personalpostpilot" data-go-subtab="postpilot-auto-panel">
+                <span class="quick-card-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#sparkles"></use></svg></span>
+                <span class="quick-card-copy"><strong>Buat Post Personal</strong><small>Facebook + Threads</small></span>
+                <span class="quick-card-arrow" aria-hidden="true"><svg class="icon"><use href="/icons.svg#arrow-right"></use></svg></span>
+              </button>
+              <button class="quick-card" type="button" data-action-key="threads-post" data-go-tab="personalpostpilot" data-go-subtab="threads-viral-panel">
+                <span class="quick-card-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#message"></use></svg></span>
+                <span class="quick-card-copy"><strong>Buat Post Threads</strong><small>Threads General</small></span>
+                <span class="quick-card-arrow" aria-hidden="true"><svg class="icon"><use href="/icons.svg#arrow-right"></use></svg></span>
+              </button>
+              <button class="quick-card" type="button" data-action-key="weekly-report" data-go-tab="reportpilot">
+                <span class="quick-card-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#chart"></use></svg></span>
+                <span class="quick-card-copy"><strong>Buat Weekly Report</strong><small>Report Pilot</small></span>
+                <span class="quick-card-arrow" aria-hidden="true"><svg class="icon"><use href="/icons.svg#arrow-right"></use></svg></span>
+              </button>
+              <button class="quick-card" type="button" data-action-key="invoice" data-go-tab="invoicepilot" data-go-subtab="invoice-panel">
+                <span class="quick-card-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#file-text"></use></svg></span>
+                <span class="quick-card-copy"><strong>Buat Invois</strong><small>Invoice Pilot</small></span>
+                <span class="quick-card-arrow" aria-hidden="true"><svg class="icon"><use href="/icons.svg#arrow-right"></use></svg></span>
+              </button>
+              <button class="quick-card" type="button" data-action-key="receipt" data-go-tab="invoicepilot" data-go-subtab="receipt-panel">
+                <span class="quick-card-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#receipt"></use></svg></span>
+                <span class="quick-card-copy"><strong>Buat Resit</strong><small>Payment receipt</small></span>
+                <span class="quick-card-arrow" aria-hidden="true"><svg class="icon"><use href="/icons.svg#arrow-right"></use></svg></span>
+              </button>
+            </div>
+          </section>
+
         </div>
-        <div class="quick-grid">
-          <button class="quick-card" type="button" data-go-tab="personalpostpilot" data-go-subtab="pagepilot-panel">Buat Post Page</button>
-          <button class="quick-card" type="button" data-go-tab="personalpostpilot" data-go-subtab="postpilot-auto-panel">Buat Post Personal</button>
-          <button class="quick-card" type="button" data-go-tab="personalpostpilot" data-go-subtab="threads-viral-panel">Buat Post Threads</button>
-          <button class="quick-card" type="button" data-go-tab="reportpilot">Buat Weekly Report</button>
-          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="invoice-panel">Buat Invois</button>
-          <button class="quick-card" type="button" data-go-tab="invoicepilot" data-go-subtab="receipt-panel">Buat Resit</button>
-        </div>
-        <h2>Live Feed</h2>
-        <div id="activityFeed" class="activity-feed">
-          <div class="empty-state">Belum ada aktiviti. Bila anda save client, settings, bank atau upload invoice, aktiviti akan muncul di sini.</div>
-        </div>
-        <div id="activityResult" class="result"></div>
       </section>
     </section>
 
@@ -1161,7 +4176,22 @@ function pageHtml() {
           </div>
         </div>
 
-        <div class="subtabs">
+        <section class="remote-automation-panel" aria-labelledby="remoteAutomationHeading">
+          <div>
+            <p id="remoteAutomationHeading" class="remote-automation-heading"><span id="remoteDeviceDot" class="remote-status-dot"></span>Mac Automation</p>
+            <p id="remoteDeviceStatus" class="remote-automation-status">Semak extension Mac...</p>
+            <p id="remoteJobStatus" class="remote-automation-job">Tiada automation aktif.</p>
+            <code id="remotePairCode" class="remote-pair-code" hidden></code>
+          </div>
+          <div class="remote-automation-actions">
+            <button id="remoteRefreshButton" class="secondary" type="button" title="Refresh Mac status"><svg class="icon" aria-hidden="true"><use href="/icons.svg#refresh"></use></svg><span>Refresh</span></button>
+            <button id="remotePairButton" class="secondary" type="button">Pair Mac</button>
+            <button id="remoteCancelButton" class="secondary" type="button" hidden>Cancel</button>
+            <button id="remoteRetryButton" class="secondary" type="button" hidden>Retry</button>
+          </div>
+        </section>
+
+        <div class="subtabs postpilot-subtabs">
           <button class="subtab-button active" type="button" data-subtab-group="post-pilot" data-subtab-target="postpilot-auto-panel">Facebook + Threads Promote</button>
           <button class="subtab-button" type="button" data-subtab-group="post-pilot" data-subtab-target="pagepilot-panel">Facebook Page Promote</button>
           <button class="subtab-button" type="button" data-subtab-group="post-pilot" data-subtab-target="threads-viral-panel">Threads General</button>
@@ -1181,14 +4211,17 @@ function pageHtml() {
             <label for="salespage_link">Salespage link</label>
             <input id="salespage_link" name="salespage_link" type="url" value="https://digitaldominate.com/" required>
 
-            <label for="caption_note">Konteks poster/video / angle creative (optional)</label>
-            <textarea id="caption_note" name="caption_note" placeholder="Contoh: Poster tunjuk founder penat packing order, angle: banyak kerja tapi salespage bantu automate workflow."></textarea>
-
-            <label for="custom_caption">Custom caption penuh (optional)</label>
-            <textarea id="custom_caption" name="custom_caption" placeholder="Kalau isi bahagian ini, sistem guna caption ini terus. Pastikan letak salespage link."></textarea>
-
-            <label for="first_comment">First comment CTA (optional)</label>
-            <textarea id="first_comment" name="first_comment" placeholder="Kosongkan untuk auto-generate first comment."></textarea>
+            <details class="mobile-options">
+              <summary>More options</summary>
+              <div class="mobile-options-content">
+                <label for="caption_note">Konteks poster/video / angle creative (optional)</label>
+                <textarea id="caption_note" name="caption_note" placeholder="Contoh: Poster tunjuk founder penat packing order, angle: banyak kerja tapi salespage bantu automate workflow."></textarea>
+                <label for="custom_caption">Custom caption penuh (optional)</label>
+                <textarea id="custom_caption" name="custom_caption" placeholder="Kalau isi bahagian ini, sistem guna caption ini terus. Pastikan letak salespage link."></textarea>
+                <label for="first_comment">First comment CTA (optional)</label>
+                <textarea id="first_comment" name="first_comment" placeholder="Kosongkan untuk auto-generate first comment."></textarea>
+              </div>
+            </details>
 
             <button type="submit">Preview Copywriting</button>
           </form>
@@ -1213,15 +4246,33 @@ function pageHtml() {
         </div>
 
         <div id="postpilot-auto-panel" class="subtab-panel active" data-subtab-panel="post-pilot">
+          <div class="workflow-steps" aria-label="Aliran Post Pilot"><span class="active">1 Pilih</span><span>2 Generate</span><span>3 Review</span><span>4 Post</span></div>
           <form id="threadsForm" class="client-form">
             <div class="client-grid">
               <div>
+                <label for="threadsProductSelect">Produk aktif</label>
+                <select id="threadsProductSelect" aria-label="Produk aktif"></select>
+                <div class="inline-actions product-actions">
+                  <button id="showAddProductButton" class="secondary" type="button">Tambah produk</button>
+                  <button id="deleteProductButton" class="danger" type="button">Delete produk</button>
+                </div>
+              </div>
+              <div id="addProductPanel" hidden>
+                <label for="newProductName">Produk baru</label>
+                <input id="newProductName" type="text" placeholder="Nama produk">
+                <input id="newProductLink" type="url" placeholder="https://link-produk.com">
+                <div class="inline-actions">
+                  <button id="saveNewProductButton" type="button">Simpan produk</button>
+                  <button id="cancelNewProductButton" class="secondary" type="button">Batal</button>
+                </div>
+              </div>
+              <div>
                 <label for="threadsProductName">Nama produk</label>
-                <input id="threadsProductName" name="product_name" type="text" value="K-Method" placeholder="Contoh: K-Method" required>
+                <input id="threadsProductName" name="product_name" type="text" value="K-Method" placeholder="Contoh: K-Method" readonly required>
               </div>
               <div>
                 <label for="threadsAffiliateLink">Affiliate / comment link</label>
-                <input id="threadsAffiliateLink" name="affiliate_link" type="url" value="https://swiy.co/kmethod" placeholder="Link yang nak letak di komen">
+                <input id="threadsAffiliateLink" name="affiliate_link" type="url" value="https://swiy.co/kmethod" placeholder="Link yang nak letak di komen" readonly>
               </div>
               <div>
                 <label for="threadsPostMode">Mode post</label>
@@ -1245,7 +4296,7 @@ function pageHtml() {
               </div>
             </div>
             <div class="actions">
-              <button id="threadsPreviewButton" type="submit">POST NOW</button>
+              <button id="threadsPreviewButton" type="submit">Generate Preview</button>
               <button id="threadsBatchPostButton" class="approve" type="button">POST 5 NOW</button>
             </div>
           </form>
@@ -1355,47 +4406,86 @@ function pageHtml() {
         </div>
 
         <form id="reportForm" class="client-form">
-          <div class="client-grid">
+          <section class="form-section">
+            <div class="form-section-header">
+              <span>01</span>
+              <div><h2>Report setup</h2><p>Pilih client, akaun dan tempoh laporan.</p></div>
+            </div>
+            <div class="client-grid">
             <div>
               <label for="reportClient">Client</label>
               <select id="reportClient" name="clientCode" required></select>
             </div>
             <div>
               <label for="reportPhase">Phase</label>
-              <input id="reportPhase" name="phase" type="text" value="SETUP PHASE" required>
+              <select id="reportPhase" name="phase" required>
+                <option value="SETUP PHASE">SETUP PHASE</option>
+                <option value="TESTING PHASE">TESTING PHASE</option>
+                <option value="OPTIMIZE PHASE">OPTIMIZE PHASE</option>
+                <option value="SCALING PHASE">SCALING PHASE</option>
+              </select>
             </div>
             <div>
-              <label for="reportStartDate">Tarikh mula minggu</label>
+              <label id="reportAdAccountLabel" for="reportAdAccount">Ads account</label>
+              <select id="reportAdAccount" name="accountId" required>
+                <option value="">Pilih client dahulu</option>
+              </select>
+              <input id="reportPlatform" name="platform" type="hidden" value="meta">
+            </div>
+            <div class="date-field">
+              <label for="reportStartDate">Minggu bermula</label>
               <input id="reportStartDate" name="startDate" type="date" required>
             </div>
-            <div>
-              <label for="reportEndDate">Tarikh akhir minggu</label>
+            <div class="date-field">
+              <label for="reportEndDate">Minggu berakhir</label>
               <input id="reportEndDate" name="endDate" type="date" required>
+              <p class="note">Pilih tepat 7 hari yang sudah lengkap.</p>
+            </div>
+            <div>
+              <label for="reportResultMetric">Primary result</label>
+              <select id="reportResultMetric" name="resultMetric">
+                <option value="conversions">Conversions / Purchases</option>
+                <option value="leads">Lead forms / Leads</option>
+                <option value="messaging_conversations">Messaging conversations</option>
+              </select>
+              <input id="reportResultLabel" name="resultLabel" type="hidden" value="Purchases">
             </div>
             <div class="full">
               <label for="reportTitle">Report title</label>
-              <input id="reportTitle" name="reportTitle" type="text" value="EXECUTIVE LEAD GENERATION BRIEF" required>
+              <input id="reportTitle" name="reportTitle" type="text" value="META ADS PERFORMANCE BRIEF" required>
             </div>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="form-section-header">
+              <span>02</span>
+              <div><h2>Performance</h2><p>Semak metrik utama sebelum melengkapkan analisis.</p></div>
+            </div>
+            <div class="client-grid">
             <div>
               <label for="reportAdSpend">Ad spend</label>
               <input id="reportAdSpend" name="adSpend" type="number" min="0" step="0.01" inputmode="decimal" value="0" required>
             </div>
             <div>
-              <label for="reportLeadsGenerated">Leads generated</label>
+              <label id="reportResultsLabel" for="reportLeadsGenerated">Results</label>
               <input id="reportLeadsGenerated" name="leadsGenerated" type="number" min="0" step="1" inputmode="numeric" value="0" required>
             </div>
             <div>
-              <label for="reportCostPerLead">Cost per lead</label>
-              <input id="reportCostPerLead" name="costPerLead" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Auto dari spend/leads">
+              <label id="reportCostLabel" for="reportCostPerLead">Cost per result</label>
+              <input id="reportCostPerLead" name="costPerLead" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Auto dari spend/results">
+              <input id="reportCurrency" name="currency" type="hidden" value="MYR">
             </div>
-            <div>
-              <label for="reportTargetLeads">Target leads</label>
-              <input id="reportTargetLeads" name="targetLeads" type="number" min="0" step="1" inputmode="numeric" value="50" required>
+            <input id="reportRecommendationHeadline" name="recommendationHeadline" type="hidden" value="ANALYSIS PENDING">
             </div>
-            <div>
-              <label for="reportTargetCpl">Target CPL</label>
-              <input id="reportTargetCpl" name="targetCpl" type="number" min="0" step="0.01" inputmode="decimal" value="10" required>
+          </section>
+
+          <section class="form-section">
+            <div class="form-section-header">
+              <span>03</span>
+              <div><h2>Analysis</h2><p>Rumusan creative, performance leak dan tindakan seterusnya.</p></div>
             </div>
+            <div class="client-grid">
             <div class="full">
               <label for="reportWhatWeProved">What we proved</label>
               <textarea id="reportWhatWeProved" class="report-tall-textarea" name="whatWeProved" required>Setup technical automation telah disiapkan
@@ -1405,33 +4495,46 @@ Data awal sedang dikumpul
 Optimization dibuat selepas data mencukupi</textarea>
             </div>
             <div>
-              <label for="reportWinningCreative">Winning creative</label>
+              <label for="reportWinningCreative">Best Prospecting ad</label>
               <input id="reportWinningCreative" name="winningCreative" type="text" value="N/A">
             </div>
             <div>
-              <label for="reportBestPerformance">Performance</label>
-              <input id="reportBestPerformance" name="bestPerformance" type="text" placeholder="Contoh: N/A Leads | RM0 CPL">
+              <label for="reportBestPerformance">Prospecting performance</label>
+              <input id="reportBestPerformance" name="bestPerformance" type="text" placeholder="Contoh: 12 results | RM25 per result">
+            </div>
+            <div>
+              <label for="reportRetargetingWinningCreative">Best Retargeting ad</label>
+              <input id="reportRetargetingWinningCreative" name="retargetingWinningCreative" type="text" value="N/A">
+            </div>
+            <div>
+              <label for="reportRetargetingBestPerformance">Retargeting performance</label>
+              <input id="reportRetargetingBestPerformance" name="retargetingBestPerformance" type="text" placeholder="Result cost, CPM atau CPC">
             </div>
             <div class="full">
-              <label for="reportBestAudience">Audience</label>
-              <input id="reportBestAudience" name="bestAudience" type="text" value="N/A">
-            </div>
-            <div class="full">
-              <label for="reportLeadLeaks">Lead leaks</label>
-              <textarea id="reportLeadLeaks" name="leadLeaks">Belum ada leads sebab minggu pertama setup technical automation dahulu
-Ads dah jalan tunggu result minggu ini</textarea>
+              <label for="reportLeadLeaks">Performance leaks</label>
+              <textarea id="reportLeadLeaks" name="leadLeaks">Belum ada result yang mencukupi untuk diagnosis muktamad
+Pantau tracking, funnel dan kualiti result</textarea>
             </div>
             <div class="full">
               <label for="reportNext7Days">Next 7 days</label>
-              <textarea id="reportNext7Days" class="report-tall-textarea" name="next7Days" required>Monitor Ads Campaign
-Check Average CPL
-Find Winning Video for TOP Funnel
-Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
+              <textarea id="reportNext7Days" class="report-tall-textarea" name="next7Days" required>Monitor campaign performance
+Check average cost per result
+Find the strongest creative and campaign segment
+Review retargeting when the warm audience is ready</textarea>
             </div>
             <div class="full">
               <label for="reportRecommendation">Executive recommendation</label>
               <textarea id="reportRecommendation" name="recommendation" required>Tunggu result untuk minggu ini sebelum optimize iklan. Fokus utama adalah mengumpul data awal sebelum membuat keputusan optimization dan scaling.</textarea>
             </div>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="form-section-header">
+              <span>04</span>
+              <div><h2>Delivery</h2><p>Sediakan nama penyedia dan fail akhir.</p></div>
+            </div>
+            <div class="client-grid">
             <div>
               <label for="reportPreparedBy">Prepared by</label>
               <input id="reportPreparedBy" name="preparedBy" type="text" value="Abdussomad Ruddin | Growth Partner" required>
@@ -1440,11 +4543,14 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
               <label for="reportFileName">Nama fail PDF</label>
               <input id="reportFileName" name="fileName" type="text" required>
             </div>
-          </div>
+            </div>
+          </section>
           <div class="client-form-actions">
+            <button id="loadAdsReportButton" class="secondary" type="button">Load AdFlow Data</button>
             <button id="previewReportButton" class="secondary" type="button">Preview PDF</button>
             <button id="uploadReportButton" class="approve" type="submit">Generate & Upload Report</button>
           </div>
+          <div id="reportBreakdown" class="report-breakdown"></div>
         </form>
         <div id="reportResult" class="result"></div>
       </section>
@@ -1465,6 +4571,14 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         </div>
 
         <div id="client-list-panel" class="subtab-panel active" data-subtab-panel="client">
+          <div class="client-mobile-tools">
+            <label class="client-search"><input id="clientSearchInput" type="search" placeholder="Cari pelanggan" aria-label="Cari pelanggan"></label>
+            <div class="client-filter-chips" aria-label="Filter pelanggan">
+              <button class="active" type="button" data-client-filter="all">Semua</button>
+              <button type="button" data-client-filter="active">Active</button>
+              <button type="button" data-client-filter="paused">Stopped</button>
+            </div>
+          </div>
           <div class="actions">
             <button id="refreshClientsButton" class="secondary" type="button">Refresh Senarai</button>
           </div>
@@ -1477,6 +4591,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
             <h2>Tambah Pelanggan</h2>
             <input id="clientCode" name="clientCode" type="hidden">
             <div class="client-grid">
+              <div class="full form-grid-heading"><h3>Maklumat pelanggan</h3></div>
               <div>
                 <label for="clientBrand">Brand client</label>
                 <input id="clientBrand" name="brandClient" type="text" placeholder="Contoh: SAFRICH" required>
@@ -1509,6 +4624,38 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
                 <label for="clientAddress">Alamat</label>
                 <textarea id="clientAddress" name="billingAddress" placeholder="Alamat billing client"></textarea>
               </div>
+              <div class="full form-grid-heading"><h3>Ads report setup</h3></div>
+              <div>
+                <label for="clientAdsPlatform">Ads platform</label>
+                <select id="clientAdsPlatform" name="platform">
+                  <option value="meta">Meta Ads</option>
+                  <option value="tiktok">TikTok Ads</option>
+                </select>
+              </div>
+              <div class="full">
+                <label id="clientAdsAccountLabel" for="clientAdsAccount">Default Meta Ads account</label>
+                <select id="clientAdsAccount" name="accountId">
+                  <option value="">Belum dipadankan</option>
+                </select>
+                <input id="clientAdsAccountName" name="accountName" type="hidden">
+                <input id="clientAdsCurrency" name="currency" type="hidden">
+              </div>
+              <div>
+                <label for="clientResultMetric">Default primary result</label>
+                <select id="clientResultMetric" name="resultMetric">
+                  <option value="conversions">Conversions / Purchases</option>
+                  <option value="leads">Lead forms / Leads</option>
+                  <option value="messaging_conversations">Messaging conversations</option>
+                </select>
+              </div>
+              <div class="full">
+                <label for="clientProspectingKeywords">Prospecting keywords (pisahkan dengan koma)</label>
+                <input id="clientProspectingKeywords" name="prospectingKeywords" type="text" value="prospecting, pros, cold, tof">
+              </div>
+              <div class="full">
+                <label for="clientRetargetingKeywords">Retargeting keywords (pisahkan dengan koma)</label>
+                <input id="clientRetargetingKeywords" name="retargetingKeywords" type="text" value="retargeting, retarget, rtg, warm, remarketing">
+              </div>
             </div>
             <div class="client-form-actions">
               <button id="saveClientButton" type="submit">Save Client & Create Drive Folders</button>
@@ -1533,6 +4680,22 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         </div>
 
         <div id="settings-panel" class="subtab-panel" data-subtab-panel="invoice-pilot">
+        <section id="tiktokAdsSettings" class="menu-tiktok-card" aria-labelledby="menuTikTokTitle">
+          <div class="menu-tiktok-heading">
+            <svg class="icon" aria-hidden="true"><use href="/icons.svg#link"></use></svg>
+            <div>
+              <strong id="menuTikTokTitle">TikTok Ads</strong>
+              <span id="tiktokConnectionText">Semak sambungan...</span>
+            </div>
+          </div>
+          <div id="tiktokAuthorizationWarning" class="menu-tiktok-warning" hidden></div>
+          <div class="menu-tiktok-actions">
+            <a id="connectTikTokButton" href="/api/tiktok/oauth-start">Connect TikTok Ads</a>
+            <button id="enablePushNotificationsButton" class="push-notification-button" type="button">Aktifkan Notifikasi</button>
+            <button id="disconnectTikTokButton" type="button" hidden>Disconnect</button>
+          </div>
+          <div id="pushNotificationNote" class="push-notification-note">Notifikasi menyokong browser, Android dan iOS Home Screen.</div>
+        </section>
         <form id="settingsForm" class="client-form">
           <h2>Settings Syarikat</h2>
           <div class="client-grid">
@@ -1653,6 +4816,9 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     </section>
   </main>
 
+  <button id="menuBackdrop" class="menu-backdrop" type="button" aria-label="Tutup menu" hidden></button>
+  <div id="appToast" class="app-toast" role="status" aria-live="polite" hidden></div>
+
   <script>
     const form = document.getElementById("postForm");
     const result = document.getElementById("result");
@@ -1665,6 +4831,14 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     const regenerateButton = document.getElementById("regenerateButton");
     const creativeInput = document.getElementById("creative");
     const threadsForm = document.getElementById("threadsForm");
+    const threadsProductSelect = document.getElementById("threadsProductSelect");
+    const showAddProductButton = document.getElementById("showAddProductButton");
+    const deleteProductButton = document.getElementById("deleteProductButton");
+    const addProductPanel = document.getElementById("addProductPanel");
+    const newProductName = document.getElementById("newProductName");
+    const newProductLink = document.getElementById("newProductLink");
+    const saveNewProductButton = document.getElementById("saveNewProductButton");
+    const cancelNewProductButton = document.getElementById("cancelNewProductButton");
     const threadsPreviewButton = document.getElementById("threadsPreviewButton");
     const threadsPreviewPanel = document.getElementById("threadsPreviewPanel");
     const threadsPreviewMeta = document.getElementById("threadsPreviewMeta");
@@ -1679,7 +4853,16 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     const threadsHookGallery = document.getElementById("threadsHookGallery");
     const threadsBatchPostButton = document.getElementById("threadsBatchPostButton");
     const threadsResult = document.getElementById("threadsResult");
+    const remoteDeviceDot = document.getElementById("remoteDeviceDot");
+    const remoteDeviceStatus = document.getElementById("remoteDeviceStatus");
+    const remoteJobStatus = document.getElementById("remoteJobStatus");
+    const remotePairCode = document.getElementById("remotePairCode");
+    const remotePairButton = document.getElementById("remotePairButton");
+    const remoteRefreshButton = document.getElementById("remoteRefreshButton");
+    const remoteCancelButton = document.getElementById("remoteCancelButton");
+    const remoteRetryButton = document.getElementById("remoteRetryButton");
     const viralTemplates = ${threadsViralTemplatesJson};
+    const buildThreadsGeneralText = ${threadsGeneralCopySource};
     const viralTopic = document.getElementById("viralTopic");
     const viralCategory = document.getElementById("viralCategory");
     const viralTone = document.getElementById("viralTone");
@@ -1739,17 +4922,74 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     const bankQrPreview = document.getElementById("bankQrPreview");
     const reportForm = document.getElementById("reportForm");
     const reportClient = document.getElementById("reportClient");
+    const reportAdAccount = document.getElementById("reportAdAccount");
+    const reportAdAccountLabel = document.getElementById("reportAdAccountLabel");
+    const reportPlatform = document.getElementById("reportPlatform");
+    const reportResultMetric = document.getElementById("reportResultMetric");
+    const reportResultLabel = document.getElementById("reportResultLabel");
+    const reportResultsLabel = document.getElementById("reportResultsLabel");
+    const reportCostLabel = document.getElementById("reportCostLabel");
     const reportStartDate = document.getElementById("reportStartDate");
     const reportEndDate = document.getElementById("reportEndDate");
     const reportFileName = document.getElementById("reportFileName");
+    const reportCurrency = document.getElementById("reportCurrency");
+    const loadAdsReportButton = document.getElementById("loadAdsReportButton");
+    const reportBreakdown = document.getElementById("reportBreakdown");
     const previewReportButton = document.getElementById("previewReportButton");
     const uploadReportButton = document.getElementById("uploadReportButton");
     const reportResult = document.getElementById("reportResult");
+    const clientAdsAccount = document.getElementById("clientAdsAccount");
+    const clientAdsPlatform = document.getElementById("clientAdsPlatform");
+    const clientAdsAccountLabel = document.getElementById("clientAdsAccountLabel");
+    const clientAdsAccountName = document.getElementById("clientAdsAccountName");
+    const clientAdsCurrency = document.getElementById("clientAdsCurrency");
+    const tiktokConnectionText = document.getElementById("tiktokConnectionText");
+    const tiktokAuthorizationWarning = document.getElementById("tiktokAuthorizationWarning");
+    const connectTikTokButton = document.getElementById("connectTikTokButton");
+    const enablePushNotificationsButton = document.getElementById("enablePushNotificationsButton");
+    const pushNotificationNote = document.getElementById("pushNotificationNote");
+    const disconnectTikTokButton = document.getElementById("disconnectTikTokButton");
+    const mobileContextTitle = document.getElementById("mobileContextTitle");
+    const mobileNavigation = document.querySelector(".topbar-tabs");
+    const appToast = document.getElementById("appToast");
+    const topbarMenu = document.querySelector(".topbar-menu");
+    const menuBackdrop = document.getElementById("menuBackdrop");
+    const todayDate = document.getElementById("todayDate");
+    const todayImpact = document.getElementById("todayImpact");
+    const todaySkeleton = document.getElementById("todaySkeleton");
+    const todayContent = document.getElementById("todayContent");
+    const todayRunning = document.getElementById("todayRunning");
+    const todayAttention = document.getElementById("todayAttention");
+    const operationsFailed = document.getElementById("operationsFailed");
+    const operationsHealthy = document.getElementById("operationsHealthy");
+    const operationsOverall = document.getElementById("operationsOverall");
+    const operationsOverallTitle = document.getElementById("operationsOverallTitle");
+    const operationsOverallDetail = document.getElementById("operationsOverallDetail");
+    const operationsAttentionSection = document.getElementById("operationsAttentionSection");
+    const operationsAttentionCount = document.getElementById("operationsAttentionCount");
+    const operationsIncidents = document.getElementById("operationsIncidents");
+    const operationsActiveSection = document.getElementById("operationsActiveSection");
+    const operationsActiveList = document.getElementById("operationsActiveList");
+    const operationsHealth = document.getElementById("operationsHealth");
+    const operationsRecent = document.getElementById("operationsRecent");
+    const refreshTodayButton = document.getElementById("refreshTodayButton");
+    const checkAllHealthButton = document.getElementById("checkAllHealthButton");
+    const resumeWorkButton = document.getElementById("resumeWorkButton");
+    const resumeWorkTitle = document.getElementById("resumeWorkTitle");
+    const clientSearchInput = document.getElementById("clientSearchInput");
+    const clientFilterChips = document.querySelector(".client-filter-chips");
     const MAX_DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
     const TARGET_UPLOAD_BYTES = Math.floor(3.75 * 1024 * 1024);
     const POSTPILOT_INPUT_STORAGE_KEY = "postpilot-last-input-v1";
     const POSTPILOT_IMAGE_STORAGE_KEY = "postpilot-last-hook-image-v1";
     const POSTPILOT_SAVED_IMAGE_MAX_BYTES = 900 * 1024;
+    const LAST_WORK_STORAGE_KEY = "buddypilot-last-work-v1";
+    const QUICK_ACTION_STORAGE_KEY = "buddypilot-quick-actions-v1";
+    const LAST_REPORT_CLIENT_KEY = "buddypilot-last-report-client-v1";
+    const TODAY_CACHE_KEY = "buddypilot-operations-cache-v1";
+    const OPERATIONS_CACHE_MS = 5 * 60 * 1000;
+    const NAV_ITEMS = ["dashboard", "personalpostpilot", "clientpilot", "reportpilot", "invoicepilot"];
+    const NAV_TITLES = { dashboard: "Hari Ini", personalpostpilot: "Post Pilot", clientpilot: "Client Pilot", reportpilot: "Report Pilot", invoicepilot: "Invoice Pilot" };
     let currentPreview = null;
     let seenVariations = [];
     let preparedCreativeFile = null;
@@ -1762,17 +5002,36 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     let postPilotSaveTimer = null;
     let currentThreadsImagePreviewUrl = "";
     let postPilotGalleryImages = [];
+    let postPilotProducts = [];
+    let activePostPilotProductId = "";
+    let currentRemoteJob = null;
+    let suppressTabClickUntil = 0;
+    let remoteStatusLoading = false;
     let viralGeneratedPosts = [];
     let viralSavedPosts = [];
     const VIRAL_SAVED_STORAGE_KEY = "postpilot-threads-viral-saved-v1";
     const VIRAL_BANNED_WORDS = [...(viralTemplates.bannedWords || [])];
     const VIRAL_PROMO_PHRASES = [...(viralTemplates.promotionalPhrases || [])];
+    const VIRAL_ROBOTIC_PHRASES = [
+      "yang menarik bukan sekadar produk dia",
+      "sangat berpotensi",
+      "harus diingat",
+      "kesimpulannya",
+      "dalam era digital",
+      "adalah penting untuk",
+      "membuka mata",
+    ];
     let currentInvoices = [];
     let currentReceipts = [];
     let currentClients = [];
+    let currentAdflowAccounts = [];
+    let currentTikTokAccounts = [];
     let currentBankAccounts = [];
     let currentBankStatus = null;
     let reportFileNameTouched = false;
+    let operationsActionMap = new Map();
+    let activeClientFilter = "all";
+    let toastTimer = null;
 
     creativeInput.addEventListener("change", () => {
       currentPreview = null;
@@ -1805,6 +5064,30 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       }
     });
 
+    threadsProductSelect.addEventListener("change", () => {
+      setPostWorkflowStep(1);
+      activatePostPilotProduct(threadsProductSelect.value).catch(showThreadsError);
+    });
+
+    showAddProductButton.addEventListener("click", () => {
+      addProductPanel.hidden = false;
+      newProductName.focus();
+    });
+
+    cancelNewProductButton.addEventListener("click", () => {
+      addProductPanel.hidden = true;
+      newProductName.value = "";
+      newProductLink.value = "";
+    });
+
+    saveNewProductButton.addEventListener("click", () => {
+      createPostPilotProductFromForm().catch(showThreadsError);
+    });
+
+    deleteProductButton.addEventListener("click", () => {
+      deleteActivePostPilotProduct().catch(showThreadsError);
+    });
+
     function showError(error) {
       result.className = "result err";
       result.textContent = error.message || String(error);
@@ -1814,6 +5097,104 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       threadsResult.className = "result err";
       threadsResult.textContent = error.message || String(error);
     }
+
+    function remoteJobDescription(job) {
+      if (!job) return "Tiada automation aktif.";
+      const progress = job.progress || {};
+      const total = Number(progress.total || 0);
+      const index = Number(progress.index || 0);
+      const counter = total ? Math.min(Math.max(index, 0), total) + "/" + total + " · " : "";
+      const status = String(job.status || "").replace(/_/g, " ");
+      return counter + (progress.message || progress.phase || status) + (job.error ? " · " + job.error : "");
+    }
+
+    function renderRemoteAutomation(overview) {
+      const device = overview?.device || null;
+      const activeJob = overview?.activeJob || null;
+      const latestJob = activeJob || overview?.jobs?.[0] || null;
+      currentRemoteJob = latestJob;
+      remoteDeviceDot.className = "remote-status-dot " + (device?.status || "");
+      remoteDeviceStatus.textContent = device
+        ? device.name + " · " + (device.status === "busy" ? "Busy" : device.status === "online" ? "Online" : "Offline") + (device.lastSeenAt ? " · last seen " + new Date(device.lastSeenAt).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" }) : "")
+        : "Not Paired · generate code dan masukkan dalam popup extension Mac.";
+      remoteJobStatus.textContent = remoteJobDescription(latestJob);
+      remotePairButton.textContent = device ? "Pair semula" : "Pair Mac";
+      remoteCancelButton.hidden = !activeJob;
+      remoteRetryButton.hidden = !latestJob || !["failed", "cancelled", "expired"].includes(latestJob.status);
+    }
+
+    async function loadRemoteAutomationStatus({ silent = true } = {}) {
+      if (remoteStatusLoading) return;
+      remoteStatusLoading = true;
+      try {
+        const response = await fetch("/api/postpilot-remote/device", { cache: "no-store" });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Gagal semak Mac automation.");
+        renderRemoteAutomation(json);
+      } catch (error) {
+        if (!silent) showThreadsError(error);
+        remoteDeviceDot.className = "remote-status-dot offline";
+        remoteDeviceStatus.textContent = error.message || String(error);
+      } finally {
+        remoteStatusLoading = false;
+      }
+    }
+
+    async function createRemoteAutomationJob(body, target = threadsResult) {
+      const response = await fetch("/api/postpilot-remote/jobs", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await readApiJson(response);
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return null;
+      }
+      if (!response.ok || !json.ok) throw new Error(json.error || "Gagal hantar arahan ke Chrome Mac.");
+      currentRemoteJob = json.job;
+      target.className = "result ok";
+      target.textContent = "Arahan diterima. Chrome Mac akan mula auto post apabila online.";
+      await loadRemoteAutomationStatus({ silent: true });
+      return json.job;
+    }
+
+    async function runRemoteJobAction(action) {
+      if (!currentRemoteJob?.id) return;
+      const response = await fetch("/api/postpilot-remote/jobs/action", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ job_id: currentRemoteJob.id, action }),
+      });
+      const json = await readApiJson(response);
+      if (!response.ok || !json.ok) throw new Error(json.error || "Gagal " + action + " automation.");
+      currentRemoteJob = json.job;
+      await loadRemoteAutomationStatus({ silent: false });
+    }
+
+    remotePairButton.addEventListener("click", async () => {
+      remotePairButton.disabled = true;
+      try {
+        const response = await fetch("/api/postpilot-remote/pair-code", { method: "POST" });
+        const json = await readApiJson(response);
+        if (!response.ok || !json.ok) throw new Error(json.error || "Gagal jana pairing code.");
+        remotePairCode.hidden = false;
+        remotePairCode.textContent = json.pairing.code;
+        remoteJobStatus.textContent = "Masukkan code ini dalam popup extension Mac. Sah sehingga " + new Date(json.pairing.expiresAt).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" }) + ".";
+      } catch (error) {
+        showThreadsError(error);
+      } finally {
+        remotePairButton.disabled = false;
+      }
+    });
+
+    remoteCancelButton.addEventListener("click", () => runRemoteJobAction("cancel").catch(showThreadsError));
+    remoteRetryButton.addEventListener("click", () => runRemoteJobAction("retry").catch(showThreadsError));
+    remoteRefreshButton.addEventListener("click", () => loadRemoteAutomationStatus({ silent: false }));
 
     window.addEventListener("message", (event) => {
       if (event.source !== window) return;
@@ -1861,9 +5242,32 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         .replace(/'/g, "&#039;");
     }
 
+    const messageTimers = new WeakMap();
+
     function setMessage(node, type, message) {
+      const activeTimer = messageTimers.get(node);
+      if (activeTimer) window.clearTimeout(activeTimer);
+
       node.className = type ? \`result \${type}\` : "result";
       node.textContent = message || "";
+
+      const visiblePanel = node.closest(".tab-panel");
+      if (message && (!visiblePanel || visiblePanel.classList.contains("active"))) {
+        if (type === "err") showToast(message, "error");
+        else if (type === "ok" && /selesai|berjaya|sudah (disimpan|dihantar|dipadam|dibuka)|uploaded/i.test(message)) showToast(message, "ok");
+      }
+
+      if (!message) {
+        messageTimers.delete(node);
+        return;
+      }
+
+      const timer = window.setTimeout(() => {
+        node.className = "result";
+        node.textContent = "";
+        messageTimers.delete(node);
+      }, 60000);
+      messageTimers.set(node, timer);
     }
 
     function setTextIfPresent(node, text) {
@@ -1921,17 +5325,376 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     function showActivityError(error) {
-      setMessage(activityResult, "err", error.message || String(error));
+      if (activityResult) setMessage(activityResult, "err", error.message || String(error));
+    }
+
+    function showToast(message, tone = "ok") {
+      if (!appToast || !message) return;
+      window.clearTimeout(toastTimer);
+      appToast.hidden = false;
+      appToast.dataset.tone = tone;
+      appToast.textContent = message;
+      toastTimer = window.setTimeout(() => { appToast.hidden = true; }, 3200);
+    }
+
+    function activeSubtabFor(tabName) {
+      const group = tabName === "personalpostpilot" ? "post-pilot" : tabName === "clientpilot" ? "client" : tabName === "invoicepilot" ? "invoice-pilot" : "";
+      return group ? document.querySelector(\`.subtab-panel.active[data-subtab-panel="\${group}"]\`)?.id || "" : "";
+    }
+
+    function saveLastWork(tabName, subtab = "") {
+      if (!tabName || tabName === "dashboard") return;
+      localStorage.setItem(LAST_WORK_STORAGE_KEY, JSON.stringify({ tab: tabName, subtab: subtab || activeSubtabFor(tabName), scrollY: Math.max(0, Math.round(window.scrollY)), updatedAt: Date.now() }));
+    }
+
+    function readLastWork() {
+      try {
+        const value = JSON.parse(localStorage.getItem(LAST_WORK_STORAGE_KEY) || "null");
+        return value && NAV_ITEMS.includes(value.tab) && Date.now() - Number(value.updatedAt || 0) < 14 * 86400000 ? value : null;
+      } catch { return null; }
+    }
+
+    function navigateToWork(target = {}, { remember = true } = {}) {
+      if (!target.tab) return;
+      activateTab(target.tab);
+      if (target.subtab) {
+        const group = target.tab === "personalpostpilot" ? "post-pilot" : target.tab === "clientpilot" ? "client" : "invoice-pilot";
+        activateSubtab(group, target.subtab);
+      }
+      if (remember) saveLastWork(target.tab, target.subtab || "");
+      if (target.panel) window.setTimeout(() => document.getElementById(target.panel)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function renderResumeWork() {
+      const lastWork = readLastWork();
+      resumeWorkButton.hidden = !lastWork;
+      if (!lastWork) return;
+      resumeWorkTitle.textContent = NAV_TITLES[lastWork.tab] || "Kerja terakhir";
+      resumeWorkButton.onclick = () => {
+        navigateToWork(lastWork, { remember: false });
+        window.setTimeout(() => window.scrollTo({ top: Number(lastWork.scrollY || 0), behavior: "smooth" }), 180);
+      };
+    }
+
+    function formatOperationsTime(value) {
+      const date = new Date(value || "");
+      if (!Number.isFinite(date.getTime())) return "Belum diperiksa";
+      return new Intl.DateTimeFormat("ms-MY", { timeZone: "Asia/Kuala_Lumpur", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(date);
+    }
+
+    function operationsStatusLabel(status) {
+      return ({ healthy: "Healthy", warning: "Warning", down: "Down", setup: "Setup", stale: "Stale", operational: "Operational", attention: "Needs attention", critical: "Critical" })[status] || String(status || "Unknown");
+    }
+
+    function registerOperationsAction(action) {
+      if (!action?.kind) return "";
+      const id = "operation-action-" + Math.random().toString(36).slice(2);
+      operationsActionMap.set(id, action);
+      return '<button class="operations-item-action" type="button" data-operation-action="' + id + '">' + escapeHtml(action.label || "Open") + '</button>';
+    }
+
+    function renderOperationItem(item, actionHtml = "") {
+      const detail = [item.clientName || "", item.detail || ""].filter(Boolean).join(" · ");
+      return '<article class="operations-item" data-status="' + escapeHtml(item.severity || item.status || "") + '">' +
+        '<span class="operations-item-status" aria-hidden="true"></span>' +
+        '<span class="operations-item-copy"><strong>' + escapeHtml(item.title || "Operation") + '</strong><small>' + escapeHtml(detail || formatOperationsTime(item.lastSeenAt || item.updatedAt)) + '</small></span>' +
+        actionHtml + '</article>';
+    }
+
+    function cacheOperationsOverview(overview) {
+      sessionStorage.setItem(TODAY_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), overview }));
+    }
+
+    function renderTodayDashboard(overview) {
+      const summary = overview.summary || {};
+      const overall = overview.overall || "operational";
+      const generatedAt = overview.generatedAt || new Date().toISOString();
+      operationsActionMap = new Map();
+      todayDate.textContent = "Operations Center";
+      todayImpact.textContent = (overview.warnings || []).length
+        ? "Snapshot tersedia dengan " + overview.warnings.length + " warning data."
+        : "Status terakhir " + formatOperationsTime(generatedAt) + ". Tiada background polling.";
+      todayRunning.textContent = String(summary.running || 0);
+      operationsFailed.textContent = String(summary.failed || 0);
+      todayAttention.textContent = String(summary.attention || 0);
+      operationsHealthy.textContent = String(summary.healthy || 0);
+      operationsOverall.dataset.status = overall;
+      operationsOverallTitle.textContent = overall === "critical" ? "Critical issue detected" : overall === "attention" ? "Some systems need attention" : "All systems operational";
+      operationsOverallDetail.textContent = "Snapshot " + formatOperationsTime(generatedAt);
+
+      const incidents = overview.incidents || [];
+      operationsAttentionSection.hidden = incidents.length === 0;
+      operationsAttentionCount.textContent = String(incidents.length);
+      operationsIncidents.innerHTML = incidents.length
+        ? incidents.map((item) => renderOperationItem(item, registerOperationsAction(item.action))).join("")
+        : '<div class="operations-empty">Tiada incident terbuka.</div>';
+
+      const active = overview.activeOperations || [];
+      operationsActiveSection.hidden = active.length === 0;
+      operationsActiveList.innerHTML = active.map((job) => renderOperationItem({
+        status: job.status,
+        title: job.type === "threads_text" ? "Threads automation" : "Facebook + Threads automation",
+        detail: job.progress?.message || "Job sedang berjalan.",
+      }, registerOperationsAction({ kind: "automation", operation: "cancel", label: "Cancel", jobId: job.id }))).join("");
+
+      operationsHealth.innerHTML = (overview.health || []).map((item) => {
+        const meta = item.checkedAt ? "Checked " + formatOperationsTime(item.checkedAt) : "Belum diperiksa";
+        const contextualAction = item.status !== "healthy" ? registerOperationsAction(item.action) : "";
+        return '<article class="health-card" data-status="' + escapeHtml(item.status) + '">' +
+          '<span class="health-status-dot" aria-hidden="true"></span>' +
+          '<span class="health-card-copy"><span class="health-card-heading"><strong>' + escapeHtml(item.label) + '</strong><span class="health-badge">' + escapeHtml(operationsStatusLabel(item.status)) + '</span></span>' +
+          '<small>' + escapeHtml(item.detail || item.description || "") + '</small><small class="health-card-meta">' + escapeHtml(meta) + '</small></span>' +
+          '<span class="health-card-actions"><button class="health-check-button" type="button" data-health-check="' + escapeHtml(item.id) + '" title="Check again" aria-label="Check ' + escapeHtml(item.label) + '"><svg class="icon" aria-hidden="true"><use href="/icons.svg#refresh"></use></svg></button>' + contextualAction + '</span></article>';
+      }).join("");
+
+      const recent = overview.recentOperations || [];
+      operationsRecent.innerHTML = recent.length ? recent.map((item) =>
+        '<article class="operations-recent-row"><span class="operations-item-status" data-status="' + escapeHtml(item.status) + '"></span><span class="operations-recent-copy"><strong>' + escapeHtml(item.title || "Operation") + '</strong><small>' + escapeHtml(item.detail || operationsStatusLabel(item.status)) + '</small></span><time>' + escapeHtml(formatOperationsTime(item.timestamp)) + '</time></article>'
+      ).join("") : '<div class="operations-empty">Belum ada operasi direkodkan.</div>';
+
+      todaySkeleton.hidden = true;
+      todayContent.hidden = false;
+      renderResumeWork();
+    }
+
+    async function loadTodayDashboard({ silent = false, force = false } = {}) {
+      if (!force) {
+        try {
+          const cached = JSON.parse(sessionStorage.getItem(TODAY_CACHE_KEY) || "null");
+          if (cached?.overview && Date.now() - cached.savedAt < OPERATIONS_CACHE_MS) {
+            renderTodayDashboard(cached.overview);
+            return cached.overview;
+          }
+        } catch {}
+      }
+      if (!silent) { todaySkeleton.hidden = false; todayContent.hidden = true; }
+      refreshTodayButton.disabled = true;
+      try {
+        const response = await fetch("/api/operations/overview");
+        const json = await readApiJson(response);
+        if (response.status === 401) return void (window.location.href = "/login");
+        if (!response.ok || !json.ok) throw new Error(json.error || "Operations Center tidak dapat dimuatkan.");
+        renderTodayDashboard(json.overview || {});
+        cacheOperationsOverview(json.overview || {});
+        return json.overview;
+      } catch (error) {
+        todaySkeleton.hidden = true;
+        todayContent.hidden = false;
+        todayImpact.textContent = error?.message || String(error);
+        showToast("Operations Center belum dapat disegerakkan.", "error");
+        return null;
+      } finally {
+        refreshTodayButton.disabled = false;
+      }
+    }
+
+    async function checkOperationsHealth(service = "", button = checkAllHealthButton) {
+      const original = button.innerHTML;
+      button.disabled = true;
+      if (!button.matches(".health-check-button")) button.textContent = "Checking...";
+      try {
+        const response = await fetch("/api/operations/health-check", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ service }),
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) return void (window.location.href = "/login");
+        if (!response.ok || !json.ok) throw new Error(json.error || "Health check gagal.");
+        renderTodayDashboard(json.overview || {});
+        cacheOperationsOverview(json.overview || {});
+        showToast(service ? "System check selesai." : "Semua system check selesai.", "ok");
+      } catch (error) {
+        showToast(error?.message || String(error), "error");
+      } finally {
+        button.disabled = false;
+        button.innerHTML = original;
+      }
+    }
+
+    async function runOperationsAction(action, button) {
+      if (!action) return;
+      if (action.kind === "navigate") {
+        navigateToWork(action);
+        return;
+      }
+      if (action.kind === "href") {
+        window.location.href = action.href;
+        return;
+      }
+      const original = button.textContent;
+      button.disabled = true;
+      button.textContent = "Working...";
+      try {
+        let response;
+        if (action.kind === "automation") {
+          response = await fetch("/api/postpilot-remote/jobs/action", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: action.jobId, action: action.operation }) });
+        } else if (action.kind === "telegram") {
+          response = await fetch("/api/telegram/action", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "send-yesterday", clientCode: action.clientCode, recipientSlot: action.recipientSlot || 1 }) });
+        }
+        if (!response) return;
+        const json = await readApiJson(response);
+        if (!response.ok || !json.ok) throw new Error(json.error || "Action gagal.");
+        sessionStorage.removeItem(TODAY_CACHE_KEY);
+        await loadTodayDashboard({ force: true });
+        showToast("Action selesai.", "ok");
+      } catch (error) {
+        showToast(error?.message || String(error), "error");
+      } finally {
+        button.disabled = false;
+        button.textContent = original;
+      }
+    }
+
+    function quickActionStats() {
+      try { return JSON.parse(localStorage.getItem(QUICK_ACTION_STORAGE_KEY) || "{}"); } catch { return {}; }
+    }
+
+    function recordQuickAction(key) {
+      if (!key) return;
+      const stats = quickActionStats();
+      stats[key] = { count: Number(stats[key]?.count || 0) + 1, lastUsed: Date.now() };
+      localStorage.setItem(QUICK_ACTION_STORAGE_KEY, JSON.stringify(stats));
+    }
+
+    function sortQuickActions() {
+      const grid = document.querySelector(".quick-grid");
+      const stats = quickActionStats();
+      [...grid.querySelectorAll(".quick-card")].sort((a, b) => Number(stats[b.dataset.actionKey]?.lastUsed || 0) - Number(stats[a.dataset.actionKey]?.lastUsed || 0)).forEach((item) => grid.appendChild(item));
+    }
+
+    function applyClientFilters() {
+      const query = String(clientSearchInput?.value || "").trim().toLowerCase();
+      clientList.querySelectorAll(".client-row[data-client-search]").forEach((row) => {
+        const statusMatch = activeClientFilter === "all" || row.dataset.clientStatus === activeClientFilter;
+        row.hidden = !statusMatch || !row.dataset.clientSearch.includes(query);
+      });
     }
 
     function activateTab(name) {
+      const previous = document.querySelector(".tab-button.active")?.dataset.tabTarget || "dashboard";
+      const previousIndex = NAV_ITEMS.indexOf(previous);
+      const nextIndex = Math.max(0, NAV_ITEMS.indexOf(name));
+      document.body.dataset.navDirection = nextIndex >= previousIndex ? "forward" : "back";
       document.querySelectorAll(".tab-button").forEach((button) => {
         button.classList.toggle("active", button.dataset.tabTarget === name);
       });
       document.querySelectorAll(".tab-panel").forEach((panel) => {
         panel.classList.toggle("active", panel.dataset.tabPanel === name);
       });
+      mobileNavigation?.style.setProperty("--active-index", String(nextIndex));
+      if (mobileContextTitle) mobileContextTitle.textContent = NAV_TITLES[name] || "BuddyPilot";
       localStorage.setItem("active-main-tab", name);
+    }
+
+    function setupMainTabSwipe() {
+      const mobileQuery = window.matchMedia("(max-width: 700px)");
+      const mainSurface = document.querySelector("main");
+      const surfaces = [mainSurface, mobileNavigation].filter(Boolean);
+      let gesture = null;
+
+      function activeTabName() {
+        return document.querySelector(".tab-button.active")?.dataset.tabTarget || "dashboard";
+      }
+
+      function hasHorizontalScroller(target, boundary) {
+        for (let node = target; node && node !== boundary; node = node.parentElement) {
+          if (!(node instanceof HTMLElement)) continue;
+          const style = window.getComputedStyle(node);
+          const scrollable = /(auto|scroll)/.test(style.overflowX) && node.scrollWidth > node.clientWidth + 6;
+          if (scrollable || node.matches(".postpilot-gallery, .invoice-list, .table-scroll, table, .viral-post-card")) return true;
+        }
+        return false;
+      }
+
+      function shouldIgnoreSwipe(target, surface) {
+        if (surface === mobileNavigation) return false;
+        if (document.querySelector(".action-menu[open], .topbar-menu[open]")) return true;
+        if (target.closest("input, textarea, select, button, a, summary, [contenteditable='true'], .action-menu-list, .topbar-menu-list")) return true;
+        return hasHorizontalScroller(target, surface);
+      }
+
+      function clearGestureStyles(panel, returning = false) {
+        if (!panel) return;
+        panel.classList.remove("tab-swipe-dragging");
+        panel.style.removeProperty("--tab-swipe-x");
+        panel.style.removeProperty("--tab-swipe-opacity");
+        mobileNavigation?.style.removeProperty("--swipe-offset");
+        if (!returning) return;
+        panel.classList.add("tab-swipe-returning");
+        window.setTimeout(() => panel.classList.remove("tab-swipe-returning"), 240);
+      }
+
+      function startSwipe(event, surface) {
+        if (!mobileQuery.matches || event.touches.length !== 1) return;
+        const target = event.target;
+        if (!(target instanceof Element) || shouldIgnoreSwipe(target, surface)) return;
+        const touch = event.touches[0];
+        gesture = {
+          surface,
+          panel: document.querySelector(".tab-panel.active"),
+          startX: touch.clientX,
+          startY: touch.clientY,
+          lastX: touch.clientX,
+          startedAt: Date.now(),
+          horizontal: false,
+          cancelled: false,
+        };
+      }
+
+      function moveSwipe(event) {
+        if (!gesture || event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        const deltaX = touch.clientX - gesture.startX;
+        const deltaY = touch.clientY - gesture.startY;
+        gesture.lastX = touch.clientX;
+        if (!gesture.horizontal && Math.abs(deltaY) > 10 && Math.abs(deltaY) > Math.abs(deltaX)) {
+          gesture.cancelled = true;
+          return;
+        }
+        if (gesture.cancelled || Math.abs(deltaX) < 8 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.15) return;
+        gesture.horizontal = true;
+        event.preventDefault();
+        const currentIndex = NAV_ITEMS.indexOf(activeTabName());
+        const pullingPastEdge = (currentIndex === 0 && deltaX > 0) || (currentIndex === NAV_ITEMS.length - 1 && deltaX < 0);
+        const resistance = pullingPastEdge ? 0.16 : 0.42;
+        const visualX = Math.max(-90, Math.min(90, deltaX * resistance));
+        gesture.panel?.classList.add("tab-swipe-dragging");
+        gesture.panel?.style.setProperty("--tab-swipe-x", String(visualX) + "px");
+        gesture.panel?.style.setProperty("--tab-swipe-opacity", String(Math.max(0.76, 1 - Math.abs(visualX) / 360)));
+        mobileNavigation?.style.setProperty("--swipe-offset", String(visualX * 0.34) + "px");
+      }
+
+      function finishSwipe() {
+        if (!gesture) return;
+        const completedGesture = gesture;
+        gesture = null;
+        const deltaX = completedGesture.lastX - completedGesture.startX;
+        const elapsed = Math.max(1, Date.now() - completedGesture.startedAt);
+        const velocity = Math.abs(deltaX) / elapsed;
+        const shouldChange = completedGesture.horizontal && !completedGesture.cancelled && (Math.abs(deltaX) >= 56 || (Math.abs(deltaX) >= 32 && velocity > 0.45));
+        const currentIndex = NAV_ITEMS.indexOf(activeTabName());
+        const nextIndex = shouldChange ? currentIndex + (deltaX < 0 ? 1 : -1) : currentIndex;
+        const targetTab = NAV_ITEMS[nextIndex];
+        if (!targetTab) {
+          clearGestureStyles(completedGesture.panel, true);
+          return;
+        }
+        clearGestureStyles(completedGesture.panel, !shouldChange);
+        if (!shouldChange || nextIndex === currentIndex) return;
+        suppressTabClickUntil = Date.now() + 450;
+        activateTab(targetTab);
+        saveLastWork(targetTab, activeSubtabFor(targetTab));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      surfaces.forEach((surface) => {
+        surface.addEventListener("touchstart", (event) => startSwipe(event, surface), { passive: true });
+        surface.addEventListener("touchmove", moveSwipe, { passive: false });
+        surface.addEventListener("touchend", finishSwipe, { passive: true });
+        surface.addEventListener("touchcancel", finishSwipe, { passive: true });
+      });
     }
 
     function activateSubtab(group, targetId) {
@@ -1950,7 +5713,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     function setupTabs() {
-      let savedMainTab = localStorage.getItem("active-main-tab") || "dashboard";
+      const requestedParams = new URLSearchParams(window.location.search);
+      const requestedTab = requestedParams.get("tab");
+      const requestedPanel = requestedParams.get("panel");
+      let savedMainTab = requestedTab || localStorage.getItem("active-main-tab") || "dashboard";
       if (savedMainTab === "postpilot") {
         savedMainTab = "personalpostpilot";
         localStorage.setItem("active-main-tab", savedMainTab);
@@ -1959,9 +5725,13 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       const mainTab = document.querySelector(\`.tab-button[data-tab-target="\${savedMainTab}"]\`) ? savedMainTab : "dashboard";
       activateTab(mainTab);
       document.querySelectorAll(".tab-button").forEach((button) => {
-        button.addEventListener("click", () => {
+        button.addEventListener("click", (event) => {
+          if (Date.now() < suppressTabClickUntil) {
+            event.preventDefault();
+            return;
+          }
           activateTab(button.dataset.tabTarget);
-          if (button.dataset.tabTarget === "invoicepilot") activateSubtab("invoice-pilot", "invoice-panel");
+          saveLastWork(button.dataset.tabTarget, activeSubtabFor(button.dataset.tabTarget));
         });
       });
 
@@ -1972,7 +5742,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       };
       ["invoice-pilot", "client", "post-pilot"].forEach((group) => {
         const fallback = subtabDefaults[group] || document.querySelector(\`.subtab-button[data-subtab-group="\${group}"]\`)?.dataset.subtabTarget;
-        const saved = group === "invoice-pilot" ? "" : localStorage.getItem(\`active-subtab-\${group}\`);
+        const saved = group === "invoice-pilot" && requestedPanel ? requestedPanel : localStorage.getItem(\`active-subtab-\${group}\`);
         const savedPanel = saved ? document.getElementById(saved) : null;
         const target = savedPanel?.dataset.subtabPanel === group ? saved : fallback;
         if (target) activateSubtab(group, target);
@@ -1986,6 +5756,13 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           button.closest(".topbar-menu")?.removeAttribute("open");
         });
       });
+      document.querySelector("[data-menu-refresh]")?.addEventListener("click", (event) => {
+        event.currentTarget.closest(".topbar-menu")?.removeAttribute("open");
+        window.location.reload();
+      });
+      if (requestedPanel === "settings-panel") {
+        window.setTimeout(() => document.getElementById("tiktokAdsSettings")?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
+      }
     }
 
     function panelStorageKey(name) {
@@ -2270,6 +6047,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     function threadsPayloadFromForm() {
       return {
+        product_id: activePostPilotProductId,
+        active_product_id: activePostPilotProductId,
         product_name: document.getElementById("threadsProductName").value,
         affiliate_link: document.getElementById("threadsAffiliateLink").value,
         post_mode: document.getElementById("threadsPostMode").value
@@ -2322,8 +6101,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         const saved = JSON.parse(localStorage.getItem(POSTPILOT_INPUT_STORAGE_KEY) || "{}");
         const fields = {
           product_name: "threadsProductName",
-          affiliate_link: "threadsAffiliateLink",
-          post_mode: "threadsPostMode"
+          affiliate_link: "threadsAffiliateLink"
         };
         Object.entries(fields).forEach(([key, id]) => {
           const node = document.getElementById(id);
@@ -2332,6 +6110,9 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       } catch {
         localStorage.removeItem(POSTPILOT_INPUT_STORAGE_KEY);
       }
+
+      const postMode = document.getElementById("threadsPostMode");
+      if (postMode) postMode.value = "auto";
 
       try {
         const image = JSON.parse(localStorage.getItem(POSTPILOT_IMAGE_STORAGE_KEY) || "null");
@@ -2347,18 +6128,25 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       if (!draft) return;
       const values = {
         product_name: draft.productName,
-        affiliate_link: draft.affiliateLink,
-        post_mode: draft.postMode
+        affiliate_link: draft.affiliateLink
       };
       const fields = {
         product_name: "threadsProductName",
-        affiliate_link: "threadsAffiliateLink",
-        post_mode: "threadsPostMode"
+        affiliate_link: "threadsAffiliateLink"
       };
       Object.entries(fields).forEach(([key, id]) => {
         const node = document.getElementById(id);
         if (node && typeof values[key] === "string") node.value = values[key];
       });
+      const postMode = document.getElementById("threadsPostMode");
+      if (postMode) postMode.value = "auto";
+      if (draft.activeProductId && postPilotProducts.some((product) => product.id === draft.activeProductId)) {
+        activePostPilotProductId = draft.activeProductId;
+        threadsProductSelect.value = draft.activeProductId;
+        const product = postPilotProducts.find((item) => item.id === draft.activeProductId);
+        document.getElementById("threadsProductName").value = product.name;
+        document.getElementById("threadsAffiliateLink").value = product.affiliateLink;
+      }
       savePostPilotInputs();
       if (draft.hasHookImage) {
         const localDataUrl = savedThreadsImage?.savedAt === draft.hookImageUpdatedAt
@@ -2420,14 +6208,100 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       }, 650);
     }
 
-    function setupPostPilotInputStorage() {
+    function renderPostPilotProducts() {
+      threadsProductSelect.innerHTML = "";
+      postPilotProducts.forEach((product) => {
+        const option = document.createElement("option");
+        option.value = product.id;
+        option.textContent = product.name;
+        threadsProductSelect.appendChild(option);
+      });
+      deleteProductButton.disabled = postPilotProducts.length <= 1;
+      deleteProductButton.title = postPilotProducts.length <= 1
+        ? "Tambah produk lain sebelum delete produk ini"
+        : "Delete produk aktif dan semua gambar miliknya";
+    }
+
+    async function loadPostPilotProducts() {
+      const response = await fetch("/api/personal-post-products");
+      const json = await readApiJson(response);
+      if (!response.ok || !json.ok) throw new Error(json.error || "Gagal load produk Post Pilot.");
+      postPilotProducts = Array.isArray(json.products) ? json.products : [];
+      renderPostPilotProducts();
+    }
+
+    async function activatePostPilotProduct(productId, { persist = true } = {}) {
+      const product = postPilotProducts.find((item) => item.id === productId);
+      if (!product) return;
+      activePostPilotProductId = product.id;
+      threadsProductSelect.value = product.id;
+      document.getElementById("threadsProductName").value = product.name;
+      document.getElementById("threadsAffiliateLink").value = product.affiliateLink;
+      postPilotGalleryImages = [];
+      savedThreadsImage = null;
+      threadsPreviewPanel.hidden = true;
+      threadsPostPreview.value = "";
+      threadsCommentPreview.value = "";
+      renderPostPilotGallery();
+      if (persist) await savePostPilotInputsToSupabase();
+      await loadPostPilotGallery();
+    }
+
+    async function createPostPilotProductFromForm() {
+      const response = await fetch("/api/personal-post-products", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: newProductName.value, affiliate_link: newProductLink.value }),
+      });
+      const json = await readApiJson(response);
+      if (!response.ok || !json.ok) throw new Error(json.error || "Gagal tambah produk.");
+      postPilotProducts.push(json.product);
+      renderPostPilotProducts();
+      addProductPanel.hidden = true;
+      newProductName.value = "";
+      newProductLink.value = "";
+      await activatePostPilotProduct(json.product.id, { persist: false });
+      setMessage(threadsResult, "ok", \`Produk \${json.product.name} ditambah dan diaktifkan.\`);
+    }
+
+    async function deleteActivePostPilotProduct() {
+      const product = postPilotProducts.find((item) => item.id === activePostPilotProductId);
+      if (!product) throw new Error("Pilih produk yang hendak dipadam.");
+      if (postPilotProducts.length <= 1) throw new Error("Produk terakhir tidak boleh dipadam. Tambah produk lain dahulu.");
+      if (!window.confirm(\`Delete produk \${product.name} dan semua gambar yang disimpan untuk produk ini?\`)) return;
+
+      deleteProductButton.disabled = true;
+      try {
+        const response = await fetch("/api/personal-post-products", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ product_id: product.id }),
+        });
+        const json = await readApiJson(response);
+        if (!response.ok || !json.ok) throw new Error(json.error || "Gagal delete produk.");
+        postPilotProducts = Array.isArray(json.products) ? json.products : [];
+        renderPostPilotProducts();
+        await activatePostPilotProduct(json.active_product.id, { persist: false });
+        setMessage(threadsResult, "ok", \`Produk \${product.name} dan \${json.deleted_image_count || 0} gambar sudah dipadam.\`);
+      } finally {
+        deleteProductButton.disabled = postPilotProducts.length <= 1;
+      }
+    }
+
+    async function setupPostPilotInputStorage() {
       restorePostPilotInputs();
       threadsForm.querySelectorAll("input:not([type='file']), textarea, select").forEach((node) => {
         node.addEventListener("input", schedulePostPilotSave);
         node.addEventListener("change", schedulePostPilotSave);
       });
-      loadPostPilotDraftFromSupabase();
-      loadPostPilotGallery().catch(showThreadsError);
+      try {
+        await loadPostPilotProducts();
+        await loadPostPilotDraftFromSupabase();
+        const initialId = activePostPilotProductId || postPilotProducts[0]?.id || "";
+        if (initialId) await activatePostPilotProduct(initialId, { persist: false });
+      } catch (error) {
+        showThreadsError(error);
+      }
     }
 
     function blobToDataUrl(blob) {
@@ -2542,7 +6416,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     function postPilotGalleryImageUrl(image) {
-      return \`/api/personal-post-hook-images?id=\${encodeURIComponent(image.id)}\`;
+      return image.url || \`/api/personal-post-hook-images?id=\${encodeURIComponent(image.id)}\`;
     }
 
     function renderPostPilotGallery() {
@@ -2571,7 +6445,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     async function loadPostPilotGallery() {
-      const response = await fetch("/api/personal-post-hook-images");
+      if (!activePostPilotProductId) return;
+      const response = await fetch(\`/api/personal-post-hook-images?product_id=\${encodeURIComponent(activePostPilotProductId)}\`);
       const json = await readApiJson(response);
       if (response.status === 401) {
         window.location.href = "/login";
@@ -2592,7 +6467,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         const storedFile = await compressImageForPostPilotStorage(selected[index]);
         const payload = new FormData();
         payload.append("hookImage", storedFile);
-        const response = await fetch("/api/personal-post-hook-images", { method: "POST", body: payload });
+        const response = await fetch(\`/api/personal-post-hook-images?product_id=\${encodeURIComponent(activePostPilotProductId)}\`, { method: "POST", body: payload });
         const json = await readApiJson(response);
         if (!response.ok || !json.ok) throw new Error(json.error || \`Gagal simpan \${selected[index].name}.\`);
         postPilotGalleryImages.push(json.image);
@@ -2630,13 +6505,17 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       if (!response.ok || !json.ok) throw new Error(json.error || "Gagal jana batch Post Pilot.");
       const posts = [];
       for (const post of json.posts || []) {
-        if (!post.image?.dataUrl) throw new Error(\`Gambar hook untuk \${post.id} tidak lengkap.\`);
+        if (!post.image?.url) throw new Error(\`Gambar hook untuk \${post.id} tidak lengkap.\`);
+        const imageResponse = await fetch(post.image.url);
+        if (!imageResponse.ok) throw new Error(\`Gagal load gambar hook untuk \${post.id}.\`);
+        const imageBlob = await imageResponse.blob();
+        const imageDataUrl = await readFileAsDataUrl(fileFromBlob(imageBlob, post.image.name || "post-hook.jpg"));
         posts.push({
           ...post,
           image: {
             name: post.image.name,
             type: post.image.type,
-            dataUrl: post.image.dataUrl
+            dataUrl: imageDataUrl
           }
         });
       }
@@ -2659,19 +6538,21 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       threadsResult.textContent = "";
       try {
         await savePostPilotInputsToSupabase();
-        const message = await buildPostPilotBatchDraft(count);
-        if (!message) return;
-        window.postMessage(message, window.location.origin);
+        await createRemoteAutomationJob({
+          type: "facebook_threads",
+          count,
+          personal: threadsPayloadFromForm()
+        }, threadsResult);
         threadsResult.className = "result ok";
         threadsResult.textContent = count === 5
-          ? "5 post unik dihantar ke extension. Facebook dan Threads akan bergerak satu demi satu, dengan jarak 30 saat."
-          : "Post unik dihantar ke extension. Facebook akan post dahulu, kemudian Threads.";
+          ? "5 post unik masuk queue Mac. Facebook dan Threads akan bergerak satu demi satu, dengan jarak 30 saat."
+          : "Post unik masuk queue Mac. Facebook akan post dahulu, kemudian Threads.";
       } catch (error) {
         showThreadsError(error);
       } finally {
         threadsPreviewButton.disabled = false;
         threadsBatchPostButton.disabled = false;
-        threadsPreviewButton.textContent = "POST NOW";
+        threadsPreviewButton.textContent = "Generate Preview";
         threadsBatchPostButton.textContent = "POST 5 NOW";
       }
     }
@@ -2687,6 +6568,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         \`Style: \${currentThreadsPreview.style || "-"}\`
       ].join(" | ");
       threadsPreviewPanel.className = reveal ? "preview show" : "preview";
+      threadsPreviewPanel.hidden = !reveal;
+      setPostWorkflowStep(3);
       if (message || reveal) {
         threadsResult.className = "result ok";
         threadsResult.textContent = [
@@ -2748,15 +6631,58 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     async function sendThreadsDraftToExtension() {
-      const message = await buildThreadsExtensionDraft();
-      if (!message.draft.postText) throw new Error("Post utama kosong.");
-      window.postMessage(message, window.location.origin);
+      if (!currentThreadsPreview) throw new Error("Preview Post Pilot belum dijana.");
+      const postText = normalizePostPilotMainTextForSend(
+        threadsPostPreview.value,
+        currentThreadsPreview.affiliate_link || document.getElementById("threadsAffiliateLink").value
+      );
+      if (!postText) throw new Error("Post utama kosong.");
+      await createRemoteAutomationJob({
+        type: "facebook_threads",
+        product_id: activePostPilotProductId,
+        posts: [{
+          id: "postpilot-preview-" + Date.now(),
+          postText,
+          commentCta: threadsCommentPreview.value.trim(),
+          postMode: currentThreadsPreview.post_mode || "custom",
+          style: currentThreadsPreview.style || "custom"
+        }]
+      }, threadsResult);
       threadsResult.className = "result ok";
-      threadsResult.textContent = [
-        "Draft dihantar. Menunggu Post Pilot extension buka Facebook, kemudian Threads...",
-        message.draft.imageNotice || preparedThreadsImageNotice || ""
-      ].filter(Boolean).join("\\n");
-      return message;
+      threadsResult.textContent = "Draft masuk queue. Menunggu Chrome Mac buka Facebook, kemudian Threads.";
+      setPostWorkflowStep(4);
+      showToast("Post masuk queue Mac.");
+      loadTodayDashboard({ silent: true, force: true });
+    }
+
+    function setPostWorkflowStep(step) {
+      document.querySelectorAll(".workflow-steps span").forEach((item, index) => item.classList.toggle("active", index + 1 === step));
+    }
+
+    async function generatePostPilotPreview() {
+      threadsPreviewButton.disabled = true;
+      threadsBatchPostButton.disabled = true;
+      threadsPreviewButton.textContent = "Generating...";
+      setPostWorkflowStep(2);
+      try {
+        await savePostPilotInputsToSupabase();
+        const response = await fetch("/api/personal-post-preview", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(threadsPayloadFromForm())
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) return void (window.location.href = "/login");
+        if (!response.ok || !json.ok) throw new Error(json.error || "Gagal jana preview Post Pilot.");
+        showThreadsPreview(json);
+      } catch (error) {
+        setPostWorkflowStep(1);
+        showThreadsError(error);
+      } finally {
+        threadsPreviewButton.disabled = false;
+        threadsBatchPostButton.disabled = false;
+        threadsPreviewButton.textContent = "Generate Preview";
+      }
     }
 
     function pickRandom(list) {
@@ -2810,6 +6736,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     function cleanViralText(value) {
       return String(value || "")
+        .replace(/\\*\\*/g, "")
         .replace(/:/g, ",")
         .replace(/\\s+([?.!,])/g, "$1")
         .replace(/[ \\t]+/g, " ")
@@ -2819,6 +6746,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     function withTopic(template, topic) {
       return String(template || "").replace(/\\{topic\\}/g, topic);
+    }
+
+    function withViralContext(template, topic, audience) {
+      return withTopic(template, topic).replace(/\\{audience\\}/g, audience);
     }
 
     function maybeHashtags(category, topic) {
@@ -2838,26 +6769,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     function buildViralText(parts) {
-      const structure = parts.structure;
-      const topic = parts.topic;
-      const hook = withTopic(parts.hook, topic);
-      const opening = withTopic(parts.opening, topic);
-      const angle = parts.angle;
-      const pain = parts.pain;
-      const emotion = parts.emotion;
-      const middle = parts.middle;
-      const context = parts.context;
-
-      if (structure === "Hot Take") return [hook + ".", angle + ".", middle + "."].join("\\n\\n");
-      if (structure === "Relatable Pain") return [pain + ".", emotion + ".", middle + "."].join("\\n\\n");
-      if (structure === "Contrarian") return ["ramai ingat " + topic + " kena complicated.", "aku rasa tak semestinya.", angle + "."].join("\\n\\n");
-      if (structure === "List Style") return ["3 benda yang aku belajar pasal " + topic + ":", "1. " + angle, "2. " + middle, "3. " + context].join("\\n");
-      if (structure === "Story Style") return [opening + ".", "lepas tu baru aku nampak " + middle + "."].join("\\n\\n");
-      if (structure === "Comparison") return ["cara lama: overthink sampai tak post.", "cara yang lebih senang: " + angle + ".", middle + "."].join("\\n\\n");
-      if (structure === "Warning") return ["silap yang ramai buat: " + pain + ".", "last-last " + emotion + ".", "buat yang simple dulu: " + angle + "."].join("\\n\\n");
-      if (structure === "Recommendation") return ["kalau tengah fikir pasal " + topic + ", mula dengan " + angle + ".", middle + "."].join("\\n\\n");
-      if (structure === "Local Malaysian Angle") return [context + ".", opening + ".", middle + "."].join("\\n\\n");
-      return [context + ".", "dalam bisnes, " + middle + ".", angle + "."].join("\\n\\n");
+      return buildThreadsGeneralText(parts);
     }
 
     function validateViralPost(text, existingPosts) {
@@ -2867,6 +6779,9 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       if (!viralHashtags.checked && /(^|\\s)#\\w+/i.test(safe)) return { ok: false, reason: "hashtag_disabled" };
       if (containsAnyPhrase(safe, VIRAL_BANNED_WORDS)) return { ok: false, reason: "banned_word" };
       if (containsAnyPhrase(safe, VIRAL_PROMO_PHRASES)) return { ok: false, reason: "too_promotional" };
+      if (containsAnyPhrase(safe, VIRAL_ROBOTIC_PHRASES)) return { ok: false, reason: "robotic_phrase" };
+      if (/\\*\\*|:/.test(safe)) return { ok: false, reason: "robotic_punctuation" };
+      if (/\\?\\s*(?:#\\w+(?:\\s+#\\w+)*)?$/i.test(safe)) return { ok: false, reason: "question_ending" };
       if (tooSimilarToBatch(safe, existingPosts)) return { ok: false, reason: "too_similar" };
       return { ok: true, text: safe };
     }
@@ -2879,18 +6794,21 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
       for (let attempt = 0; attempt < 160; attempt += 1) {
         const structure = pickRandom(viralTemplates.structures);
+        const toneTemplates = viralTemplates.toneLeadIns?.[tone] || viralTemplates.toneLeadIns?.Casual || [];
         const parts = {
           angle: pickRandom(viralTemplates.contentAngles),
           audience,
+          audienceLead: withViralContext(pickRandom(viralTemplates.audienceLeadIns || []), topic, audience),
           category,
           context: viralContextFor(category),
           emotion: pickRandom(viralTemplates.emotionalTriggers),
-          hook: pickRandom(viralTemplates.hooks),
+          hook: withTopic(pickRandom(viralTemplates.hooks), topic),
           middle: pickRandom(viralTemplates.middleSentencePatterns),
-          opening: pickRandom(viralTemplates.openingStyles),
+          opening: withTopic(pickRandom(viralTemplates.openingStyles), topic),
           pain: pickRandom(viralTemplates.painPoints),
           structure,
           tone,
+          toneLead: withViralContext(pickRandom(toneTemplates), topic, audience),
           topic,
         };
         let text = buildViralText(parts) + maybeHashtags(category, topic);
@@ -3054,48 +6972,37 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       renderViralPosts();
     }
 
-    function postViralToThreads(post) {
-      window.postMessage({
-        source: "postpilot-webapp",
-        type: "POSTPILOT_THREADS_TEXT_ONLY_DRAFT",
-        draft: {
-          id: "threads-viral-" + Date.now(),
-          createdAt: new Date().toISOString(),
-          postText: post.postText,
-          category: post.category,
-          tone: post.tone,
-          structure: post.structure,
-          threadsTextOnly: true,
-          autoPublish: true,
-        }
-      }, window.location.origin);
-      setMessage(viralResult, "ok", "Draft Threads viral dihantar. Extension akan buka Threads dan post text sahaja.");
+    async function postViralToThreads(post) {
+      try {
+        await createRemoteAutomationJob({
+          type: "threads_text",
+          posts: [{ id: post.id, postText: post.postText, category: post.category, tone: post.tone, structure: post.structure }],
+          batchDelayMs: 30000
+        }, viralResult);
+        setMessage(viralResult, "ok", "Post Threads masuk queue Chrome Mac.");
+      } catch (error) {
+        setMessage(viralResult, "err", error.message || String(error));
+      }
     }
 
-    function postViralBatchToThreads(count) {
+    async function postViralBatchToThreads(count) {
       const posts = ensureViralPostCount(count);
-      window.postMessage({
-        source: "postpilot-webapp",
-        type: "POSTPILOT_THREADS_TEXT_BATCH_DRAFT",
-        draft: {
-          id: "threads-viral-batch-" + Date.now(),
-          createdAt: new Date().toISOString(),
-          postText: posts[0]?.postText || "",
-          posts: posts.map((post, index) => ({
-            index: index + 1,
+      try {
+        await createRemoteAutomationJob({
+          type: "threads_text",
+          posts: posts.map((post) => ({
+            id: post.id,
             postText: post.postText,
-            characterCount: post.characterCount,
             category: post.category,
             tone: post.tone,
-            structure: post.structure,
-            createdAt: post.createdAt,
+            structure: post.structure
           })),
-          threadsTextBatch: true,
-          autoPublish: true,
-          batchDelayMs: 30000,
-        }
-      }, window.location.origin);
-      setMessage(viralResult, "ok", posts.length + " Threads posts dihantar ke extension.");
+          batchDelayMs: 30000
+        }, viralResult);
+        setMessage(viralResult, "ok", posts.length + " Threads posts masuk queue Chrome Mac.");
+      } catch (error) {
+        setMessage(viralResult, "err", error.message || String(error));
+      }
     }
 
     function viralCard(post, options = {}) {
@@ -3394,7 +7301,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     threadsForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      await startPostPilotBatch(1);
+      await generatePostPilotPreview();
     });
 
     threadsBatchPostButton.addEventListener("click", () => startPostPilotBatch(5));
@@ -3519,7 +7426,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       const today = new Date();
       const day = today.getDay() || 7;
       const start = new Date(today);
-      start.setDate(today.getDate() - day + 1);
+      start.setDate(today.getDate() - day - 6);
       const end = new Date(start);
       end.setDate(start.getDate() + 6);
       return { start: localIsoDate(start), end: localIsoDate(end) };
@@ -3557,6 +7464,353 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       return currentClients.find((client) => client.code === reportClient.value);
     }
 
+    function currencyText(value, currency) {
+      try {
+        return new Intl.NumberFormat("en-MY", { style: "currency", currency: currency || "MYR", maximumFractionDigits: 2 }).format(Number(value || 0));
+      } catch {
+        return \`\${currency || "MYR"} \${Number(value || 0).toFixed(2)}\`;
+      }
+    }
+
+    function reportResultLabelFor(metric) {
+      if (metric === "messaging_conversations") return "Messaging Conversations";
+      if (metric === "leads") return "Leads";
+      return "Purchases";
+    }
+
+    function updateReportMetricLabels() {
+      const metric = reportResultMetric.value;
+      reportResultsLabel.textContent = metric === "leads" ? "Leads / Form submissions" : metric === "messaging_conversations" ? "Messaging conversations" : "Purchases";
+      reportCostLabel.textContent = metric === "leads" ? "Cost per lead (CPL)" : metric === "messaging_conversations" ? "Cost per conversation" : "Cost per result";
+    }
+
+    function renderReportBreakdown(analytics) {
+      if (!analytics) {
+        reportBreakdown.innerHTML = "";
+        return;
+      }
+      const prospecting = analytics.categories?.prospecting || {};
+      const retargeting = analytics.categories?.retargeting || {};
+      const other = analytics.categories?.other || {};
+      if (analytics.platform === "tiktok" && analytics.resultMetric === "leads") {
+        reportBreakdown.innerHTML = \`
+          <h3>TOP - Prospecting / Lead Gen</h3>
+          <table>
+            <thead><tr><th>Spend</th><th>Form submissions / Leads</th><th>CPL</th><th>CPM</th><th>Reach</th><th>Impressions</th><th>Clicks</th><th>CPC</th><th>Frequency</th></tr></thead>
+            <tbody><tr>
+              <td>\${escapeHtml(currencyText(prospecting.spend, analytics.currency))}</td>
+              <td>\${escapeHtml(String(prospecting.leads || 0))}</td>
+              <td>\${escapeHtml(prospecting.cpr == null ? "N/A" : currencyText(prospecting.cpr, analytics.currency))}</td>
+              <td>\${escapeHtml(prospecting.cpm == null ? "N/A" : currencyText(prospecting.cpm, analytics.currency))}</td>
+              <td>\${escapeHtml(String(prospecting.reach || 0))}</td>
+              <td>\${escapeHtml(String(prospecting.impressions || 0))}</td>
+              <td>\${escapeHtml(String(prospecting.clicks || 0))}</td>
+              <td>\${escapeHtml(prospecting.cpc == null ? "N/A" : currencyText(prospecting.cpc, analytics.currency))}</td>
+              <td>\${escapeHtml(prospecting.frequency == null ? "N/A" : String(prospecting.frequency))}</td>
+            </tr></tbody>
+          </table>
+          <h3>MID + BOT - Retargeting / Traffic WhatsApp</h3>
+          <table>
+            <thead><tr><th>Spend</th><th>CPM</th><th>Reach</th><th>Impressions</th><th>Clicks</th><th>CPC</th><th>Frequency</th></tr></thead>
+            <tbody><tr>
+              <td>\${escapeHtml(currencyText(retargeting.spend, analytics.currency))}</td>
+              <td>\${escapeHtml(retargeting.cpm == null ? "N/A" : currencyText(retargeting.cpm, analytics.currency))}</td>
+              <td>\${escapeHtml(String(retargeting.reach || 0))}</td>
+              <td>\${escapeHtml(String(retargeting.impressions || 0))}</td>
+              <td>\${escapeHtml(String(retargeting.clicks || 0))}</td>
+              <td>\${escapeHtml(retargeting.cpc == null ? "N/A" : currencyText(retargeting.cpc, analytics.currency))}</td>
+              <td>\${escapeHtml(retargeting.frequency == null ? "N/A" : String(retargeting.frequency))}</td>
+            </tr></tbody>
+          </table>
+          <p class="note">Other / Unmapped spend: \${escapeHtml(currencyText(other.spend, analytics.currency))}</p>
+        \`;
+        return;
+      }
+      reportBreakdown.innerHTML = \`
+        <h3>Prospecting results</h3>
+        <table>
+          <thead><tr><th>Spend</th><th>Purchases</th><th>Messaging conversations</th><th>Leads</th></tr></thead>
+          <tbody><tr>
+            <td>\${escapeHtml(currencyText(prospecting.spend, analytics.currency))}</td>
+            <td>\${escapeHtml(String(prospecting.purchases || 0))}</td>
+            <td>\${escapeHtml(String(prospecting.messaging || 0))}</td>
+            <td>\${escapeHtml(String(prospecting.leads || 0))}</td>
+          </tr></tbody>
+        </table>
+        <h3>Retargeting / Warm Builder primary results</h3>
+        <table>
+          <thead><tr><th>Purchases</th><th>Messaging conversations</th><th>Leads</th></tr></thead>
+          <tbody><tr>
+            <td>\${escapeHtml(String(retargeting.purchases || 0))}</td>
+            <td>\${escapeHtml(String(retargeting.messaging || 0))}</td>
+            <td>\${escapeHtml(String(retargeting.leads || 0))}</td>
+          </tr></tbody>
+        </table>
+        <h3>Retargeting / Warm Builder secondary delivery</h3>
+        <table>
+          <thead><tr><th>Spend</th><th>CPM</th><th>Reach</th><th>Impressions</th><th>Clicks</th><th>CPC</th><th>Frequency</th></tr></thead>
+          <tbody><tr>
+            <td>\${escapeHtml(currencyText(retargeting.spend, analytics.currency))}</td>
+            <td>\${escapeHtml(retargeting.cpm == null ? "N/A" : currencyText(retargeting.cpm, analytics.currency))}</td>
+            <td>\${escapeHtml(String(retargeting.reach || 0))}</td>
+            <td>\${escapeHtml(String(retargeting.impressions || 0))}</td>
+            <td>\${escapeHtml(String(retargeting.clicks || 0))}</td>
+            <td>\${escapeHtml(retargeting.cpc == null ? "N/A" : currencyText(retargeting.cpc, analytics.currency))}</td>
+            <td>\${escapeHtml(retargeting.frequency == null ? "N/A" : String(retargeting.frequency))}</td>
+          </tr></tbody>
+        </table>
+        <p class="note">Other / Unmapped spend: \${escapeHtml(currencyText(other.spend, analytics.currency))}</p>
+      \`;
+    }
+
+    function applyReportDraft(draft) {
+      const values = {
+        adSpend: draft.adSpend,
+        leadsGenerated: draft.leadsGenerated,
+        costPerLead: draft.costPerLead == null ? "" : draft.costPerLead,
+        currency: draft.currency || "MYR",
+        resultLabel: draft.resultLabel || "Results",
+        recommendationHeadline: draft.recommendationHeadline,
+        whatWeProved: draft.whatWeProved,
+        winningCreative: draft.winningCreative,
+        bestPerformance: draft.bestPerformance,
+        retargetingWinningCreative: draft.retargetingWinningCreative,
+        retargetingBestPerformance: draft.retargetingBestPerformance,
+        leadLeaks: draft.leadLeaks,
+        next7Days: draft.next7Days,
+        recommendation: draft.recommendation,
+      };
+      Object.entries(values).forEach(([name, value]) => {
+        if (reportForm.elements[name]) reportForm.elements[name].value = value ?? "";
+      });
+    }
+
+    async function loadAdsReportDraft() {
+      const client = selectedReportClient();
+      if (!client) throw new Error("Pilih client dahulu.");
+      const platform = client.adsReportConfig?.platform === "tiktok" ? "tiktok" : "meta";
+      const accounts = platform === "tiktok" ? currentTikTokAccounts : currentAdflowAccounts;
+      const savedConfig = client.adsReportConfig || {};
+      const selectedAccount = accounts.find((account) => account.id === reportAdAccount.value)
+        || (reportAdAccount.value && savedConfig.accountId === reportAdAccount.value ? {
+          id: savedConfig.accountId,
+          name: savedConfig.accountName || savedConfig.accountId,
+          currency: savedConfig.currency || "MYR",
+        } : null);
+      if (!selectedAccount) throw new Error(\`Pilih \${platform === "tiktok" ? "TikTok advertiser" : "Meta Ads account"} dahulu.\`);
+      setMessage(reportResult, "", "");
+      loadAdsReportButton.disabled = true;
+      previewReportButton.disabled = true;
+      uploadReportButton.disabled = true;
+      loadAdsReportButton.textContent = \`Loading \${platform === "tiktok" ? "TikTok" : "Meta"}...\`;
+      try {
+        const response = await fetch("/api/reports/draft", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            clientCode: client.code,
+            platform,
+            accountId: selectedAccount.id,
+            accountName: selectedAccount.name,
+            currency: selectedAccount.currency,
+            resultMetric: reportResultMetric.value,
+            startDate: reportStartDate.value,
+            endDate: reportEndDate.value,
+          })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Gagal tarik data ads.");
+        reportStartDate.value = json.startDate || "";
+        reportEndDate.value = json.endDate || "";
+        applyReportDraft(json.draft || {});
+        updateReportFileName(true);
+        renderReportBreakdown(json.analytics);
+        const warnings = json.draft?.warnings || [];
+        setMessage(reportResult, warnings.length ? "err" : "ok", [
+          \`Data siap: \${json.account?.name || json.account?.id}\`,
+          \`Tempoh: \${json.startDate} hingga \${json.endDate}\`,
+          ...warnings,
+          "Semak dan edit draf sebelum preview atau upload."
+        ].join("\\n"));
+      } finally {
+        loadAdsReportButton.disabled = false;
+        previewReportButton.disabled = false;
+        uploadReportButton.disabled = false;
+        loadAdsReportButton.textContent = \`Load \${platform === "tiktok" ? "TikTok" : "Meta"} Data\`;
+      }
+    }
+
+    function accountOptions(platform) {
+      return platform === "tiktok" ? currentTikTokAccounts : currentAdflowAccounts;
+    }
+
+    function populateAdsAccountOptions(selectedId = "", platform = clientAdsPlatform.value || "meta") {
+      const current = selectedId || clientAdsAccount.value;
+      const accounts = accountOptions(platform);
+      const options = accounts.map((account) => (
+        \`<option value="\${escapeHtml(account.id)}">\${escapeHtml(account.name)} (\${escapeHtml(account.id)})</option>\`
+      )).join("");
+      clientAdsAccount.innerHTML = '<option value="">Belum dipadankan</option>' + options;
+      clientAdsAccountLabel.textContent = platform === "tiktok" ? "Default TikTok advertiser" : "Default Meta Ads account";
+      if (current && !accounts.some((account) => account.id === current)) {
+        clientAdsAccount.insertAdjacentHTML("beforeend", \`<option value="\${escapeHtml(current)}">\${escapeHtml(current)} (saved)</option>\`);
+      }
+      clientAdsAccount.value = current;
+      const selected = accounts.find((account) => account.id === current);
+      if (selected) {
+        clientAdsAccountName.value = selected.name;
+        clientAdsCurrency.value = selected.currency || "MYR";
+      }
+    }
+
+    function populateReportAccountOptions(platform, selectedId = "") {
+      const accounts = accountOptions(platform);
+      reportPlatform.value = platform;
+      reportAdAccountLabel.textContent = platform === "tiktok" ? "TikTok advertiser" : "Meta Ads account";
+      reportAdAccount.innerHTML = \`<option value="">Pilih \${platform === "tiktok" ? "TikTok advertiser" : "Meta Ads account"}</option>\` + accounts.map((account) => (
+        \`<option value="\${escapeHtml(account.id)}">\${escapeHtml(account.name)} (\${escapeHtml(account.id)})</option>\`
+      )).join("");
+      if (selectedId && !accounts.some((account) => account.id === selectedId)) {
+        reportAdAccount.insertAdjacentHTML("beforeend", \`<option value="\${escapeHtml(selectedId)}">\${escapeHtml(selectedId)} (saved)</option>\`);
+      }
+      reportAdAccount.value = selectedId || accounts[0]?.id || "";
+    }
+
+    async function loadAdflowAccounts() {
+      try {
+        const response = await fetch("/api/reports/accounts");
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Gagal load AdFlow accounts.");
+        currentAdflowAccounts = json.accounts || [];
+        populateAdsAccountOptions();
+        applySelectedClientReportDefaults();
+      } catch (error) {
+        currentAdflowAccounts = [];
+        populateAdsAccountOptions();
+        setMessage(clientResult, "err", \`AdFlow: \${error?.message || error}\`);
+      }
+    }
+
+    async function loadTikTokConnection() {
+      try {
+        const statusResponse = await fetch("/api/tiktok/status");
+        const statusJson = await readApiJson(statusResponse);
+        if (!statusResponse.ok || !statusJson.ok) throw new Error(statusJson.error || "Gagal semak TikTok.");
+        const connection = statusJson.connection || {};
+        const label = connection.status === "connected" ? "Connected"
+          : connection.status === "expiring" ? "Expiring soon"
+          : connection.status === "expired" ? "Expired"
+          : connection.status === "error" ? "Error" : "Not connected";
+        tiktokConnectionText.textContent = connection.expiresAt
+          ? \`\${label}. Authorization tamat \${new Date(connection.expiresAt).toLocaleDateString("en-MY")}.\`
+          : label;
+        const remainingMs = connection.expiresAt ? new Date(connection.expiresAt).getTime() - Date.now() : Number.POSITIVE_INFINITY;
+        const remainingDays = Math.max(0, Math.ceil(remainingMs / 86400000));
+        const showExpiryWarning = Boolean(connection.connected && remainingDays <= 7);
+        tiktokAuthorizationWarning.hidden = !showExpiryWarning;
+        tiktokAuthorizationWarning.textContent = showExpiryWarning
+          ? \`Authorization TikTok tamat dalam \${remainingDays} hari. Reauthorize sekarang supaya report tidak terhenti.\`
+          : "";
+        document.querySelector(".topbar-menu")?.classList.toggle("tiktok-expiring", showExpiryWarning);
+        connectTikTokButton.textContent = connection.connected ? "Reauthorize" : "Connect TikTok Ads";
+        disconnectTikTokButton.hidden = !connection.connected;
+        currentTikTokAccounts = [];
+        if (connection.connected) {
+          try {
+            const response = await fetch("/api/tiktok/accounts");
+            const json = await readApiJson(response);
+            if (!response.ok || !json.ok) throw new Error(json.error || "Gagal load TikTok advertisers.");
+            currentTikTokAccounts = json.accounts || [];
+          } catch (accountError) {
+            tiktokConnectionText.textContent += \` Advertiser list belum dapat dimuat: \${accountError?.message || accountError}\`;
+          }
+        }
+        if (clientAdsPlatform.value === "tiktok") populateAdsAccountOptions(clientAdsAccount.value, "tiktok");
+        applySelectedClientReportDefaults();
+      } catch (error) {
+        currentTikTokAccounts = [];
+        tiktokConnectionText.textContent = error?.message || String(error);
+        tiktokAuthorizationWarning.hidden = true;
+        document.querySelector(".topbar-menu")?.classList.remove("tiktok-expiring");
+      }
+    }
+
+    function urlBase64ToUint8Array(value) {
+      const padding = "=".repeat((4 - value.length % 4) % 4);
+      const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+      return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+    }
+
+    function isIosDevice() {
+      return /iphone|ipad|ipod/i.test(navigator.userAgent);
+    }
+
+    function isStandaloneApp() {
+      return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    }
+
+    async function setupPushNotifications({ requestPermission = false } = {}) {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        enablePushNotificationsButton.hidden = true;
+        pushNotificationNote.textContent = "Peranti atau browser ini tidak menyokong Web Push.";
+        return;
+      }
+      if (isIosDevice() && !isStandaloneApp()) {
+        pushNotificationNote.textContent = "iPhone/iPad: tekan Share > Add to Home Screen, buka BuddyPilot dari Home Screen, kemudian aktifkan notifikasi.";
+        enablePushNotificationsButton.textContent = "Perlu Home Screen";
+        enablePushNotificationsButton.disabled = true;
+        return;
+      }
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        enablePushNotificationsButton.textContent = "Notifikasi Aktif";
+        enablePushNotificationsButton.disabled = true;
+        pushNotificationNote.textContent = "Amaran TikTok Ads akan dihantar ke peranti ini.";
+        return;
+      }
+      if (!requestPermission) {
+        if (Notification.permission === "denied") {
+          enablePushNotificationsButton.textContent = "Notifikasi Disekat";
+          pushNotificationNote.textContent = "Benarkan notification dalam tetapan browser/peranti dahulu.";
+        }
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") throw new Error("Kebenaran notification tidak diberikan.");
+      const configResponse = await fetch("/api/push/config");
+      const config = await readApiJson(configResponse);
+      if (!configResponse.ok || !config.ok) throw new Error(config.error || "Gagal mendapatkan konfigurasi Web Push.");
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(config.publicKey),
+      });
+      const response = await fetch("/api/push/subscription", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subscription: subscription.toJSON() }),
+      });
+      const json = await readApiJson(response);
+      if (!response.ok || !json.ok) throw new Error(json.error || "Gagal menyimpan push subscription.");
+      enablePushNotificationsButton.textContent = "Notifikasi Aktif";
+      enablePushNotificationsButton.disabled = true;
+      pushNotificationNote.textContent = "Amaran TikTok Ads akan dihantar ke peranti ini.";
+      await registration.showNotification("Notifikasi BuddyPilot aktif", {
+        body: "Peranti ini akan menerima amaran apabila authorization TikTok Ads berbaki 7 hari atau kurang.",
+        icon: "/icons/app-icon-192x192.png",
+        badge: "/icons/app-icon-96x96.png",
+        tag: "buddypilot-push-enabled",
+      });
+    }
+
     function updateReportFileName(force = false) {
       if (!force && reportFileNameTouched) return;
       const client = selectedReportClient();
@@ -3567,13 +7821,26 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
 
     function populateReportClientOptions() {
       if (!reportClient) return;
-      const previous = reportClient.value;
+      const previous = reportClient.value || localStorage.getItem(LAST_REPORT_CLIENT_KEY) || "";
       const activeClients = currentClients.filter((client) => client.serviceStatus !== "paused");
       reportClient.innerHTML = activeClients.length
         ? activeClients.map((client) => \`<option value="\${escapeHtml(client.code)}">\${escapeHtml(client.brandClient || client.name || client.code)}</option>\`).join("")
         : '<option value="">Belum ada client aktif</option>';
       if (activeClients.some((client) => client.code === previous)) reportClient.value = previous;
       updateReportFileName();
+    }
+
+    function applySelectedClientReportDefaults() {
+      const config = selectedReportClient()?.adsReportConfig;
+      const platform = config?.platform === "tiktok" ? "tiktok" : "meta";
+      reportResultMetric.value = config?.resultMetric || "conversions";
+      reportResultLabel.value = reportResultLabelFor(reportResultMetric.value);
+      updateReportMetricLabels();
+      const mappedId = config?.accountId || "";
+      populateReportAccountOptions(platform, mappedId);
+      document.getElementById("reportTitle").value = platform === "tiktok" ? "TIKTOK ADS PERFORMANCE BRIEF" : "META ADS PERFORMANCE BRIEF";
+      loadAdsReportButton.textContent = \`Load \${platform === "tiktok" ? "TikTok" : "Meta"} Data\`;
+      renderReportBreakdown(null);
     }
 
     function collectReportPayload() {
@@ -3630,6 +7897,11 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       previewReportButton.disabled = true;
       uploadReportButton.disabled = true;
       uploadReportButton.textContent = "Uploading...";
+      let whatsappWindow = null;
+      try {
+        whatsappWindow = window.open("about:blank", "_blank");
+        if (whatsappWindow) whatsappWindow.document.title = "Preparing WhatsApp...";
+      } catch {}
 
       try {
         const response = await fetch("/api/reports/upload", {
@@ -3639,6 +7911,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         });
         const json = await readApiJson(response);
         if (response.status === 401) {
+          if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
           window.location.href = "/login";
           return;
         }
@@ -3649,10 +7922,23 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         reportResult.textContent = [
           "Weekly report selesai diupload.",
           \`\${upload.fileName || payload.fileName}: \${action}\`,
-          upload.webViewLink || upload.fileId || ""
+          upload.webViewLink || upload.fileId || "",
+          upload.whatsappUrl ? "WhatsApp dibuka dengan template report." : (upload.whatsappError ? \`WhatsApp tidak dibuka: \${upload.whatsappError}\` : "")
         ].filter(Boolean).join("\\n");
+        showToast("Weekly report selesai dan sudah diupload.");
+        loadTodayDashboard({ silent: true, force: true });
+        if (upload.whatsappUrl) {
+          if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.location.href = upload.whatsappUrl;
+          else {
+            const opened = window.open(upload.whatsappUrl, "_blank");
+            if (!opened) window.location.href = upload.whatsappUrl;
+          }
+        } else if (whatsappWindow && !whatsappWindow.closed) {
+          whatsappWindow.close();
+        }
         await loadActivity();
       } catch (error) {
+        if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
         showReportError(error);
       } finally {
         previewReportButton.disabled = false;
@@ -3662,7 +7948,12 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     function renderClientList(clients, registryStatus) {
-      currentClients = clients || [];
+      clients = [...(clients || [])].sort((left, right) => {
+        const leftStopped = left.serviceStatus === "paused" ? 1 : 0;
+        const rightStopped = right.serviceStatus === "paused" ? 1 : 0;
+        return leftStopped - rightStopped;
+      });
+      currentClients = clients;
       setTextIfPresent(dashboardClientCount, String(clients.length));
       setTextIfPresent(dashboardRegistryStatus, registryStatus?.ok
         ? (registryStatus.source === "supabase" ? "DB OK" : "Drive OK")
@@ -3678,23 +7969,31 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       populateReportClientOptions();
 
       const rows = clients.map((client) => \`
-        <div class="client-row" data-client-code="\${escapeHtml(client.code)}">
-          <div data-label="Brand">
+        <div class="client-row" data-client-code="\${escapeHtml(client.code)}" data-client-status="\${client.serviceStatus === "paused" ? "paused" : "active"}" data-client-search="\${escapeHtml([client.brandClient, client.code, client.contactName, client.name, client.companyName, client.email, client.phone].filter(Boolean).join(" ").toLowerCase())}">
+          <div class="client-card-brand" data-label="Brand">
             <span class="invoice-client">\${escapeHtml(client.brandClient || client.name)}</span>
             <span class="invoice-muted">\${escapeHtml(client.code)}</span>
             \${client.serviceStatus === "paused" ? '<span class="qr-pill">Stopped</span>' : '<span class="default-pill">Active</span>'}
           </div>
-          <div data-label="Nama / Syarikat">
+          <div class="client-card-identity" data-label="Nama / Syarikat">
             \${escapeHtml(client.contactName || "-")}
             <span class="invoice-muted">\${escapeHtml(client.companyName || client.billingName || "-")}</span>
           </div>
-          <div data-label="Contact">
+          <div class="client-card-contact" data-label="Contact">
             \${escapeHtml(client.email || "-")}
             <span class="invoice-muted">\${escapeHtml(client.phone || "-")}</span>
           </div>
-          <div data-label="Harga">
+          <div class="client-card-price" data-label="Harga">
             \${escapeHtml(formatMoneyValue(client.monthlyRetainer || 0))}
             <span class="invoice-muted">\${escapeHtml(client.source || "config")}</span>
+          </div>
+          <div class="client-card-telegram" data-label="Telegram Daily Report">
+            \${(client.telegramReportConfig?.recipients || [{ slot: 1 }, { slot: 2 }]).map((recipient) => \`
+              <span><strong>Penerima \${recipient.slot}</strong> \${recipient.connected ? '<span class="default-pill">Connected</span>' : '<span class="qr-pill">Not Connected</span>'}</span>
+              <span class="invoice-muted">\${escapeHtml(recipient.displayName || (recipient.username ? "@" + recipient.username : "Generate link & tekan Start"))}</span>
+              <span class="invoice-muted">Auto: \${recipient.autoEnabled ? "On" : "Off"}\${recipient.lastSentDate ? " · Last sent: " + escapeHtml(recipient.lastSentDate) : ""}</span>
+              \${recipient.lastError ? '<span class="invoice-muted">Error: ' + escapeHtml(recipient.lastError) + '</span>' : ""}
+            \`).join("")}
           </div>
           <div class="client-actions" data-label="Action">
             <details class="action-menu">
@@ -3705,6 +8004,13 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
                 <button class="secondary whatsapp-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-whatsapp-type="receipt">WhatsApp Receipt</button>
                 <button class="secondary whatsapp-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-whatsapp-type="report">WhatsApp Report</button>
                 <button class="secondary whatsapp-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-whatsapp-type="custom">WhatsApp Custom</button>
+                \${(client.telegramReportConfig?.recipients || [{ slot: 1 }, { slot: 2 }]).map((recipient) => \`
+                  <button class="secondary telegram-connect-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-recipient-slot="\${recipient.slot}">Generate Telegram Link \${recipient.slot}</button>
+                  <button class="secondary telegram-action-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-recipient-slot="\${recipient.slot}" data-telegram-action="test" \${recipient.connected ? "" : "hidden"}>Test Penerima \${recipient.slot}</button>
+                  <button class="secondary telegram-action-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-recipient-slot="\${recipient.slot}" data-telegram-action="send-yesterday" \${recipient.connected ? "" : "hidden"}>Send Yesterday · Penerima \${recipient.slot}</button>
+                  <button class="secondary telegram-action-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-recipient-slot="\${recipient.slot}" data-telegram-action="toggle" data-enabled="\${recipient.autoEnabled ? "false" : "true"}" \${recipient.connected ? "" : "hidden"}>Turn Auto \${recipient.autoEnabled ? "Off" : "On"} · Penerima \${recipient.slot}</button>
+                  <button class="danger telegram-action-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-recipient-slot="\${recipient.slot}" data-telegram-action="disconnect" \${recipient.connected ? "" : "hidden"}>Disconnect Penerima \${recipient.slot}</button>
+                \`).join("")}
                 <button class="secondary edit-client-button" type="button" data-client-code="\${escapeHtml(client.code)}">Edit</button>
                 <button class="secondary service-client-button" type="button" data-client-code="\${escapeHtml(client.code)}" data-next-status="\${client.serviceStatus === "paused" ? "active" : "paused"}">\${client.serviceStatus === "paused" ? "Recover" : "Stop Service"}</button>
                 <button class="danger delete-client-button" type="button" data-client-code="\${escapeHtml(client.code)}">Delete</button>
@@ -3720,16 +8026,17 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
           <div>Nama / Syarikat</div>
           <div>Contact</div>
           <div>Harga</div>
+          <div>Telegram Daily Report</div>
           <div>Action</div>
         </div>
         \${rows}
       \`;
-      const statusLine = registryStatus?.ok
-        ? (registryStatus.source === "supabase"
-          ? \`Senarai pelanggan dimuat dari Supabase. Rekod DB: \${registryStatus.count || 0}.\`
-          : \`Senarai pelanggan dimuat. Registry Drive: \${registryStatus.loaded ? "loaded" : "belum ada file"}.\`)
-        : \`Senarai config dimuat. \${registryStatus?.error || "Database belum tersedia."}\`;
-      setMessage(clientResult, registryStatus?.ok ? "ok" : "err", statusLine);
+      applyClientFilters();
+      if (registryStatus?.ok) {
+        setMessage(clientResult, "", "");
+      } else {
+        setMessage(clientResult, "err", \`Senarai config dimuat. \${registryStatus?.error || "Database belum tersedia."}\`);
+      }
     }
 
     function resetClientFormMode() {
@@ -3737,6 +8044,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       clientForm.reset();
       clientForm.elements.clientCode.value = "";
       clientForm.querySelector("h2").textContent = "Tambah Pelanggan";
+      clientAdsPlatform.value = "meta";
+      populateAdsAccountOptions("", "meta");
+      clientAdsAccountName.value = "";
+      clientAdsCurrency.value = "";
       saveClientButton.textContent = "Save Client & Create Drive Folders";
       cancelClientEditButton.hidden = true;
     }
@@ -3758,6 +8069,14 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       clientForm.elements.registrationNumber.value = client.registrationNumber || "";
       clientForm.elements.monthlyRetainer.value = Number(client.monthlyRetainer || 0) ? client.monthlyRetainer : "";
       clientForm.elements.billingAddress.value = client.billingAddress || "";
+      const adsConfig = client.adsReportConfig || {};
+      clientForm.elements.platform.value = adsConfig.platform === "tiktok" ? "tiktok" : "meta";
+      populateAdsAccountOptions(adsConfig.accountId || "", clientForm.elements.platform.value);
+      clientForm.elements.accountName.value = adsConfig.accountName || "";
+      clientForm.elements.currency.value = adsConfig.currency || "MYR";
+      clientForm.elements.resultMetric.value = adsConfig.resultMetric || "conversions";
+      clientForm.elements.prospectingKeywords.value = (adsConfig.prospectingKeywords || []).join(", ");
+      clientForm.elements.retargetingKeywords.value = (adsConfig.retargetingKeywords || []).join(", ");
       clientForm.querySelector("h2").textContent = \`Edit Pelanggan: \${client.brandClient || client.name || client.code}\`;
       saveClientButton.textContent = "Update Client";
       cancelClientEditButton.hidden = false;
@@ -3963,10 +8282,85 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       }
     }
 
+    async function generateTelegramLink(clientCode, recipientSlot, triggerButton) {
+      const finishButton = setButtonBusy(triggerButton, "Generating...");
+      setMessage(clientResult, "", "");
+      try {
+        const response = await fetch("/api/telegram/connect-link", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ clientCode, recipientSlot })
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Generate Telegram link failed.");
+        let copied = false;
+        if (navigator.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(json.connectUrl);
+            copied = true;
+          } catch (error) {
+            copied = false;
+          }
+        }
+        if (!copied) window.prompt("Copy link ini dan beri kepada client. Link sah 24 jam:", json.connectUrl);
+        finishButton(copied ? "Copied" : "Ready");
+        setMessage(clientResult, "ok", \`Telegram link Penerima \${recipientSlot} \${copied ? "copied" : "ready"}. Penerima perlu buka link dan tekan Start dalam 24 jam.\`);
+      } catch (error) {
+        finishButton();
+        showClientError(error);
+      }
+    }
+
+    async function runTelegramAction(clientCode, recipientSlot, action, triggerButton) {
+      if (action === "disconnect" && !window.confirm(\`Disconnect Telegram Penerima \${recipientSlot} dan hentikan auto-report untuk penerima ini?\`)) return;
+      const finishButton = setButtonBusy(triggerButton, action === "send-yesterday" ? "Loading data..." : "Working...");
+      setMessage(clientResult, "", "");
+      try {
+        const payload = { clientCode, recipientSlot, action };
+        if (action === "toggle") payload.enabled = triggerButton.dataset.enabled === "true";
+        const response = await fetch("/api/telegram/action", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await readApiJson(response);
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!response.ok || !json.ok) throw new Error(json.error || "Telegram action failed.");
+        if (action === "send-yesterday" && json.result?.status !== "sent") {
+          throw new Error(json.result?.error || json.result?.reason || "Report Telegram tidak berjaya dihantar.");
+        }
+        const messages = {
+          test: \`Telegram test Penerima \${recipientSlot} berjaya dihantar.\`,
+          "send-yesterday": \`Yesterday report berjaya dihantar kepada Penerima \${recipientSlot}.\`,
+          toggle: \`Auto-report Penerima \${recipientSlot} sudah \${payload.enabled ? "diaktifkan" : "dimatikan"}.\`,
+          disconnect: \`Telegram Penerima \${recipientSlot} sudah disconnected.\`
+        };
+        const successMessage = messages[action] || "Telegram updated.";
+        finishButton(action === "send-yesterday" ? "Sent" : "Done");
+        closeActionMenu(triggerButton);
+        showToast(successMessage, "ok");
+        await loadClients();
+        await loadActivity();
+        setMessage(clientResult, "ok", successMessage);
+      } catch (error) {
+        finishButton();
+        closeActionMenu(triggerButton);
+        showClientError(error);
+      }
+    }
+
     async function loadClients() {
       setMessage(clientResult, "", "");
       refreshClientsButton.disabled = true;
       refreshClientsButton.textContent = "Loading...";
+      if (!currentClients.length) clientList.innerHTML = '<div class="client-list-skeleton" aria-label="Memuatkan pelanggan"><span></span><span></span><span></span></div>';
 
       try {
         const response = await fetch("/api/clients");
@@ -3998,6 +8392,7 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     function renderActivityFeed(items = []) {
+      if (!activityFeed) return;
       if (!items.length) {
         activityFeed.innerHTML = '<div class="empty-state">Belum ada aktiviti. Save client, settings, bank atau upload invoice untuk mula isi live feed.</div>';
         return;
@@ -4013,9 +8408,12 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     }
 
     async function loadActivity() {
+      if (!activityFeed) return;
       setMessage(activityResult, "", "");
-      refreshActivityButton.disabled = true;
-      refreshActivityButton.textContent = "Loading...";
+      if (refreshActivityButton) {
+        refreshActivityButton.disabled = true;
+        setTextIfPresent(refreshActivityButton.querySelector("span"), "Loading...");
+      }
 
       try {
         const response = await fetch("/api/activity?limit=30");
@@ -4029,8 +8427,10 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       } catch (error) {
         showActivityError(error);
       } finally {
-        refreshActivityButton.disabled = false;
-        refreshActivityButton.textContent = "Refresh";
+        if (refreshActivityButton) {
+          refreshActivityButton.disabled = false;
+          setTextIfPresent(refreshActivityButton.querySelector("span"), "Refresh data");
+        }
       }
     }
 
@@ -4756,6 +9156,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         });
         invoiceResult.className = "result ok";
         invoiceResult.textContent = ["Upload selesai.", ...lines].join("\\n");
+        showToast(String((json.uploads || []).length) + " invois selesai diupload.");
+        loadTodayDashboard({ silent: true, force: true });
         await loadActivity();
       } catch (error) {
         showInvoiceError(error);
@@ -4800,6 +9202,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
         });
         receiptResult.className = "result ok";
         receiptResult.textContent = ["Upload resit selesai.", ...lines].join("\\n");
+        showToast(String((json.uploads || []).length) + " resit selesai diupload.");
+        loadTodayDashboard({ silent: true, force: true });
         await loadActivity();
       } catch (error) {
         showReceiptError(error);
@@ -4810,23 +9214,60 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       }
     }
 
-    invoicePeriod.value = defaultInvoicePeriod();
-    receiptPeriod.value = invoicePeriod.value;
+    invoicePeriod.value = localStorage.getItem("buddypilot-invoice-period") || defaultInvoicePeriod();
+    receiptPeriod.value = localStorage.getItem("buddypilot-receipt-period") || invoicePeriod.value;
     const reportWeek = defaultReportWeek();
     reportStartDate.value = reportWeek.start;
     reportEndDate.value = reportWeek.end;
     setupTabs();
+    setupMainTabSwipe();
     setupPanels();
+    topbarMenu.addEventListener("toggle", () => {
+      const drawerMode = window.matchMedia("(max-width: 600px)").matches;
+      document.body.classList.toggle("menu-drawer-open", drawerMode && topbarMenu.open);
+      menuBackdrop.hidden = !(drawerMode && topbarMenu.open);
+    });
+    menuBackdrop.addEventListener("click", () => { topbarMenu.open = false; });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && topbarMenu.open) topbarMenu.open = false;
+    });
     setupPostPilotInputStorage();
+    sortQuickActions();
     resetClientFormMode();
     resetBankFormMode();
     document.querySelectorAll("[data-go-tab]").forEach((button) => {
       button.addEventListener("click", () => {
-        activateTab(button.dataset.goTab);
-        if (!button.dataset.goSubtab) return;
-        const group = button.dataset.goTab === "personalpostpilot" ? "post-pilot" : "invoice-pilot";
-        activateSubtab(group, button.dataset.goSubtab);
+        recordQuickAction(button.dataset.actionKey);
+        navigateToWork({ tab: button.dataset.goTab, subtab: button.dataset.goSubtab || "" });
       });
+    });
+    refreshTodayButton.addEventListener("click", () => loadTodayDashboard({ force: true }));
+    checkAllHealthButton.addEventListener("click", () => checkOperationsHealth("", checkAllHealthButton));
+    todayContent.addEventListener("click", (event) => {
+      const healthButton = event.target.closest("[data-health-check]");
+      if (healthButton) {
+        checkOperationsHealth(healthButton.dataset.healthCheck, healthButton);
+        return;
+      }
+      const actionButton = event.target.closest("[data-operation-action]");
+      if (actionButton) runOperationsAction(operationsActionMap.get(actionButton.dataset.operationAction), actionButton);
+    });
+    clientSearchInput.addEventListener("input", applyClientFilters);
+    clientFilterChips.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-client-filter]");
+      if (!button) return;
+      activeClientFilter = button.dataset.clientFilter;
+      clientFilterChips.querySelectorAll("button").forEach((item) => item.classList.toggle("active", item === button));
+      applyClientFilters();
+    });
+    document.addEventListener("click", (event) => {
+      document.querySelectorAll(".action-menu[open]").forEach((menu) => {
+        if (event.target === menu || !menu.contains(event.target)) menu.open = false;
+      });
+    });
+    window.addEventListener("pagehide", () => {
+      const tab = document.querySelector(".tab-button.active")?.dataset.tabTarget;
+      saveLastWork(tab, activeSubtabFor(tab));
     });
     clientForm.addEventListener("submit", saveClient);
     cancelClientEditButton.addEventListener("click", () => {
@@ -4843,6 +9284,16 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       const whatsappButton = event.target.closest(".whatsapp-client-button");
       if (whatsappButton) {
         sendClientWhatsapp(whatsappButton.dataset.clientCode, whatsappButton.dataset.whatsappType, whatsappButton);
+        return;
+      }
+      const telegramConnectButton = event.target.closest(".telegram-connect-button");
+      if (telegramConnectButton) {
+        generateTelegramLink(telegramConnectButton.dataset.clientCode, Number(telegramConnectButton.dataset.recipientSlot || 1), telegramConnectButton);
+        return;
+      }
+      const telegramActionButton = event.target.closest(".telegram-action-button");
+      if (telegramActionButton) {
+        runTelegramAction(telegramActionButton.dataset.clientCode, Number(telegramActionButton.dataset.recipientSlot || 1), telegramActionButton.dataset.telegramAction, telegramActionButton);
         return;
       }
       const editButton = event.target.closest(".edit-client-button");
@@ -4877,12 +9328,60 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
       setMessage(bankResult, "", "");
     });
     refreshBankButton.addEventListener("click", loadBankAccounts);
-    refreshActivityButton.addEventListener("click", loadActivity);
-    reportClient.addEventListener("change", () => updateReportFileName(true));
-    reportStartDate.addEventListener("change", () => updateReportFileName());
-    reportEndDate.addEventListener("change", () => updateReportFileName());
+    refreshActivityButton?.addEventListener("click", () => {
+      Promise.all([loadActivity(), loadClients(), loadBankAccounts()]).catch(showActivityError);
+    });
+    reportClient.addEventListener("change", () => {
+      localStorage.setItem(LAST_REPORT_CLIENT_KEY, reportClient.value);
+      updateReportFileName(true);
+      applySelectedClientReportDefaults();
+    });
+    reportStartDate.addEventListener("change", () => {
+      const [year, month, day] = reportStartDate.value.split("-").map(Number);
+      if (!year || !month || !day) return;
+      const end = new Date(year, month - 1, day);
+      end.setDate(end.getDate() + 6);
+      reportEndDate.value = localIsoDate(end);
+      updateReportFileName(true);
+      renderReportBreakdown(null);
+    });
+    reportEndDate.addEventListener("change", () => {
+      updateReportFileName(true);
+      renderReportBreakdown(null);
+    });
+    reportAdAccount.addEventListener("change", () => renderReportBreakdown(null));
+    reportResultMetric.addEventListener("change", () => {
+      reportResultLabel.value = reportResultLabelFor(reportResultMetric.value);
+      updateReportMetricLabels();
+      renderReportBreakdown(null);
+    });
     reportFileName.addEventListener("input", () => {
       reportFileNameTouched = true;
+    });
+    loadAdsReportButton.addEventListener("click", () => {
+      loadAdsReportDraft().catch(showReportError);
+    });
+    clientAdsPlatform.addEventListener("change", () => {
+      clientAdsAccountName.value = "";
+      clientAdsCurrency.value = "";
+      populateAdsAccountOptions("", clientAdsPlatform.value);
+    });
+    clientAdsAccount.addEventListener("change", () => {
+      const selected = accountOptions(clientAdsPlatform.value).find((account) => account.id === clientAdsAccount.value);
+      clientAdsAccountName.value = selected?.name || clientAdsAccount.value || "";
+      clientAdsCurrency.value = selected?.currency || "";
+    });
+    disconnectTikTokButton.addEventListener("click", async () => {
+      if (!window.confirm("Disconnect TikTok Ads daripada BuddyPilot?")) return;
+      const response = await fetch("/api/tiktok/disconnect", { method: "POST" });
+      const json = await readApiJson(response);
+      if (!response.ok || !json.ok) throw new Error(json.error || "Disconnect TikTok gagal.");
+      await loadTikTokConnection();
+    });
+    enablePushNotificationsButton.addEventListener("click", () => {
+      setupPushNotifications({ requestPermission: true }).catch((error) => {
+        pushNotificationNote.textContent = error?.message || String(error);
+      });
     });
     previewReportButton.addEventListener("click", () => {
       previewReportPdf().catch(showReportError);
@@ -4900,6 +9399,8 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     refreshClientsButton.addEventListener("click", loadClients);
     generateInvoicesButton.addEventListener("click", generateInvoices);
     generateReceiptsButton.addEventListener("click", generateReceipts);
+    invoicePeriod.addEventListener("change", () => localStorage.setItem("buddypilot-invoice-period", invoicePeriod.value));
+    receiptPeriod.addEventListener("change", () => localStorage.setItem("buddypilot-receipt-period", receiptPeriod.value));
     invoiceList.addEventListener("input", (event) => {
       if (!event.target.matches(".service-price-input, .discount-input")) return;
       const row = event.target.closest(".invoice-row[data-client-code]");
@@ -4926,7 +9427,12 @@ Create Retargeting MIDDLE & BOTTOM Funnel Campaign if audience ready</textarea>
     });
     uploadReceiptsButton.addEventListener("click", uploadReceipts);
     setupThreadsViralGenerator();
+    loadTodayDashboard();
+    loadRemoteAutomationStatus({ silent: true });
     loadClients();
+    loadAdflowAccounts();
+    loadTikTokConnection();
+    setupPushNotifications().catch(() => {});
     loadSettings();
     loadBankAccounts();
     loadActivity();

@@ -15,8 +15,16 @@
       background: #f9fafb;
     }
     h1 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       margin: 0 0 8px;
       font-size: 20px;
+    }
+    h1 small {
+      color: #6b7280;
+      font-size: 11px;
+      font-weight: 700;
     }
     p {
       margin: 8px 0;
@@ -33,6 +41,25 @@
       color: #111827;
       background: #fff;
     }
+    input {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 9px 10px;
+      font: 800 16px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: #fff;
+    }
+    .pair-panel {
+      margin-bottom: 12px;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .pair-panel strong { display: block; margin-bottom: 5px; }
     .actions {
       display: grid;
       gap: 8px;
@@ -66,7 +93,18 @@
   </style>
 </head>
 <body>
-  <h1>Post Pilot</h1>
+  <h1>Post Pilot <small id="extensionVersion"></small></h1>
+  <section id="pairPanel" class="pair-panel">
+    <strong>Pair dengan BuddyPilot</strong>
+    <p id="remoteMeta">Masukkan code 8 aksara dari Post Pilot di phone.</p>
+    <input id="pairCode" type="text" maxlength="8" autocomplete="one-time-code" placeholder="PAIRCODE">
+    <div class="actions">
+      <button id="pairButton" type="button">Pair Mac</button>
+      <button id="checkRemoteButton" class="secondary" type="button">Check Now</button>
+      <button id="unpairButton" class="secondary" type="button" hidden>Unpair</button>
+    </div>
+  </section>
+  <div id="status" class="status" hidden></div>
   <p id="meta">Loading draft...</p>
 
   <label for="postText"><strong>Post</strong></label>
@@ -84,7 +122,6 @@
     <button id="fillCommentButton" class="secondary" type="button">Fill CTA Comment</button>
   </div>
 
-  <div id="status" class="status" hidden></div>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -10,9 +10,288 @@ const POSTPILOT_BATCH_KEY = "postpilotCrossPlatformBatch";
 const POSTPILOT_BATCH_ALARM = "postpilotCrossPlatformBatchNext";
 const POSTPILOT_BATCH_FACEBOOK_TAB_KEY = "postpilotCrossBatchFacebookTabId";
 const POSTPILOT_BATCH_THREADS_TAB_KEY = "postpilotCrossBatchThreadsTabId";
+const REMOTE_CONFIG_KEY = "postpilotRemoteConfig";
+const REMOTE_ACTIVE_JOB_KEY = "postpilotRemoteActiveJob";
+const REMOTE_POLL_ALARM = "postpilotRemotePoll";
+const REMOTE_RUN_SESSION_KEY = "postpilotRemoteRunSession";
+const REMOTE_RUN_LEASE_MS = 7 * 60_000;
+const DEFAULT_API_BASE_URL = "https://buddypilot.vercel.app";
+
+let remoteClaimInFlight = false;
+let remoteSocket = null;
+let remoteHeartbeatTimer = null;
+let remoteReconnectTimer = null;
+let remoteSocketRef = 1;
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getRemoteConfig() {
+  const state = await chrome.storage.local.get(REMOTE_CONFIG_KEY);
+  return state[REMOTE_CONFIG_KEY] || null;
+}
+
+async function getRemoteRunSession() {
+  const state = await chrome.storage.session.get(REMOTE_RUN_SESSION_KEY);
+  return state[REMOTE_RUN_SESSION_KEY] || null;
+}
+
+async function touchRemoteRunSession(jobId) {
+  if (!jobId) return;
+  await chrome.storage.session.set({
+    [REMOTE_RUN_SESSION_KEY]: { jobId, touchedAt: Date.now() },
+  });
+}
+
+async function clearRemoteRunSession() {
+  await chrome.storage.session.remove(REMOTE_RUN_SESSION_KEY).catch(() => {});
+}
+
+async function remoteRunnerIsActive() {
+  const session = await getRemoteRunSession();
+  return Boolean(session?.jobId && Date.now() - Number(session.touchedAt || 0) < REMOTE_RUN_LEASE_MS);
+}
+
+async function remoteFetch(path, options = {}) {
+  const remote = await getRemoteConfig();
+  if (!remote?.token) throw new Error("Extension belum dipasangkan dengan BuddyPilot.");
+  const response = await fetch(`${remote.apiBaseUrl || DEFAULT_API_BASE_URL}${path}`, {
+    method: options.method || "POST",
+    headers: {
+      authorization: `Bearer ${remote.token}`,
+      ...(options.body === undefined ? {} : { "content-type": "application/json" }),
+    },
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+  if (!response.ok) {
+    let detail = "";
+    try {
+      detail = (await response.json()).error || "";
+    } catch {
+      detail = await response.text();
+    }
+    throw new Error(detail || `Remote API failed (${response.status}).`);
+  }
+  return options.raw ? response : response.json();
+}
+
+async function pairRemoteExtension(code, name = "Mac Chrome") {
+  const response = await fetch(`${DEFAULT_API_BASE_URL}/api/postpilot-extension/pair`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code, name }),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || !json.ok) throw new Error(json.error || "Pairing gagal.");
+  const remote = {
+    token: json.token,
+    device: json.device,
+    apiBaseUrl: json.apiBaseUrl || DEFAULT_API_BASE_URL,
+    realtime: json.realtime || null,
+    pairedAt: new Date().toISOString(),
+  };
+  await chrome.storage.local.set({
+    [REMOTE_CONFIG_KEY]: remote,
+    postpilotAutomationStatus: "Mac extension berjaya dipasangkan. Menunggu arahan phone.",
+    postpilotLastError: "",
+  });
+  await ensureRemotePolling();
+  connectRemoteRealtime().catch(() => {});
+  processRemoteQueue().catch(() => {});
+  return remote;
+}
+
+function clearRemoteSocket() {
+  if (remoteHeartbeatTimer) clearInterval(remoteHeartbeatTimer);
+  if (remoteReconnectTimer) clearTimeout(remoteReconnectTimer);
+  remoteHeartbeatTimer = null;
+  remoteReconnectTimer = null;
+  if (remoteSocket) {
+    try { remoteSocket.close(); } catch { /* Connection is already closed. */ }
+  }
+  remoteSocket = null;
+}
+
+async function connectRemoteRealtime() {
+  const remote = await getRemoteConfig();
+  if (!remote?.realtime?.url || !remote?.realtime?.key || !remote?.realtime?.topic) return;
+  clearRemoteSocket();
+  const wsUrl = remote.realtime.url.replace(/^http/, "ws") + `/realtime/v1/websocket?apikey=${encodeURIComponent(remote.realtime.key)}&vsn=1.0.0`;
+  const socket = new WebSocket(wsUrl);
+  remoteSocket = socket;
+  const topic = `realtime:${remote.realtime.topic}`;
+  socket.onopen = () => {
+    const ref = String(remoteSocketRef++);
+    socket.send(JSON.stringify({
+      topic,
+      event: "phx_join",
+      payload: {
+        config: { broadcast: { ack: false, self: false }, presence: { enabled: false }, postgres_changes: [], private: false },
+        access_token: remote.realtime.key,
+      },
+      ref,
+      join_ref: ref,
+    }));
+    remoteHeartbeatTimer = setInterval(() => {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      socket.send(JSON.stringify({ topic: "phoenix", event: "heartbeat", payload: {}, ref: String(remoteSocketRef++) }));
+    }, 20_000);
+  };
+  socket.onmessage = (event) => {
+    try {
+      const message = JSON.parse(event.data);
+      const broadcastEvent = message.payload?.event || message.event;
+      if (message.event === "broadcast" && broadcastEvent === "job-ready") processRemoteQueue().catch(() => {});
+    } catch {
+      // Polling remains the fallback for malformed or unsupported Realtime frames.
+    }
+  };
+  socket.onclose = () => {
+    if (remoteHeartbeatTimer) clearInterval(remoteHeartbeatTimer);
+    remoteHeartbeatTimer = null;
+    remoteSocket = null;
+    remoteReconnectTimer = setTimeout(() => connectRemoteRealtime().catch(() => {}), 5_000);
+  };
+}
+
+async function ensureRemotePolling() {
+  const remote = await getRemoteConfig();
+  if (!remote?.token) {
+    await chrome.alarms.clear(REMOTE_POLL_ALARM);
+    return;
+  }
+  const alarm = await chrome.alarms.get(REMOTE_POLL_ALARM);
+  if (!alarm) chrome.alarms.create(REMOTE_POLL_ALARM, { delayInMinutes: 0.5, periodInMinutes: 0.5 });
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+}
+
+async function hydrateRemoteImage(jobId, post, index) {
+  const response = post.image?.url
+    ? await fetch(post.image.url)
+    : await remoteFetch(`/api/postpilot-extension/image?job_id=${encodeURIComponent(jobId)}&index=${index}`, { method: "GET", raw: true });
+  if (!response.ok) throw new Error(`Gagal muat turun gambar hook (${response.status}).`);
+  const type = response.headers.get("content-type") || post.image?.type || "image/jpeg";
+  const dataUrl = `data:${type};base64,${arrayBufferToBase64(await response.arrayBuffer())}`;
+  return { id: post.image?.id, name: post.image?.name || `post-hook-${index + 1}.jpg`, type, dataUrl };
+}
+
+async function updateRemoteProgress(jobId, progress) {
+  await touchRemoteRunSession(jobId);
+  const response = await remoteFetch("/api/postpilot-extension/progress", { body: { job_id: jobId, progress } });
+  if (response.cancelRequested) {
+    if (!response.terminalStatus) {
+      await remoteFetch("/api/postpilot-extension/complete", { body: { job_id: jobId, status: "cancelled", progress: { ...progress, message: "Automation dibatalkan dari phone." } } });
+    }
+    await chrome.storage.local.remove(REMOTE_ACTIVE_JOB_KEY);
+    await clearRemoteRunSession();
+  }
+  return Boolean(response.cancelRequested);
+}
+
+async function completeRemoteJob(jobId, progress = {}) {
+  await remoteFetch("/api/postpilot-extension/complete", { body: { job_id: jobId, status: "completed", progress } });
+  await chrome.storage.local.remove(REMOTE_ACTIVE_JOB_KEY);
+  await clearRemoteRunSession();
+}
+
+async function failRemoteJob(jobId, error, progress = {}) {
+  if (!jobId) return;
+  await remoteFetch("/api/postpilot-extension/fail", {
+    body: { job_id: jobId, error: error?.message || String(error), progress },
+  }).catch(() => {});
+  await chrome.storage.local.remove(REMOTE_ACTIVE_JOB_KEY);
+  await clearRemoteRunSession();
+}
+
+async function startRemoteFacebookThreads(job) {
+  const posts = [];
+  for (let index = 0; index < job.payload.posts.length; index += 1) {
+    const post = job.payload.posts[index];
+    posts.push({ ...post, image: await hydrateRemoteImage(job.id, post, index) });
+  }
+  const saved = await getPostPilotBatch();
+  const batch = saved?.remoteJobId === job.id ? saved : {
+    automationId: `remote-${job.id}`,
+    remoteJobId: job.id,
+    posts,
+    index: Math.max(0, Number(job.progress?.itemIndex) || 0),
+    phase: ["facebook", "threads", "waiting"].includes(job.progress?.phase) ? job.progress.phase : "facebook",
+    batchDelayMs: Math.max(30_000, Number(job.payload.batchDelayMs) || 30_000),
+  };
+  batch.posts = posts;
+  batch.index = Math.max(0, Math.min(posts.length - 1, Number(job.progress?.itemIndex ?? batch.index) || 0));
+  if (batch.phase === "paused" || batch.phase === "completed") {
+    batch.phase = job.progress?.resumePhase || batch.resumePhase || "facebook";
+  }
+  await chrome.storage.local.set({ [REMOTE_ACTIVE_JOB_KEY]: job, [POSTPILOT_BATCH_KEY]: batch });
+  if (batch.phase === "threads") await startBatchThreads();
+  else if (batch.phase === "waiting") {
+    await chrome.alarms.clear(POSTPILOT_BATCH_ALARM);
+    chrome.alarms.create(POSTPILOT_BATCH_ALARM, { when: Date.now() + batch.batchDelayMs });
+  } else await startBatchFacebook();
+}
+
+async function startRemoteThreadsText(job) {
+  const posts = job.payload.posts || [];
+  const draft = {
+    id: `remote-${job.id}`,
+    automationId: `remote-${job.id}`,
+    remoteJobId: job.id,
+    createdAt: new Date().toISOString(),
+    posts,
+    postText: posts[0]?.postText || "",
+    autoPublish: true,
+    threadsTextBatch: true,
+    batchDelayMs: Math.max(30_000, Number(job.payload.batchDelayMs) || 30_000),
+    resumeIndex: Math.max(0, Number(job.progress?.itemIndex) || 0),
+  };
+  await chrome.storage.local.set({
+    [REMOTE_ACTIVE_JOB_KEY]: job,
+    currentDraft: draft,
+    [THREADS_LAUNCH_KEY]: "",
+    [THREADS_STARTED_KEY]: "",
+    [THREADS_COMPLETED_KEY]: "",
+    [THREADS_RUN_LOCK_KEY]: null,
+  });
+  const cancelled = await updateRemoteProgress(job.id, { index: draft.resumeIndex, itemIndex: draft.resumeIndex, total: posts.length, phase: "threads", message: "Chrome Mac membuka Threads." });
+  if (cancelled) return;
+  await openThreadsAndRunAutomation(draft.automationId, "POSTPILOT_THREADS_TEXT_BATCH_POST");
+}
+
+async function processRemoteQueue() {
+  if (remoteClaimInFlight) return;
+  const remote = await getRemoteConfig();
+  if (!remote?.token) return;
+  if (await remoteRunnerIsActive()) return;
+  remoteClaimInFlight = true;
+  try {
+    const response = await remoteFetch("/api/postpilot-extension/claim", { body: {} });
+    const job = response.job;
+    if (!job) {
+      await chrome.storage.local.remove(REMOTE_ACTIVE_JOB_KEY);
+      await clearRemoteRunSession();
+      return;
+    }
+    await touchRemoteRunSession(job.id);
+    await chrome.storage.local.set({ [REMOTE_ACTIVE_JOB_KEY]: job, postpilotAutomationStatus: "Remote job diterima dari phone." });
+    if (job.type === "facebook_threads") await startRemoteFacebookThreads(job);
+    else if (job.type === "threads_text") await startRemoteThreadsText(job);
+  } catch (error) {
+    const state = await chrome.storage.local.get(REMOTE_ACTIVE_JOB_KEY);
+    await failRemoteJob(state[REMOTE_ACTIVE_JOB_KEY]?.id, error);
+    await chrome.storage.local.set({ postpilotLastError: error?.message || String(error), postpilotAutomationStatus: "Remote automation gagal." });
+  } finally {
+    remoteClaimInFlight = false;
+  }
 }
 
 async function getActiveTab() {
@@ -51,6 +330,21 @@ async function savePostPilotBatch(batch, status) {
     postpilotAutomationStatus: status || `Post Pilot batch ${batch.index + 1}/${batch.posts.length}: ${batch.phase}`,
     postpilotLastError: "",
   });
+  if (batch.remoteJobId) {
+    const cancelRequested = await updateRemoteProgress(batch.remoteJobId, {
+      index: batch.index + 1,
+      itemIndex: batch.index,
+      total: batch.posts.length,
+      phase: batch.phase,
+      message: status || `Post Pilot ${batch.index + 1}/${batch.posts.length}: ${batch.phase}`,
+    });
+    if (cancelRequested) {
+      batch.phase = "paused";
+      await chrome.storage.local.set({ [POSTPILOT_BATCH_KEY]: batch, postpilotAutomationStatus: "Remote automation dibatalkan dari phone." });
+      return true;
+    }
+  }
+  return false;
 }
 
 function currentBatchDraft(batch) {
@@ -60,6 +354,7 @@ function currentBatchDraft(batch) {
     ...post,
     id: `${batch.automationId}-${batch.index + 1}`,
     automationId: `${batch.automationId}-${batch.index + 1}`,
+    remoteJobId: batch.remoteJobId || "",
     createdAt: new Date().toISOString(),
     autoPublish: true,
   };
@@ -70,7 +365,7 @@ async function startBatchFacebook() {
   if (!batch || batch.phase === "completed" || batch.phase === "paused") return;
   const draft = currentBatchDraft(batch);
   batch.phase = "facebook";
-  await savePostPilotBatch(batch, `Post Pilot ${batch.index + 1}/${batch.posts.length}: posting ke Facebook...`);
+  if (await savePostPilotBatch(batch, `Post Pilot ${batch.index + 1}/${batch.posts.length}: posting ke Facebook...`)) return;
   await chrome.storage.local.set({
     currentDraft: draft,
     postpilotStartedAutomationId: "",
@@ -86,7 +381,7 @@ async function startBatchThreads() {
   if (!batch || batch.phase === "completed" || batch.phase === "paused") return;
   const draft = currentBatchDraft(batch);
   batch.phase = "threads";
-  await savePostPilotBatch(batch, `Post Pilot ${batch.index + 1}/${batch.posts.length}: posting ke Threads...`);
+  if (await savePostPilotBatch(batch, `Post Pilot ${batch.index + 1}/${batch.posts.length}: posting ke Threads...`)) return;
   await chrome.storage.local.set({
     currentDraft: draft,
     [THREADS_LAUNCH_KEY]: "",
@@ -102,6 +397,15 @@ async function scheduleNextBatchPost(batch) {
   if (batch.index + 1 >= batch.posts.length) {
     batch.phase = "completed";
     await savePostPilotBatch(batch, `Post Pilot batch selesai: ${batch.posts.length}/${batch.posts.length} posted.`);
+    if (batch.remoteJobId) {
+      await completeRemoteJob(batch.remoteJobId, {
+        index: batch.posts.length,
+        itemIndex: batch.posts.length,
+        total: batch.posts.length,
+        phase: "completed",
+        message: `${batch.posts.length}/${batch.posts.length} Facebook + Threads post selesai.`,
+      });
+    }
     return;
   }
   batch.phase = "waiting";
@@ -200,6 +504,60 @@ async function openThreadsAndRunAutomation(automationId = "", command = "POSTPIL
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
+    if (message?.type === "PAIR_REMOTE_EXTENSION") {
+      const remote = await pairRemoteExtension(message.code, message.name || "Mac Chrome");
+      sendResponse({ ok: true, remote: { device: remote.device, pairedAt: remote.pairedAt, realtime: Boolean(remote.realtime) } });
+      return;
+    }
+
+    if (message?.type === "GET_REMOTE_STATE") {
+      const state = await chrome.storage.local.get([REMOTE_CONFIG_KEY, REMOTE_ACTIVE_JOB_KEY, "postpilotAutomationStatus", "postpilotLastError"]);
+      const remote = state[REMOTE_CONFIG_KEY];
+      sendResponse({
+        ok: true,
+        paired: Boolean(remote?.token),
+        device: remote?.device || null,
+        realtime: Boolean(remote?.realtime),
+        activeJob: state[REMOTE_ACTIVE_JOB_KEY] || null,
+        status: state.postpilotAutomationStatus || "",
+        error: state.postpilotLastError || "",
+      });
+      return;
+    }
+
+    if (message?.type === "CHECK_REMOTE_NOW") {
+      await processRemoteQueue();
+      sendResponse({ ok: true, message: "Remote queue diperiksa." });
+      return;
+    }
+
+    if (message?.type === "UNPAIR_REMOTE_EXTENSION") {
+      clearRemoteSocket();
+      await chrome.alarms.clear(REMOTE_POLL_ALARM);
+      await chrome.storage.local.remove([REMOTE_CONFIG_KEY, REMOTE_ACTIVE_JOB_KEY]);
+      await clearRemoteRunSession();
+      sendResponse({ ok: true, message: "Extension dibuang daripada pairing lokal." });
+      return;
+    }
+
+    if (message?.type === "POSTPILOT_THREADS_BATCH_PROGRESS") {
+      const state = await chrome.storage.local.get("currentDraft");
+      const draft = state.currentDraft;
+      if (!draft?.remoteJobId || message.automationId !== draft.automationId) {
+        sendResponse({ ok: true, cancelRequested: false });
+        return;
+      }
+      const cancelRequested = await updateRemoteProgress(draft.remoteJobId, {
+        index: Number(message.index) || 0,
+        itemIndex: Number(message.index) || 0,
+        total: Number(message.total) || draft.posts?.length || 1,
+        phase: "threads",
+        message: message.message || `${message.index}/${message.total} Threads post selesai.`,
+      });
+      sendResponse({ ok: true, cancelRequested });
+      return;
+    }
+
     if (message?.type === "SAVE_POSTPILOT_BATCH_AND_OPEN_FACEBOOK") {
       const posts = Array.isArray(message.draft?.posts) ? message.draft.posts.slice(0, 5) : [];
       if (!posts.length || posts.length > 5) throw new Error("Post Pilot batch perlu ada 1 hingga 5 post.");
@@ -314,6 +672,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ ok: true, message: "Threads siap. Batch dikemaskini." });
         return;
       }
+      const state = await chrome.storage.local.get("currentDraft");
+      if (state.currentDraft?.remoteJobId && message.automationId === state.currentDraft.automationId) {
+        const total = state.currentDraft.posts?.length || 1;
+        await completeRemoteJob(state.currentDraft.remoteJobId, {
+          index: total,
+          itemIndex: total,
+          total,
+          phase: "completed",
+          message: `${total}/${total} Threads post selesai.`,
+        });
+      }
       await chrome.storage.local.set({
         [THREADS_COMPLETED_KEY]: message.automationId || "",
         postpilotAutomationStatus: message.threadsTextBatch
@@ -330,12 +699,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const batch = await getPostPilotBatch();
       const expectedId = batch ? `${batch.automationId}-${batch.index + 1}` : "";
       if (batch && message.automationId === expectedId) {
+        const failedPhase = batch.phase;
         batch.phase = "paused";
+        batch.resumePhase = failedPhase;
         await chrome.storage.local.set({
           [POSTPILOT_BATCH_KEY]: batch,
           postpilotLastError: message.error || "Batch item gagal.",
           postpilotAutomationStatus: `Post Pilot ${batch.index + 1}/${batch.posts.length} gagal. Tekan retry di extension.`,
         });
+        if (batch.remoteJobId) {
+          await failRemoteJob(batch.remoteJobId, new Error(message.error || "Batch item gagal."), {
+            index: batch.index + 1,
+            itemIndex: batch.index,
+            total: batch.posts.length,
+            resumePhase: failedPhase,
+            message: message.error || "Batch item gagal.",
+          });
+        }
+      } else {
+        const state = await chrome.storage.local.get("currentDraft");
+        if (state.currentDraft?.remoteJobId && message.automationId === state.currentDraft.automationId) {
+          await failRemoteJob(state.currentDraft.remoteJobId, new Error(message.error || "Threads batch gagal."), {
+            index: Number(message.index) || 0,
+            itemIndex: Number(message.index) || 0,
+            total: state.currentDraft.posts?.length || 1,
+            resumePhase: "threads",
+            message: message.error || "Threads batch gagal.",
+          });
+        }
       }
       sendResponse({ ok: true });
       return;
@@ -396,6 +787,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === REMOTE_POLL_ALARM) {
+    processRemoteQueue().catch(() => {});
+    return;
+  }
   if (alarm.name !== POSTPILOT_BATCH_ALARM) return;
   (async () => {
     const batch = await getPostPilotBatch();
@@ -407,12 +802,33 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   })().catch(async (error) => {
     const batch = await getPostPilotBatch();
     if (batch) {
+      const failedPhase = batch.phase;
       batch.phase = "paused";
+      batch.resumePhase = failedPhase;
       await chrome.storage.local.set({
         [POSTPILOT_BATCH_KEY]: batch,
         postpilotLastError: error?.message || String(error),
         postpilotAutomationStatus: "Post Pilot batch berhenti. Retry item semasa dari extension.",
       });
+      if (batch.remoteJobId) {
+        await failRemoteJob(batch.remoteJobId, error, {
+          index: batch.index + 1,
+          itemIndex: batch.index,
+          total: batch.posts.length,
+          resumePhase: failedPhase,
+          message: error?.message || String(error),
+        });
+      }
     }
   });
 });
+
+chrome.runtime.onInstalled.addListener(() => {
+  ensureRemotePolling().then(() => connectRemoteRealtime()).then(() => processRemoteQueue()).catch(() => {});
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  ensureRemotePolling().then(() => connectRemoteRealtime()).then(() => processRemoteQueue()).catch(() => {});
+});
+
+ensureRemotePolling().then(() => connectRemoteRealtime()).then(() => processRemoteQueue()).catch(() => {});
