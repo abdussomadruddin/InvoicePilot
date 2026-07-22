@@ -4088,7 +4088,7 @@ function pageHtml() {
 
     .onboarding-progress li.active,
     .onboarding-progress li.complete { color: var(--ink); }
-    .onboarding-progress li.active span { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .onboarding-progress li.active span { border-color: var(--red); background: var(--red); color: #fff; }
     .onboarding-progress li.complete span { border-color: #94c8b7; background: #e8f6f0; color: #246d56; }
     .onboarding-progress li.complete::before,
     .onboarding-progress li.active::before { background: #94c8b7; }
@@ -9405,7 +9405,7 @@ Review retargeting when the warm audience is ready</textarea>
           const connected = (client?.telegramReportConfig?.recipients || []).some((item) => item.connected);
           payload.status = connected ? "complete" : "skipped";
         }
-        payload.action = action;
+        payload.action = step === "review" ? "activate" : action;
         const response = await fetch("/api/clients/onboarding", {
           method,
           headers: { "content-type": "application/json" },
