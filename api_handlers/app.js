@@ -8249,23 +8249,7 @@ Review retargeting when the warm audience is ready</textarea>
         "Nama syarikat:",
         "No pendaftaran / SSM:",
         "Alamat billing penuh:",
-        "Harga servis bulanan yang dipersetujui: RM",
-        "",
-        "AKAUN ADS",
-        "Platform (Meta Ads / TikTok Ads):",
-        "Nama akaun Ads:",
-        "Account ID / Advertiser ID:",
-        "Result utama (Purchase / Lead / WhatsApp Message):",
-        "",
-        "Pastikan akses akaun Ads sudah diberikan supaya reporting boleh disambungkan.",
-        "Folder Google Drive untuk report, invoice dan resit akan saya sediakan.",
-        "",
-        "TELEGRAM DAILY REPORT (OPTIONAL)",
-        "Nak sambung daily report Telegram? Ya / Tidak",
-        "Nama penerima 1:",
-        "Nama penerima 2 (jika ada):",
-        "",
-        "Boleh reply terus dan isi selepas setiap ruangan. Terima kasih."
+        "Harga servis bulanan yang dipersetujui: RM"
       ].join("\\n");
     }
 
